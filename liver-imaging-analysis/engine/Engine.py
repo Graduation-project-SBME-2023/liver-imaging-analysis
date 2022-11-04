@@ -1,4 +1,4 @@
-import DataLoader as dp
+import dataloader as dp
 import torch
 from torch import nn
 
