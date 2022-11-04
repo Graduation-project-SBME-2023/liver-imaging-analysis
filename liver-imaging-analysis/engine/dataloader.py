@@ -142,8 +142,8 @@ class DataLoader():
         test_size = int(test_size * len(self.volume_names))
         train_size = len(self.volume_names)-test_size 
         
-        assert_greater = TestStringMethods()
-        assert_greater.test_greater(train_size,test_size)
+#         assert_greater = TestStringMethods()
+#         assert_greater.test_greater(train_size,test_size)
         
         self.train_volume_names, self.test_volume_names = torch.utils.data.random_split(self.volume_names, [train_size, test_size])
         self.train_mask_names, self.test_mask_names = torch.utils.data.random_split(self.mask_names, [train_size, test_size])
