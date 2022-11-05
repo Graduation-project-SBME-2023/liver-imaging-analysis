@@ -1,6 +1,7 @@
-import dataloader as dp
 import torch
 from torch import nn
+
+import dataloader
 
 
 class Engine (nn.Module):
@@ -47,7 +48,7 @@ class Engine (nn.Module):
         self.expand_flag= not transformation_flag
         self.train_dataloader=[]
         self.test_dataloader=[]
-        data_loader= dp.DataLoader(paths,dataset_name,batch_size,0,False,test_valid_split,transformation_flag,dp.KEYS,transformation)
+        data_loader= dataloader.DataLoader(paths,dataset_name,batch_size,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
         self.train_dataloader= data_loader.get_training_data()
         self.test_dataloader= data_loader.get_testing_data()
              
@@ -134,9 +135,9 @@ class Engine (nn.Module):
         
 
     def predict(self,volume_path):
-        dict_loader = dp.LoadImageD(keys=("image", "label"))
+        dict_loader = dataloader.LoadImageD(keys=("image", "label"))
         data_dict = dict_loader({"image": volume_path ,"label": volume_path})
-        preprocess = dp.preprocessing(("image", "label"), self.transformation)
+        preprocess = dataloader.Preprocessing(("image", "label"), self.transformation)
         data_dict_processed = preprocess(data_dict)
         volume=data_dict_processed["image"]
         volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
