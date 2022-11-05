@@ -1,3 +1,5 @@
 liver-imaging-analysis/engine/__pycache__/
 .DS_Store
 liver-imaging-analysis/engine/.vs/
+tests/__pycache__/
+liver-imaging-analysis/engine/.ipynb_checkpoints/
