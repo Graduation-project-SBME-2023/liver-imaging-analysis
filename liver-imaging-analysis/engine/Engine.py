@@ -17,7 +17,7 @@ class Engine (nn.Module):
         super(Engine,self).__init__()
 
 
-    def LoadData(self,Paths,dataset_name,transformation_flag,transformation,batchsize=1,test_valid_split=0):
+    def LoadData(self,dataset_path,transformation_flag,transformation,batchsize=1,test_valid_split=0):
         '''
         description: loads and saves the data to the data attribute
         
@@ -37,7 +37,7 @@ class Engine (nn.Module):
         self.expand_flag= not transformation_flag
         self.train_dataloader=[]
         self.test_dataloader=[]
-        DataLoader= dp.DataLoader(Paths,dataset_name,batchsize,0,False,test_valid_split,transformation_flag,dp.KEYS,transformation)
+        DataLoader= dp.DataLoader(dataset_path,batchsize,0,False,test_valid_split,transformation_flag,dp.KEYS,transformation)
         self.train_dataloader= DataLoader.get_training_data()
         self.test_dataloader= DataLoader.get_testing_data()
              
@@ -46,16 +46,14 @@ class Engine (nn.Module):
         '''
         DataStatus: Prints the shape and dtype of the first batch of the training set and testing set, if exists
         '''
-        print(type(self.train_dataloader))
-        first_train_batch=self.train_dataloader
-        first_test_batch=self.test_dataloader
-        
-        print(f"Batch Shape of Training Features: {first_train_batch[0]['image'].shape} {first_train_batch[0]['image'].dtype}")
-        print(f"Batch Shape of Training Labels: {first_train_batch[0]['label'].shape} {first_train_batch[0]['label'].dtype}")
-
-        print(f"Batch Shape of Testing Features: {first_test_batch[0]['image'].shape} {first_test_batch[0]['image'].dtype}")
-        print(f"Batch Shape of Testing Labels: {first_test_batch[0]['label'].shape} {first_test_batch[0]['label'].dtype}")
-            
+        for batch in self.train_dataloader:
+            print(f"Batch Shape of Training Features: {batch['image'].shape} {batch['image'].dtype}")
+            print(f"Batch Shape of Training Labels: {batch['label'].shape} {batch['label'].dtype}")
+            break
+        for batch in self.test_dataloader:
+            print(f"Batch Shape of Testing Features: {batch['image'].shape} {batch['image'].dtype}")
+            print(f"Batch Shape of Testing Labels: {batch['label'].shape} {batch['label'].dtype}")
+            break
 
 
         

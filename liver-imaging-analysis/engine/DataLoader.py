@@ -160,15 +160,15 @@ class CustomData(Dataset):
 
 
 class DataLoader():
-    def __init__(self, Paths,dataset_name, batch_size, num_workers=0, pin_memory=False , test_size=0.15, Transform = False,
+    def __init__(self, dataset_path, batch_size, num_workers=0, pin_memory=False , test_size=0.15, Transform = False,
                  Keys=("image", "label"),size=[500, 500, 30]):
         
         r"""__init__
             
             Parameters
             ----------
-            dataset_name: string
-                name of the dataset to be loaded eg "MSD" or "MED_seg"
+            dataset_path: string
+                path for the dataset 
                 
             batch_size: int
                 size of batches to be returned    
@@ -202,13 +202,13 @@ class DataLoader():
 
           """
         
-        print(Paths[dataset_name])
+        print(dataset_path)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         
-        self.volume_dir = os.path.join(Paths[dataset_name], "Path")
-        self.mask_dir = os.path.join(Paths[dataset_name], "Path2")
+        self.volume_dir = os.path.join(dataset_path, "Path")
+        self.mask_dir = os.path.join(dataset_path, "Path2")
        
         self.volumeNames = os.listdir(self.volume_dir)
         self.maskNames=os.listdir(self.mask_dir)
