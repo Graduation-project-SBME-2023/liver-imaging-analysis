@@ -9,7 +9,7 @@ class Engine (nn.Module):
         Class that implements the basic PyTorch methods for neural network
         Neural Networks should inherit from this class
         Methods:
-            LoadData: load and save the data to the data attribute
+            load_data: load and save the data to the data attribute
                 Args:   Paths: dictionary that includes dataset names and their respective directories
                                directories should include two folders: "Path1" and "Path2" containing features and labels, respectively.
                         dataset_name: string of the dataset name to be loaded from Paths
@@ -186,7 +186,7 @@ class Engine (nn.Module):
         self.test(self.test_dataloader)
         
 
-    def predict(self,XPath):
+    def predict(self,volume_path):
         '''
         description: predict the label of the given input using the current weights
 
@@ -195,7 +195,7 @@ class Engine (nn.Module):
         returns: tensor of the predicted label
         '''
         dict_loader = dataloader.LoadImageD(keys=("image", "label"))
-        data_dict = dict_loader({"image": XPath ,"label": XPath})
+        data_dict = dict_loader({"image": volume_path ,"label": volume_path})
         preprocess = dataloader.Preprocessing(("image", "label"), self.transformation)
         data_dict_processed = preprocess(data_dict)
         volume=data_dict_processed["image"]
