@@ -13,9 +13,9 @@ import monai
 
 
 roi_size=[500, 500, 30]
-KEYS=("image", "label")
+keys=("image", "label")
 
-class preprocessing():
+class Preprocessing():
     def __init__(self, KEYS=("image", "label"), size=[500, 500, 30]):
         r"""A Class that preprocesses data
             __init__
@@ -107,7 +107,7 @@ class CustomData(Dataset):
 
         #transforms from monai transform lib 
         self.transform = transform
-        self.preprocess = preprocessing(KEYS, roi_size)
+        self.preprocess = Preprocessing(KEYS, roi_size)
         
         
             
