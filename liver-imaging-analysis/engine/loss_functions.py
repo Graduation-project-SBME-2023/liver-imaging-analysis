@@ -2,34 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def loss_function(name):
-    '''takes: name(string)
-
-    returns: object from a loss function class depending on the name given
-
-    Description: it works as a switch case, where the user parse the name of the wanted loss function , then the function returns an
-    object from its class
-    
-    '''
-
-    if name=="DiceLoss":
-        return DiceLoss()
-    elif name=="DiceBCELoss":
-        return DiceBCELoss()
-    elif name=="IoULoss":
-        return IoULoss()
-
-    elif name=="FocalLoss":
-        return FocalLoss()
-
-    elif name=="FocalTverskyLoss":
-        return FocalTverskyLoss()
-
-    elif name=="ComboLoss":
-        return ComboLoss()
-
-    elif name=="TverskyLoss":
-        return TverskyLoss()  
 
 class DiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
@@ -38,7 +10,7 @@ class DiceLoss(nn.Module):
     def forward(self, inputs, targets, smooth=1):
         
         #comment out if your model contains a sigmoid or equivalent activation layer
-        inputs = F.sigmoid(inputs)       
+        # inputs = F.sigmoid(inputs)       
         
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
@@ -48,6 +20,11 @@ class DiceLoss(nn.Module):
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
         
         return 1 - dice
+    def printDebug(self):
+        print('hello')
+
+
+
 
 class DiceBCELoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
@@ -191,4 +168,19 @@ class FocalTverskyLoss(nn.Module):
         FocalTversky = (1 - Tversky)**gamma
                        
         return FocalTversky        
+
+
+
+
+
+loss_functions={'DiceLoss': DiceLoss(),'IoULoss':IoULoss(),'FocalLoss':FocalLoss(),'TverskyLoss':TverskyLoss(), 
+                'FocalTverskyLoss':FocalTverskyLoss(),'ComboLoss':ComboLoss()}
+
+
+
+
+class LossFunctions:
+    def choose(loss_function_name):
+        return loss_functions[loss_function_name]
+
 
