@@ -35,13 +35,13 @@ class Preprocessing():
         self.transform = Compose([
             EnsureChannelFirstD(KEYS),
 #             AddChannelD("label"), #assumes label is not rgb - will need to manually implement a class for multiple segments
-            OrientationD(KEYS, axcodes='LAS'), #preferred by radiologists
-            SpacingD(KEYS, pixdim=(1., 1., 1.), mode=('bilinear', 'nearest')),
+            #OrientationD(KEYS, axcodes='LAS'), #preferred by radiologists
+            #SpacingD(KEYS, pixdim=(1., 1., 1.), mode=('bilinear', 'nearest')),
             ResizeD(KEYS, size , mode=('trilinear', 'nearest')),
-            RandFlipd(KEYS, prob=0.5, spatial_axis=1),
-            RandRotated(KEYS, range_x=0.1, range_y=0.1, range_z=0.1, prob=0.5, keep_size=True),
-            RandScaleIntensityd(keys="image", factors=0.1, prob=0.5),
-            RandShiftIntensityd(keys="image", offsets=0.1, prob=0.5),
+            #RandFlipd(KEYS, prob=0.5, spatial_axis=1),
+            #RandRotated(KEYS, range_x=0.1, range_y=0.1, range_z=0.1, prob=0.5, keep_size=True),
+            #RandScaleIntensityd(keys="image", factors=0.1, prob=0.5),
+            #RandShiftIntensityd(keys="image", offsets=0.1, prob=0.5),
             NormalizeIntensityD(KEYS, channel_wise=True), #normalize intensity to have mean = 0 and std = 1.
             ToTensorD(KEYS),
         ])
@@ -202,7 +202,6 @@ class DataLoader():
 
           """
         
-        print(dataset_path)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory

@@ -2,9 +2,11 @@
     "dataset" :
         {
         "Mn3n3" : "/Users/mn3n3/Downloads/dataset",
-        "Barbary" : "C:/dataset"
+        "Barbary" : "C:/dataset",
+        "Test" : "engine/TestDataset"
         },
-    "epochs" : 2,
+    "transformation_size": [16,32,32],
+    "epochs" : 1,
     "batch_size": 1,
     "optimizer":
         {
