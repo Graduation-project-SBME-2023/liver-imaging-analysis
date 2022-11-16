@@ -76,5 +76,39 @@ def animate(volume,outputName):
 
 
 
+
+def gray_to_colored_from_array (Volume,Mask,alpha=0.2):
+    def normalize(arr):
+        return (255*(arr - np.min(arr)) / (np.max(arr) - np.min(arr)))
+
+    Masklabel=[]
+    masksNo=np.unique(Mask)[1:]
+    dest=np.stack((normalize(Volume).astype(np.uint8),)*3,axis=-1) # stacked array of volume
+
+    if masksNo.shape[0]<7:  # a loop to generate an array of unique rgb colors to be used for each label 
+        numbers=[0,1]
+    else:
+        numbers=[0,0.5,1]
+    colors=[]
+    for i in numbers:
+        for j in numbers:
+            for k in numbers:
+                if(i==j==k):
+                    continue
+                colors.append([i,j,k])
+                
+    colors= np.asarray((colors))
+    for i,label in enumerate(masksNo):     # a loop to iterate over each label in the mask and perform weighted add for each
+                                            # label with a unique color for each one
+        Masklabel.append(Mask==label)
+        Masklabel[i]=np.stack((Masklabel[i],)*3,axis=-1)
+        Masklabel[i]=np.multiply((Masklabel[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
+        dest = cv.addWeighted(dest, 1, Masklabel[i],alpha, 0.0)
+    return dest              # return an array of the volume with the mask overlayed on it with different label colors
+
+
+
+
+
 # volume=grayToColored('C:/dataset/Path/liver-orig002.nii','C:/dataset/Path2/liver-seg002.nii')
 # animate(volume,'Vol_Mask_Overlay.gif')

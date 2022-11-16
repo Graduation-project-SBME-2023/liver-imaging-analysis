@@ -8,7 +8,7 @@ from monai.transforms import \
     AsDiscreteD, SpacingD, OrientationD, ResizeD, RandSpatialCropd, Spacingd,RandFlipd, RandScaleIntensityd,RandShiftIntensityd, \
     RandSpatialCropd, RandRotated
 import monai
-
+import matplotlib.pyplot as plt
 
 
 
@@ -42,7 +42,7 @@ class Preprocessing():
             #RandRotated(KEYS, range_x=0.1, range_y=0.1, range_z=0.1, prob=0.5, keep_size=True),
             #RandScaleIntensityd(keys="image", factors=0.1, prob=0.5),
             #RandShiftIntensityd(keys="image", offsets=0.1, prob=0.5),
-            NormalizeIntensityD(KEYS, channel_wise=True), #normalize intensity to have mean = 0 and std = 1.
+            # NormalizeIntensityD(KEYS, channel_wise=True), #normalize intensity to have mean = 0 and std = 1.
             ToTensorD(KEYS),
         ])
     def __call__(self,data_dict):
@@ -59,7 +59,28 @@ class Preprocessing():
                 the dictionary containing data after applying transformations.
            
           """
+        # print(data_dict["image"][:,:,10].shape)
+        # print(data_dict["image"][:,:,10].dtype)
+        # print(torch.max(data_dict["image"][:,:,10]))
+        # print(torch.min(data_dict["image"][:,:,10]))
+        # print(torch.unique(data_dict["image"][:,:,10]))
+        # plt.imshow(data_dict["image"][:,:,10])
+        # plt.show()
+        # plt.show()
         data_dict = self.transform(data_dict)
+        # threshold= (torch.max(data_dict["label"])+torch.min(data_dict["label"]))/2
+        # data_dict["label"][data_dict["label"] < threshold]=0
+        # data_dict["label"][data_dict["label"] >= threshold]=1
+        # plt.imshow(data_dict["label"][0,0,:,:,10])
+        # plt.show()
+        # print("DONE")
+        # print(data_dict["image"][0,:,:,10].shape)
+        # print(data_dict["image"][0,:,:,10].dtype)
+        # print(torch.max(data_dict["image"][0,:,:,10]))
+        # print(torch.min(data_dict["image"][0,:,:,10]))
+        # print(torch.unique(data_dict["image"][0,:,:,10]))
+        # plt.imshow(data_dict["image"][0,:,:,10])
+        # plt.show()
         return data_dict
 
 
