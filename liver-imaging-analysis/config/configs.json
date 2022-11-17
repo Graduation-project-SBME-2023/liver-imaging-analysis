@@ -5,8 +5,8 @@
         "Barbary" : "C:/dataset",
         "Test" : "engine/TestDataset"
         },
-    "transformation_size": [32,32,8],
-    "epochs" : 20,
+    "transformation_size": [64,64,64],
+    "epochs" : 1,
     "batch_size": 1,
     "optimizer":
         {
@@ -14,7 +14,8 @@
         "learning_rate": 0.001
         },
     "loss_function":"DiceLoss",
-    "PredictPath":"C:/dataset/Predict"
+    "PredictPath":"C:/dataset/Predict",
+    "checkpoint": "model_checkpoint.pth.tar"
 }
 
 

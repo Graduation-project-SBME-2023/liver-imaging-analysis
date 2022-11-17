@@ -56,7 +56,7 @@ def grayToColored (VolumePath,MaskPath,alpha=0.2):
         Masklabel.append(Mask==label)
         Masklabel[i]=np.stack((Masklabel[i],)*3,axis=-1)
         Masklabel[i]=np.multiply((Masklabel[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
-        dest = cv.addWeighted(dest, 1, Masklabel[i],alpha, 0.0)
+        dest = cv.addWeighted(dest, alpha, Masklabel[i],alpha, 0.0)
     return dest              # return an array of the volume with the mask overlayed on it with different label colors
 
 
@@ -103,7 +103,7 @@ def gray_to_colored_from_array (Volume,Mask,alpha=0.2):
         Masklabel.append(Mask==label)
         Masklabel[i]=np.stack((Masklabel[i],)*3,axis=-1)
         Masklabel[i]=np.multiply((Masklabel[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
-        dest = cv.addWeighted(dest, 1, Masklabel[i],alpha, 0.0)
+        dest = cv.addWeighted(dest, alpha, Masklabel[i],alpha, 0.0)
     return dest              # return an array of the volume with the mask overlayed on it with different label colors
 
 

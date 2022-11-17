@@ -4,6 +4,7 @@ import numpy as np
 import dataloader
 import matplotlib.pyplot as plt
 import utils
+import nibabel as nib
 class Engine (nn.Module):
     """"
         Class that implements the basic PyTorch methods for neural network
@@ -139,19 +140,13 @@ class Engine (nn.Module):
                     print(f"loss: {loss.item():>7f}        [{current:>5d}/{size:>5d}]")
                 if 'dice_score' in self.metrics:
                     print(f"Dice Score: {(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]")
-                # if 'accuracy' in self.Metrics:
-                #     self.eval()
-                #     with torch.no_grad():
-                #             pred = self(X)
-                #     correct = int((pred.round()==y).sum())
-                #     correct /= math.prod(pred.shape)
-                #     print(f"Accuracy: {(100*correct):>0.1f}%       [{current:>5d}/{size:>5d}]")
+          
 
     def fit2d(self,epochs=1):
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
             epoch_loss=0
-            self.train()  # from pytorch
+            self.train()  
             for batch_num, batch in enumerate(self.train_dataloader):
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
                 if (self.expand_flag):
@@ -160,25 +155,21 @@ class Engine (nn.Module):
                 pred3d=[]
                 for i in range (volume.shape[4]):
                     pred2d = self(volume[:,:,:,:,i])
-                    pred3d.append(pred2d.detach())#[0][0])
+                    pred3d.append(pred2d.detach())
                     loss2d = self.loss(pred2d, mask[:,:,:,:,i])
                     # Backpropagation
                     self.optimizer.zero_grad()
                     loss2d.backward()
                     self.optimizer.step()
-                    print(f"Slice: {i}/{volume.shape[4]}")
+                print(f"batch: {batch_num+1}/{len(self.train_dataloader)}")
                 pred3d = torch.stack(pred3d)
                 pred3d=torch.moveaxis(pred3d,0,4)     
-                # pred3d=pred3d.reshape(mask.shape)
                 epoch_loss+=self.loss_3d(pred3d,mask)
-            epoch_loss/=epochs
+            epoch_loss/=len(self.train_dataloader)
             print(f"3D Loss: {epoch_loss}")
 
 
     def loss_3d(self,pred,mask):
-        # pred=pred.detach()
-        # plt.imshow(mask[0,0,:,:,4])
-        # plt.show()
         self.eval()
         with torch.no_grad():
             total_loss=self.loss(pred, mask).item()
@@ -191,7 +182,7 @@ class Engine (nn.Module):
         self.eval()
         with torch.no_grad():
             total_loss=0
-            for batch in dataloader:
+            for batch_num,batch in enumerate(dataloader):
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
                 if (self.expand_flag):
                     volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
@@ -200,7 +191,7 @@ class Engine (nn.Module):
                 for i in range (volume.shape[4]):
                     pred2d = self(volume[:,:,:,:,i])
                     pred3d.append(pred2d.detach())#[0][0])
-                    print(f"Slice: {i}/{volume.shape[4]}")
+                print(f"batch: {batch_num+1}/{len(dataloader)}")
                 pred3d = torch.stack(pred3d)
                 pred3d=torch.moveaxis(pred3d,0,4)     
                 total_loss+=self.loss_3d(pred3d,mask)
@@ -212,7 +203,7 @@ class Engine (nn.Module):
         DataLoader= dataloader.DataLoader(batch_path,1,0,False,0,self.transformation_flag,dataloader.keys,self.transformation)
         predict_data= DataLoader.get_training_data()
         predict_list=[]
-        for predict_dict in predict_data:
+        for batch_num,predict_dict in enumerate(predict_data):
             predict_batch,useless_var=predict_dict['image'].to(self.device),predict_dict['label'].to(self.device)
             self.eval()
             with torch.no_grad():
@@ -221,44 +212,28 @@ class Engine (nn.Module):
                 for i in range (predict_batch.shape[4]):
                     pred2d = self(predict_batch[:,:,:,:,i])
                     pred3d.append(pred2d.detach())#[0][0])
-                    print(f"Slice: {i}/{predict_batch.shape[4]}")
+                print(f"batch: {batch_num+1}/{len(predict_data)}")
                 pred3d = torch.stack(pred3d)
                 pred3d=torch.moveaxis(pred3d,0,4)     
-
-                plt.imshow(pred3d[0][0][:,:,4].detach())
-                plt.show()
                 pred3d = torch.sigmoid(pred3d)
                 pred3d = (pred3d > 0.5).float()
-                plt.imshow(pred3d[0,0,:,:,4])
-                plt.show()
             predict_list.append(pred3d)
-            dest=utils.gray_to_colored_from_array (useless_var[0][0],pred3d[0][0],alpha=0.1)
-            utils.animate(dest,'Mask_Pred_Overlay4.gif')
         predict_list=torch.stack(predict_list)
+        ni_img = nib.Nifti1Image(np.asarray(useless_var[0][0]), affine=np.eye(4))
+        nib.save(ni_img, "true_label.nii")        
+        # dest=utils.gray_to_colored_from_array (useless_var[0][0],pred3d[0][0],alpha=0.1)
+        # utils.animate(dest,'Mask_Pred_Overlay4.gif')
         return predict_list
 
 
-    # def test2d(self, dataloader):
-    #     # self.eval()
-    #     # test_loss = 0
-    #     # with torch.no_grad():
-    #     for batch in dataloader:
-    #         volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
-    #         threshold= (torch.max(mask)+torch.min(mask))/2
-    #         mask[mask < threshold]=0
-    #         mask[mask >= threshold]=1
-    #         if (self.expand_flag):
-    #             volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
-    #             mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
-    #         pred3d=[]
-    #         for i in range (volume.shape[4]):
-    #             pred2d = self(volume[:,:,:,:,i])
-    #             pred3d.append(pred2d)
-    #             print(f"Current Slice: {i}/{(volume.shape[4])}")
-    #         pred3d=torch.cat(pred3d)
-    #         pred3d=torch.reshape(pred3d,mask.shape)
-    #         print(f"3D Loss: {self.loss_3d(pred3d,mask)}")
+    def save_checkpoint(self, filename="checkpoint.pth.tar"):
+        print("=> Saving checkpoint")
+        torch.save(self.state_dict(), filename)
 
+    def load_checkpoint(self,path):
+        print("=> Loading checkpoint")
+        self.load_state_dict(torch.load(path))
+        self.eval()
 
     def evaluate_train2d(self):
         '''
