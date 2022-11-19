@@ -170,6 +170,7 @@ class Engine (nn.Module):
 
     
     def fit2d(self,epochs=1):
+        self.train()
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
             epoch_loss=0
@@ -179,26 +180,36 @@ class Engine (nn.Module):
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
                 volume=volume.permute(3, 0, 1, 2)
                 mask=mask.permute(3, 0, 1, 2)
-                plt.imshow(volume[16][0])
-                plt.show()
-                plt.imshow(mask[16][0])
-                plt.show()
                 pred2d = self(volume)
-                pred2dnew=torch.sigmoid(pred2d.detach())
-                pred2dnew=pred2dnew>0.5
-                plt.imshow(pred2dnew[16][0])
-                plt.show()
-                print(pred2d.shape,mask.shape)
-                loss2d = self.loss(pred2d, mask)
-                print(loss2d.detach())
+                loss = self.loss(pred2d, mask)
                 # Backpropagation
                 self.optimizer.zero_grad()
-                loss2d.backward()
+                loss.backward()
                 self.optimizer.step()
-                # print(f"batch: {batch_num+1}/{len(self.train_dataloader)}")
-                # pred3d = torch.stack(pred3d)
-                # pred3d=torch.moveaxis(pred3d,0,4)     
-                epoch_loss+=loss2d.item()
+                epoch_loss+=loss.item()
+
+            #every 5 epochs plot prediction    
+            if ((t+1)%5) == 0:
+                for batch_num, batch in enumerate(self.train_dataloader):
+                    volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
+                    volume=volume.permute(3, 0, 1, 2)
+                    mask=mask.permute(3, 0, 1, 2)
+                    plt.subplot(1, 3, 1)
+                    plt.imshow(volume[16][0])
+                    plt.title("Volume")
+                    plt.subplot(1, 3, 2)
+                    plt.imshow(mask[16][0])
+                    plt.title("True Mask")
+                    pred2d = self(volume)
+                    pred2dnew=torch.sigmoid(pred2d.detach())
+                    pred2dnew=(pred2dnew>0.5).float()
+                    plt.subplot(1, 3, 3)
+                    plt.imshow(pred2dnew[16][0])
+                    plt.title("Predicted Mask")
+                    plt.show()
+                    if batch_num>5: #plot only 5 pictures
+                        break
+
             epoch_loss/=len(self.train_dataloader)
             print(f"3D Loss: {epoch_loss}")
 
@@ -214,10 +225,11 @@ class Engine (nn.Module):
 
 
     def test2d(self,dataloader):
-        self.eval()
+        self.train()
         with torch.no_grad():
             total_loss=0
             for batch_num,batch in enumerate(dataloader):
+                self.train()
                 print(f"Batch: {batch_num+1}/{len(dataloader)}")
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
                 volume=volume.permute(3, 0, 1, 2)
@@ -230,31 +242,25 @@ class Engine (nn.Module):
 
 
     def pred2d(self,batch_path):
+        self.train()
         DataLoader= dataloader.DataLoader(batch_path,1,0,False,0,self.transformation_flag,dataloader.keys,self.transformation)
         predict_data= DataLoader.get_training_data()
-        predict_list=[]
+        pred_list=[]
+        mask_list=[]
+        vol_list=[]
         for batch_num,predict_dict in enumerate(predict_data):
-            predict_batch,useless_var=predict_dict['image'].to(self.device),predict_dict['label'].to(self.device)
-            self.eval()
+            print(f"batch: {batch_num+1}/{len(predict_data)}")
+            predict_volume,useless_var=predict_dict['image'].to(self.device),predict_dict['label'].to(self.device)
+            predict_volume=predict_volume.permute(3, 0, 1, 2)
+            self.train()
             with torch.no_grad():
-
-                pred3d=[]
-                for i in range (predict_batch.shape[4]):
-                    pred2d = self(predict_batch[:,:,:,:,i])
-                    pred3d.append(pred2d.detach())#[0][0])
-                print(f"batch: {batch_num+1}/{len(predict_data)}")
-                pred3d = torch.stack(pred3d)
-                pred3d=torch.moveaxis(pred3d,0,4)     
-                pred3d = torch.sigmoid(pred3d)
-                pred3d = (pred3d > 0.5).float()
-            predict_list.append(pred3d)
-        predict_list=torch.stack(predict_list)
-        ni_img = nib.Nifti1Image(np.asarray(useless_var[0][0]), affine=np.eye(4))
-        nib.save(ni_img, "true_label.nii")        
-        # dest=utils.gray_to_colored_from_array (useless_var[0][0],pred3d[0][0],alpha=0.1)
-        # utils.animate(dest,'Mask_Pred_Overlay4.gif')
-        return predict_list
-
+                pred = self(predict_volume)
+                pred = torch.sigmoid(pred)
+                pred = (pred > 0.5).float().permute(1, 2, 3, 0)
+                pred_list.append(pred)
+                mask_list.append(useless_var)#useless_var is either vol or mask after processing
+                vol_list.append(predict_volume.permute(1, 2, 3, 0))
+        return torch.stack(pred_list),torch.stack(mask_list),torch.stack(vol_list)
 
     def save_checkpoint(self, filename="checkpoint.pth.tar"):
         print("=> Saving checkpoint")

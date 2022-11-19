@@ -14,14 +14,31 @@ class DiceLoss(nn.Module):
         inputs = torch.sigmoid(inputs)       
         
         #flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        inputs = inputs.reshape(-1)
+        targets = targets.reshape(-1)
         
         intersection = (inputs * targets).sum()                            
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
         
         return 1 - dice
 
+
+class DiceLossNew(nn.Module):
+    def init(self, epsilon=1e-5):
+        super(DiceLoss, self).init()
+        # smooth factor
+        self.epsilon = epsilon
+
+    def forward(self, targets, logits):
+        self.epsilon=1e-5
+        batch_size = targets.size(0)
+        # log_prob = torch.sigmoid(logits)
+        logits = logits.view(batch_size, -1).type(torch.FloatTensor)
+        targets = targets.view(batch_size, -1).type(torch.FloatTensor)
+        intersection = (logits * targets).sum(-1)
+        dice_score = 2. * intersection / ((logits + targets).sum(-1) + self.epsilon)
+        # dice_score = 1 - dice_score.sum() / batch_size
+        return torch.mean(1. - dice_score)
 
 
 
