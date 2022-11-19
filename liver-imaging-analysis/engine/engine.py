@@ -44,7 +44,7 @@ class Engine (nn.Module):
         super(Engine,self).__init__()
 
 
-    def load_data(self,dataset_path,transformation_flag,transformation,batchsize=1,test_valid_split=0):
+    def load_data(self,dataset_path,transformation_flag,transformation,batchsize=1,test_size=0):
         '''
         description: loads and saves the data to the data attribute
         
@@ -65,9 +65,9 @@ class Engine (nn.Module):
         self.expand_flag= not transformation_flag
         self.train_dataloader=[]
         self.test_dataloader=[]
-        DataLoader= dataloader.DataLoader(dataset_path,batchsize,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
+        DataLoader= dataloader.DataLoader(dataset_path,batchsize,0,False,test_size,transformation_flag,dataloader.keys,transformation)
         self.train_dataloader= DataLoader.get_training_data()
-        self.test_dataloader= DataLoader.get_testing_data()
+        # self.test_dataloader= DataLoader.get_testing_data()
              
 
     def data_status(self):
@@ -142,40 +142,75 @@ class Engine (nn.Module):
                     print(f"Dice Score: {(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]")
           
 
+    # def fit2d(self,epochs=1):
+    #     for t in range(epochs):
+    #         print(f"Epoch {t+1}\n-------------------------------")
+    #         epoch_loss=0
+    #         self.train()  
+    #         for batch_num, batch in enumerate(self.train_dataloader):
+    #             volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
+    #             if (self.expand_flag):
+    #                 volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
+    #                 mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
+    #             pred3d=[]
+    #             for i in range (volume.shape[4]):
+    #                 pred2d = self(volume[:,:,:,:,i])
+    #                 pred3d.append(pred2d.detach())
+    #                 loss2d = self.loss(pred2d, mask[:,:,:,:,i])
+    #                 # Backpropagation
+    #                 self.optimizer.zero_grad()
+    #                 loss2d.backward()
+    #                 self.optimizer.step()
+    #             print(f"batch: {batch_num+1}/{len(self.train_dataloader)}")
+    #             pred3d = torch.stack(pred3d)
+    #             pred3d=torch.moveaxis(pred3d,0,4)     
+    #             epoch_loss+=self.loss_3d(pred3d,mask)
+    #         epoch_loss/=len(self.train_dataloader)
+    #         print(f"3D Loss: {epoch_loss}")
+
+    
     def fit2d(self,epochs=1):
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
             epoch_loss=0
             self.train()  
             for batch_num, batch in enumerate(self.train_dataloader):
+                print(f"Batch: {batch_num+1}/{len(self.train_dataloader)}")
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
-                if (self.expand_flag):
-                    volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
-                    mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
-                pred3d=[]
-                for i in range (volume.shape[4]):
-                    pred2d = self(volume[:,:,:,:,i])
-                    pred3d.append(pred2d.detach())
-                    loss2d = self.loss(pred2d, mask[:,:,:,:,i])
-                    # Backpropagation
-                    self.optimizer.zero_grad()
-                    loss2d.backward()
-                    self.optimizer.step()
-                print(f"batch: {batch_num+1}/{len(self.train_dataloader)}")
-                pred3d = torch.stack(pred3d)
-                pred3d=torch.moveaxis(pred3d,0,4)     
-                epoch_loss+=self.loss_3d(pred3d,mask)
+                volume=volume.permute(3, 0, 1, 2)
+                mask=mask.permute(3, 0, 1, 2)
+                plt.imshow(volume[16][0])
+                plt.show()
+                plt.imshow(mask[16][0])
+                plt.show()
+                pred2d = self(volume)
+                pred2dnew=torch.sigmoid(pred2d.detach())
+                pred2dnew=pred2dnew>0.5
+                plt.imshow(pred2dnew[16][0])
+                plt.show()
+                print(pred2d.shape,mask.shape)
+                loss2d = self.loss(pred2d, mask)
+                print(loss2d.detach())
+                # Backpropagation
+                self.optimizer.zero_grad()
+                loss2d.backward()
+                self.optimizer.step()
+                # print(f"batch: {batch_num+1}/{len(self.train_dataloader)}")
+                # pred3d = torch.stack(pred3d)
+                # pred3d=torch.moveaxis(pred3d,0,4)     
+                epoch_loss+=loss2d.item()
             epoch_loss/=len(self.train_dataloader)
             print(f"3D Loss: {epoch_loss}")
 
 
-    def loss_3d(self,pred,mask):
-        self.eval()
-        with torch.no_grad():
-            total_loss=self.loss(pred, mask).item()
-        return total_loss
 
 
+
+    # def loss_3d(self,pred,mask):
+    #     self.eval()
+    #     with torch.no_grad():
+    #         total_loss=self.loss(pred, mask).item()
+    #     return total_loss
 
 
     def test2d(self,dataloader):
@@ -183,18 +218,13 @@ class Engine (nn.Module):
         with torch.no_grad():
             total_loss=0
             for batch_num,batch in enumerate(dataloader):
+                print(f"Batch: {batch_num+1}/{len(dataloader)}")
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
-                if (self.expand_flag):
-                    volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
-                    mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
-                pred3d=[]
-                for i in range (volume.shape[4]):
-                    pred2d = self(volume[:,:,:,:,i])
-                    pred3d.append(pred2d.detach())#[0][0])
-                print(f"batch: {batch_num+1}/{len(dataloader)}")
-                pred3d = torch.stack(pred3d)
-                pred3d=torch.moveaxis(pred3d,0,4)     
-                total_loss+=self.loss_3d(pred3d,mask)
+                volume=volume.permute(3, 0, 1, 2)
+                mask=mask.permute(3, 0, 1, 2)
+                pred = self(volume)
+                loss = self.loss(pred, mask)
+                total_loss+=loss
             total_loss/=len(dataloader)
             print(f"Total Loss: {total_loss}")
 

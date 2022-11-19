@@ -1,13 +1,32 @@
+import os
+from glob import glob
 import torch
-from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-import os 
-from monai.transforms import LoadImageD
-from monai.transforms import \
-    LoadImageD, EnsureChannelFirstD, AddChannelD, ScaleIntensityD, ToTensorD, Compose,NormalizeIntensityD, \
-    AsDiscreteD, SpacingD, OrientationD, ResizeD, RandSpatialCropd, Spacingd,RandFlipd, RandScaleIntensityd,RandShiftIntensityd, \
-    RandSpatialCropd, RandRotated
+from monai.data.utils import decollate_batch, pad_list_data_collate
+from monai.transforms import (
+LoadImageD,
+EnsureChannelFirstD,
+AddChannelD,
+ScaleIntensityD,
+ToTensorD,
+Compose,
+NormalizeIntensityD,
+AsDiscreteD,
+SpacingD,
+OrientationD,
+ResizeD,
+RandSpatialCropd,
+Spacingd,
+RandFlipd,
+RandScaleIntensityd,
+RandShiftIntensityd,
+RandRotated,
+SqueezeDimd,
+CenterSpatialCropD,
+)
 import monai
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -15,266 +34,213 @@ import matplotlib.pyplot as plt
 roi_size=[500, 500, 30]
 keys=("image", "label")
 
+
 class Preprocessing():
-    def __init__(self, KEYS=("image", "label"), size=[500, 500, 30]):
-        r"""A Class that preprocesses data
-            __init__
-            
+    def __init__(self, keys, size):
+        """Makes an instance of the preprocessing transforms.
+
             Parameters
             ----------
-            KEYS : Dictionary labels for image and mask
+            keys: keys, optional
+                 keys of the corresponding items to be loaded containing two strings
+                 the first refers to the key for image and the second refers to the key for label.
+            size: array_like
+                Array of the wanted volume size
+        """
 
-            size : 3d array of the wanted volume size 
-                The type above can either refer to an actual Python type
-
-            Returns
-            -------
-            No returns
-
-          """
         self.transform = Compose([
-            EnsureChannelFirstD(KEYS),
-#             AddChannelD("label"), #assumes label is not rgb - will need to manually implement a class for multiple segments
-            #OrientationD(KEYS, axcodes='LAS'), #preferred by radiologists
-            #SpacingD(KEYS, pixdim=(1., 1., 1.), mode=('bilinear', 'nearest')),
-            ResizeD(KEYS, size , mode=('trilinear', 'nearest')),
-            #RandFlipd(KEYS, prob=0.5, spatial_axis=1),
-            #RandRotated(KEYS, range_x=0.1, range_y=0.1, range_z=0.1, prob=0.5, keep_size=True),
+            EnsureChannelFirstD(keys),
+            # AddChannelD(keys),
+            #assumes label is not rgb
+            #will need to manually implement a class for multiple segments
+            #OrientationD(keys, axcodes='LAS'), #preferred by radiologists
+            #SpacingD(keys, pixdim=(1., 1., 1.), mode=('bilinear', 'nearest')),
+            # CenterSpatialCropD(keys,size),
+            ResizeD(keys, size , mode=('trilinear', 'nearest')),
+            #RandFlipd(keys, prob=0.5, spatial_axis=1),
+            #RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1, prob=0.5, keep_size=True),
             #RandScaleIntensityd(keys="image", factors=0.1, prob=0.5),
             #RandShiftIntensityd(keys="image", offsets=0.1, prob=0.5),
-            # NormalizeIntensityD(KEYS, channel_wise=True), #normalize intensity to have mean = 0 and std = 1.
-            ToTensorD(KEYS),
+            NormalizeIntensityD(keys=keys[0], channel_wise=True),
+            # ForegroundMaskD(keys[1],threshold=0.5,invert=True),
+            #normalize intensity to have mean = 0 and std = 1.
+            SqueezeDimd(keys),
+            ToTensorD(keys),
         ])
     def __call__(self,data_dict):
-        r"""__call__
-        
+        """Applies transforms to the loaded data in the dictionary.
+
             Parameters
             ----------
-            data_dict : Dictionary of paths for images and masks
+            data_dict: dict
+                     Dictionary of images and masks.
 
             Returns
             -------
-            
-            data_dict : Dictionary
-                the dictionary containing data after applying transformations.
-           
-          """
-        # print(data_dict["image"][:,:,10].shape)
-        # print(data_dict["image"][:,:,10].dtype)
-        # print(torch.max(data_dict["image"][:,:,10]))
-        # print(torch.min(data_dict["image"][:,:,10]))
-        # print(torch.unique(data_dict["image"][:,:,10]))
-        # plt.imshow(data_dict["image"][:,:,10])
-        # plt.show()
-        # plt.show()
+            dict
+                Dictionary containing data after applying transformations.
+        """
+
         data_dict = self.transform(data_dict)
-        # threshold= (torch.max(data_dict["label"])+torch.min(data_dict["label"]))/2
-        # data_dict["label"][data_dict["label"] < threshold]=0
-        # data_dict["label"][data_dict["label"] >= threshold]=1
-        # plt.imshow(data_dict["label"][0,0,:,:,10])
-        # plt.show()
-        # print("DONE")
-        # print(data_dict["image"][0,:,:,10].shape)
-        # print(data_dict["image"][0,:,:,10].dtype)
-        # print(torch.max(data_dict["image"][0,:,:,10]))
-        # print(torch.min(data_dict["image"][0,:,:,10]))
-        # print(torch.unique(data_dict["image"][0,:,:,10]))
-        # plt.imshow(data_dict["image"][0,:,:,10])
-        # plt.show()
         return data_dict
 
 
 
+
 class CustomData(Dataset):
-    def __init__(self, volume_dir, mask_dir, volumeNames, maskNames, KEYS=("image", "label") ,roi_size=[500, 500, 30], 
-                 transform = False):
-       
-        r"""__init__
-            
+    def __init__(self, volume_path, mask_path, keys, size, transform):
+        """Initializes and saves all the parameters required for creating transforms and datasets
+
             Parameters
             ----------
-            volume_dir : string
-                directory for all the volumes.
-
-            volumeNames : Arr 
-                Array of names inside the volume directory.
-            
-            mask_dir : string
-                directory for all the masks
-
-            maskNames : string 
-                Array of names inside the mask directorymask.
-            
-            KEYS : Dictionary labels for image and mask.
-
-            roi_size : 3d array of the wanted volume size 
-                The type above can either refer to an actual Python type.
-                
-            transform: boolean
-                 Set true if you want to preprocess the data.
-                 
-            Returns
-            -------
-            No returns
-            
+            volume_path: array_like(str)
+                 Array containing paths of the volumes.
+            mask_path: array_like(str)
+                 Array containing paths of the masks.
+            keys: keys, optional
+                 keys of the corresponding items to be loaded containing two strings
+                 the first refers to the key for image and the second refers to the key for label.
+            size: array_like
+                Array of the wanted volume size
+            transform: bool
+                True if data needs preprocessing, False otherwise.
         """
- 
-        
-        self.volume_dir = volume_dir
-        self.mask_dir = mask_dir
-        self.volumeNames = volumeNames
-        self.maskNames=maskNames
-        self.keys = KEYS
+        self.volume_path = volume_path
+        # self.volume_path = self.volume_path.sort()
 
-        #transforms from monai transform lib 
+        self.mask_path = mask_path
+        self.keys = keys
         self.transform = transform
-        self.preprocess = Preprocessing(KEYS, roi_size)
-        
-        
-            
+        self.preprocess = Preprocessing(keys, size)
 
     def __len__(self):
-        r"""__len__
-        
-            Parameters
-            ----------
-            no params 
-            
+        """Calculates the length of the dataset
+
             Returns
             -------
-            
-            data length : int
-                Length of the whole dataset
-           
-          """
-        return len(self.volumeNames)
+            int
+                Length of the whole dataset.
+        """
+        return len(self.volume_path)
 
     def __getitem__(self, index):
-        
-        r"""__getitem__
-        
+        """Gets the item with the given index from the dataset.
+
             Parameters
             ----------
-            index : int 
+            index : int
                 index of the required volume and mask
+
             Returns
             -------
-            
-            data_dict : dictionary
-                Containing the volume as the image and the mask as the label
-           
-          """
-        
-               
-        volume_path = os.path.join(self.volume_dir, self.volumeNames[index])
-        mask_path = os.path.join(self.mask_dir, self.maskNames[index])
-         
+            dict
+                Dictionary containing the volume and
+                the mask that can be called using their specified keys.
+        """
+
         dict_loader = LoadImageD(keys=self.keys)
-        data_dict = dict_loader({self.keys[0]: volume_path ,
-                                 self.keys[1]: mask_path})
-        if self.transform == True:
-            data_dict = self.preprocess(data_dict) 
-        
+        # print(f"volume path: {self.volume_path[index]} mask path: {self.mask_path[index]}")
+        data_dict = dict_loader({self.keys[0]: self.volume_path[index],
+                                 self.keys[1]: self.mask_path[index]})
+        # print(self.volume_path[index],self.mask_path[index])
+
+        if self.transform is True:
+            data_dict = self.preprocess(data_dict)
         return data_dict
 
 
 
 
 class DataLoader():
-    def __init__(self, dataset_path, batch_size, num_workers=0, pin_memory=False , test_size=0.15, Transform = False,
-                 Keys=("image", "label"),size=[500, 500, 30]):
-        
-        r"""__init__
-            
+    def __init__(self, dataset_path, batch_size, num_workers=0,
+                 pin_memory=False, test_size=0.15, transform=False,
+                 keys=("image", "label"), size=[500, 500, 30]):
+        """Initializes and saves all the parameters required for creating transforms as well as
+           initializing two dataset instances to be used for loading the testing and
+           the training data
+
             Parameters
             ----------
-            dataset_path: string
-                path for the dataset 
-                
+            dataset_path: str
+                 String containing paths of the volumes at the folder Path and
+                 masks at the folder Path2.
             batch_size: int
-                size of batches to be returned    
-            
+                Integer size of batches to be returned
+            num_workers : int, optional
+                Integer that specifies how many sub-processes to use for data loading
+                Set by default to 0.
+            pin_memory : bool, optional
+                If True, the data loader will copy tensors into CUDA pinned memory
+                before returning them.
             test_size : float
-                proportion of the test size 
-                
-            transform: boolean
-                 Set true if you want to preprocess the data.
-                 
-            volumeNames : Arr 
-                Array of names inside the volume directory.
-            
-            Keys : Dictionary labels for image and mask.
-
-            size : 3d array of the wanted volume size 
-                The type above can either refer to an actual Python type.
-                
-            
-            Returns
-            -------
-            No returns
-            
-            Other Parameters
-            ----------------
-             num_workers : int, optional
-                set by default to 0
-            
-             pin_memory : boolean, optional
-                set by default to False
-
-          """
-        
+                proportion of the test size to the whole dataset. A number between 0 and 1.
+            transform: bool
+                True if data needs preprocessing, False otherwise.
+            keys: keys, optional
+                 keys of the corresponding items to be loaded.
+                 set by default to ("image","label")
+            size: array_like
+                Array of the wanted volume size
+        """
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        volume_names = os.listdir(os.path.join(dataset_path, "volume"))
+        volume_names.sort()
+        mask_names = os.listdir(os.path.join(dataset_path, "mask"))
+        mask_names.sort()
+
+        volume_paths = []
+        mask_paths = []
+
+        for fname in volume_names:
+            volume_paths.append(os.path.join(os.path.join(dataset_path, "volume"),fname))
+           
+        for fname in mask_names:
+            mask_paths.append(os.path.join(os.path.join(dataset_path, "mask"),fname))
+
+        volume_paths.sort()
+        mask_paths.sort()
+        # print(len(mask_paths))
+
+        if test_size == 0:
+          test_size = 0.00001
+
+        # training_volume_path, test_volume_path, training_mask_path, test_mask_path = \
+        #  train_test_split(volume_paths, mask_paths, test_size=test_size, random_state=42)
         
-        self.volume_dir = os.path.join(dataset_path, "Path")
-        self.mask_dir = os.path.join(dataset_path, "Path2")
-       
-        self.volumeNames = os.listdir(self.volume_dir)
-        self.maskNames=os.listdir(self.mask_dir)
-        
-        test_size = int(test_size * len(self.volumeNames))
-        train_size = len(self.volumeNames)-test_size
-        
-        self.train_volumeNames, self.test_volumeNames = torch.utils.data.random_split(self.volumeNames, [train_size, test_size])
-        self.train_maskNames, self.test_maskNames = torch.utils.data.random_split(self.maskNames, [train_size, test_size])
-        
+
+        training_volume_path=volume_paths
+        training_mask_path=mask_paths
+
+        training_volume_path.sort()
+        training_mask_path.sort()
+        # test_volume_path.sort()
+        # test_mask_path.sort()
         
         self.train_ds = CustomData(
-        volume_dir=self.volume_dir,
-        mask_dir=self.mask_dir,
-        volumeNames =  self.train_volumeNames, 
-        maskNames =  self.train_maskNames,
-        transform=Transform,
-        KEYS=Keys,
-        roi_size = size
+        volume_path=training_volume_path,
+        mask_path=training_mask_path,
+        transform=transform,
+        keys=keys,
+        size=size
         )
-        
-        self.test_ds = CustomData(
-        volume_dir=self.volume_dir,
-        mask_dir=self.mask_dir,
-        volumeNames =  self.test_volumeNames, 
-        maskNames =  self.test_maskNames,
-        transform=Transform,
-        KEYS=Keys,
-        roi_size = size
-        )
-        
+        # self.test_ds = CustomData(
+        # volume_path=test_volume_path,
+        # mask_path=test_mask_path,
+        # transform=transform,
+        # keys=keys,
+        # size=size
+        # )
     def get_training_data(self):
-        
-        r"""get_training_data
-            
-            Parameters
-            ----------
-            None
-            
+        """Loads the training dataset.
+
             Returns
             -------
-            train_loader : data loader dictionary
-                Containing the training volumes as the image and the training masks as the label
-           
-          """
-        
+            dict
+                Dictionary containing the training volumes and masks
+                that can be called using their specified keys.
+        """
         train_loader = monai.data.DataLoader(
         self.train_ds,
         batch_size=self.batch_size,
@@ -283,21 +249,16 @@ class DataLoader():
         )
 
         return train_loader
-    
+
     def get_testing_data(self):
-        r"""get_testing_data
-            
-            Parameters
-            ----------
-            None
-            
-            Returns
-            -------
-            test_loader : data loader dictionary
-                Containing the testing volumes as the image and the testing masks as the label
-           
-          """
-        
+        """Loads the testing dataset.
+
+        Returns
+        -------
+        dict
+        Dictionary containing the testing volumes and masks
+        that can be called using their specified keys.
+        """
         test_loader = monai.data.DataLoader(
         self.test_ds,
         batch_size=self.batch_size,
