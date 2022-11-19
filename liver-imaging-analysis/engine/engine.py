@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import matplotlib.pyplot as plt
 
 import dataloader
 
@@ -65,7 +66,7 @@ class Engine (nn.Module):
         self.test_dataloader=[]
         DataLoader= dataloader.DataLoader(dataset_path,batchsize,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
         self.train_dataloader= DataLoader.get_training_data()
-        self.test_dataloader= DataLoader.get_testing_data()
+        # self.test_dataloader= DataLoader.get_testing_data()
              
 
     def data_status(self):
@@ -123,10 +124,17 @@ class Engine (nn.Module):
             self.train()  # from pytorch
             for batch_num, batch in enumerate(self.train_dataloader):
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
+                print(mask.shape,mask.dtype)
+                plt.imshow(volume[0,0][:,:,8])
+                plt.show()
+                plt.imshow(mask[0,0][:,:,8])
+                plt.show()
                 if (self.expand_flag):
                     volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
                     mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
                 pred = self(volume)
+                plt.imshow(pred[0,0][:,:,8].detach())
+                plt.show()
                 loss = self.loss(pred, mask)
                 # Backpropagation
                 self.optimizer.zero_grad()
