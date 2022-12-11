@@ -61,7 +61,7 @@ def gray_to_colored (VolumePath,MaskPath,alpha=0.2):
 
 
 
-def animate(volume,outputName):
+def animate(volume,outputName,fps=5):
     fig = plt.figure()
     ims = []
     for i in range(volume.shape[2]):      # generate an animation over the slices of the array 
@@ -71,7 +71,7 @@ def animate(volume,outputName):
 
     ani = animation.ArtistAnimation(fig, ims, interval=200, blit=True,
                                     repeat_delay=100)
-    ani.save(outputName, dpi=300, writer=PillowWriter(fps=5))
+    ani.save(outputName, dpi=300, writer=PillowWriter(fps=fps))
 
 
 
@@ -85,10 +85,16 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
     masksNo=np.unique(Mask)[1:]
     if mask2 != None:
         mask_label2=[]
-        masks_number2=np.unique(mask2)[1:0]
+        masks_number2=np.unique(mask2)[1:]
+        
     dest=np.stack((normalize(Volume).astype(np.uint8),)*3,axis=-1) # stacked array of volume
 
-    if masksNo.shape[0]<7:  # a loop to generate an array of unique rgb colors to be used for each label 
+    labels_num=masksNo.shape[0]
+    if mask2 != None:
+        labels_num+=masks_number2.shape[0]
+
+
+    if labels_num<7:  # a loop to generate an array of unique rgb colors to be used for each label 
         numbers=[0,1]
     else:
         numbers=[0,0.5,1]
@@ -109,12 +115,11 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
         Masklabel[i]=np.multiply((Masklabel[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
         dest = cv.addWeighted(dest, 1, Masklabel[i],alpha, 0.0)
     if mask2 != None: 
-        colors = np.flip(colors)
         for i,label in enumerate(masks_number2):     # a loop to iterate over each label in the mask and perform weighted add for each
-                                                    # label with a unique color for each one
+            j=i+masksNo.shape[0] #skip colors used on previous mask
             mask_label2.append(mask2==label)
             mask_label2[i]=np.stack((mask_label2[i],)*3,axis=-1)
-            mask_label2[i]=np.multiply((mask_label2[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
+            mask_label2[i]=np.multiply((mask_label2[i].astype(np.uint8)*255),colors[j]).astype(np.uint8)
             dest = cv.addWeighted(dest, 1, mask_label2[i],alpha, 0.0)
 
 
@@ -122,6 +127,9 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
 
 
 
+def overlay(volume,true_mask,predicted_mask=None,fps=5,write_path='overlay.gif'):
+    overlayed_image=gray_to_colored_from_array(volume,true_mask,predicted_mask)
+    animate(overlayed_image,write_path,fps)
 
 
 # volume=gray_to_colored('C:/dataset/Path/liver-orig002.nii','C:/dataset/Path2/liver-seg002.nii')

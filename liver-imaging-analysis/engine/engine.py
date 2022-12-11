@@ -269,7 +269,6 @@ class Engine (nn.Module):
     def load_checkpoint(self,path):
         print("=> Loading checkpoint")
         self.load_state_dict(torch.load(path))
-        self.eval()
 
     def evaluate_train2d(self):
         '''
