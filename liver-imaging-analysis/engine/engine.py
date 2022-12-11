@@ -1,8 +1,9 @@
 import torch
 from torch import nn
-import matplotlib.pyplot as plt
-
+from torch.utils.tensorboard import SummaryWriter
 import dataloader
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Engine(nn.Module):
@@ -17,7 +18,8 @@ class Engine(nn.Module):
 
     def load_data(
         self,
-        dataset_path,
+        training_data_path,
+        testing_data_path,
         transformation_flag,
         transformation,
         batchsize=1,
@@ -28,13 +30,16 @@ class Engine(nn.Module):
 
         Parameters
         ----------
-        dataset_path: str,
-              String containing paths of the volumes at the folder Path and
-              masks at the folder Path2.
-        transformation_flag: bool,
+        training_data_path: str
+              String containing paths of the training volumes at the folder
+              Path and masks at the folder Path2.
+        testing_data_path: str
+              String containing paths of the testing volumes at the folder
+              Path and masks at the folder Path2.
+        transformation_flag: bool
               indicates if data preprocessing should be performed or not
               False will ignore "transformation" argument
-        transformation: array_like,
+        transformation: array_like
               an array of the shape data will be transformed into.
               eg; [64,512,512]
         batchsize: int
@@ -47,9 +52,11 @@ class Engine(nn.Module):
         self.transformation = transformation
         self.expand_flag = not transformation_flag
         self.train_dataloader = []
+        self.val_dataloader = []
         self.test_dataloader = []
-        loader = dataloader.DataLoader(
-            dataset_path,
+
+        trainloader = dataloader.DataLoader(
+            training_data_path,
             batchsize,
             0,
             False,
@@ -58,8 +65,19 @@ class Engine(nn.Module):
             dataloader.keys,
             transformation,
         )
-        self.train_dataloader = loader.get_training_data()
-        self.test_dataloader = loader.get_testing_data()
+        testloader = dataloader.DataLoader(
+            testing_data_path,
+            batchsize,
+            0,
+            False,
+            test_valid_split,
+            transformation_flag,
+            dataloader.keys,
+            transformation,
+        )
+        self.train_dataloader = trainloader.get_training_data()
+        self.val_dataloader = trainloader.get_testing_data()
+        self.test_dataloader = testloader.get_training_data()
 
     def data_status(self):
         """
@@ -76,7 +94,7 @@ class Engine(nn.Module):
                 f" {batch['label'].shape} {batch['label'].dtype}"
             )
             break
-        for batch in self.test_dataloader:
+        for batch in self.val_dataloader:
             print(
                 f"Batch Shape of Testing Features:"
                 f" {batch['image'].shape} {batch['image'].dtype}"
@@ -86,6 +104,30 @@ class Engine(nn.Module):
                 f" {batch['label'].shape} {batch['label'].dtype}"
             )
             break
+
+    def save_checkpoint(self, path):
+        """
+        Saves current checkpoint to a specific path
+
+        Parameters
+        ----------
+        path: int
+            The path where the checkpoint will be saved at
+        """
+        torch.save(self.state_dict(), path)
+
+    def load_checkpoint(self, path):
+        """
+        Loads checkpoint from a specific path
+
+        Parameters
+        ----------
+        path: int
+            The path of the checkpoint
+        """
+        self.load_state_dict(
+            torch.load(path, map_location=torch.device("cpu"))
+        )  # if working with CUDA remove torch.device('cpu')
 
     def compile(self, loss, optimizer, metrics=["loss"]):
         """
@@ -127,14 +169,16 @@ class Engine(nn.Module):
              the number of iterations for fitting. (Default = 1)
         """
         self.epochs = epochs
+        self.total_epochs_loss = []
+        tb = SummaryWriter()
         for epoch in range(epochs):
             print(f"Epoch {epoch+1}\n-------------------------------")
+            epoch_loss = 0
             size = self.train_dataloader.__len__()
             self.train()  # from pytorch
             for batch_num, batch in enumerate(self.train_dataloader):
-                volume, mask = \
-                    batch["image"].to(self.device),\
-                    batch["label"].to(self.device)
+                volume, mask = batch["image"].to(self.device),\
+                               batch["label"].to(self.device)
                 if self.expand_flag:
                     volume = volume.expand(
                         1,
@@ -148,8 +192,6 @@ class Engine(nn.Module):
                         mask.shape[2], mask.shape[3]
                     )
                 pred = self(volume)
-                plt.imshow(pred[0,0][:,:,8].detach())
-                plt.show()
                 loss = self.loss(pred, mask)
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -158,21 +200,24 @@ class Engine(nn.Module):
                 # Print Progress
                 current = batch_num * len(volume) + 1
                 if "loss" in self.metrics:
-                    print(f"loss: {loss.item():>7f}  "
+                    print(f"loss: {loss.item():>7f}"
                           f"      [{current:>5d}/{size:>5d}]")
+                    epoch_loss = epoch_loss + loss.item()
+
                 if "dice_score" in self.metrics:
                     print(
                         f"Dice Score: "
                         f"{(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]"
                     )
-                # if 'accuracy' in self.Metrics:
-                #     self.eval()
-                #     with torch.no_grad():
-                #             pred = self(X)
-                #     correct = int((pred.round()==y).sum())
-                #     correct /= math.prod(pred.shape)
-                #     print(f"Accuracy: {(100*correct):>0.1f}%"
-                #           f"[{current:>5d}/{size:>5d}]")
+            epoch_loss = epoch_loss / len(self.train_dataloader)
+            self.total_epochs_loss.append(epoch_loss)
+            # print(" TOTAL LOSS = ",self.totalloss)
+            tb.add_scalar("Epoch average loss", epoch_loss, epoch)
+            if epoch == 0:
+                self.save_checkpoint("First_epoch")
+            elif self.total_epochs_loss[epoch] < self.total_epochs_loss[epoch - 1]:
+                self.save_checkpoint("Best_epoch")
+
 
     def test(self, dataloader):
         """
@@ -188,9 +233,8 @@ class Engine(nn.Module):
         test_loss = 0
         with torch.no_grad():
             for batch in dataloader:
-                volume, mask = \
-                    batch["image"].to(self.device),\
-                    batch["label"].to(self.device)
+                volume, mask = batch["image"].to(self.device),\
+                               batch["label"].to(self.device)
                 if self.expand_flag:
                     volume = volume.expand(
                         1,
@@ -205,8 +249,7 @@ class Engine(nn.Module):
                     )
                 pred = self(volume)
                 if "loss" or "dice_score" in self.metrics:
-                    test_loss += \
-                        self.loss(pred, mask).item()
+                    test_loss += self.loss(pred, mask).item()
         test_loss /= num_batches
         if "loss" in self.metrics:
             print(f"loss: {test_loss:>7f}")
@@ -219,6 +262,9 @@ class Engine(nn.Module):
         training dataset by calling "Test"
         """
         self.test(self.train_dataloader)
+        epochs = np.arange(0, self.Epochs)
+        plt.plot(epochs, self.total_epochs_loss)
+        plt.show()
 
     def evaluate_test(self):
         """
@@ -242,8 +288,8 @@ class Engine(nn.Module):
         """
         dict_loader = dataloader.LoadImageD(keys=("image", "label"))
         data_dict = dict_loader({"image": volume_path, "label": volume_path})
-        preprocess = dataloader.Preprocessing(
-            ("image", "label"), self.transformation)
+        preprocess = dataloader.Preprocessing(("image", "label"),
+                                              self.transformation)
         data_dict_processed = preprocess(data_dict)
         volume = data_dict_processed["image"]
         volume = volume.expand(

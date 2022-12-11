@@ -1,26 +1,31 @@
 import os
+from glob import glob
+import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
+from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms import (
-    LoadImageD,
-    EnsureChannelFirstD,
-    AddChannelD,
-    ScaleIntensityD,
-    ToTensorD,
-    Compose,
-    NormalizeIntensityD,
-    AsDiscreteD,
-    SpacingD,
-    OrientationD,
-    ResizeD,
-    RandSpatialCropd,
-    Spacingd,
-    RandFlipd,
-    RandScaleIntensityd,
-    RandShiftIntensityd,
-    RandRotated,
-    SqueezeDimd,
-    CenterSpatialCropD,
+LoadImageD,
+ForegroundMaskD,
+EnsureChannelFirstD,
+AddChannelD,
+ScaleIntensityD,
+ToTensorD,
+Compose,
+NormalizeIntensityD,
+AsDiscreteD,
+SpacingD,
+OrientationD,
+ResizeD,
+
+RandSpatialCropd,
+Spacingd,
+RandFlipd,
+RandScaleIntensityd,
+RandShiftIntensityd,
+RandRotated,
+SqueezeDimd,
+CenterSpatialCropD,
 )
 import monai
 import numpy as np
@@ -46,20 +51,20 @@ class Preprocessing:
                 # AddChannelD(keys),
                 # assumes label is not rgb
                 # will need to manually implement a class for multiple segments
-                # OrientationD(keys, axcodes='LAS'), #preferred by radiologists
+                OrientationD(keys, axcodes='LAS'), #preferred by radiologists
                 # SpacingD(keys, pixdim=(1., 1., 1.),
                 # mode=('bilinear', 'nearest')),
-                CenterSpatialCropD(keys, size),
-                # ResizeD(keys, size , mode=('trilinear', 'nearest')),
+                # CenterSpatialCropD(keys, size),
+                ResizeD(keys, size , mode=('trilinear', 'nearest')),
                 # RandFlipd(keys, prob=0.5, spatial_axis=1),
                 # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
                 # prob=0.5, keep_size=True),
                 # RandScaleIntensityd(keys="image", factors=0.1, prob=0.5),
                 # RandShiftIntensityd(keys="image", offsets=0.1, prob=0.5),
                 NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                # ForegroundMaskD(keys[1],threshold=0.5,invert=True),
+                ForegroundMaskD(keys[1],threshold=0.5,invert=True),
                 # normalize intensity to have mean = 0 and std = 1.
-                SqueezeDimd(keys),
+                # SqueezeDimd(keys),
                 ToTensorD(keys),
             ]
         )
@@ -123,22 +128,23 @@ class CustomData(Dataset):
     def __getitem__(self, index):
         """Gets the item with the given index from the dataset.
 
-        Parameters
-        ----------
-        index : int
-            index of the required volume and mask
+            Parameters
+            ----------
+            index : int
+                index of the required volume and mask
 
-        Returns
-        -------
-        dict
-            Dictionary containing the volume and
-            the mask that can be called using their specified keys.
+            Returns
+            -------
+            dict
+                Dictionary containing the volume and
+                the mask that can be called using their specified keys.
         """
 
         dict_loader = LoadImageD(keys=self.keys)
-        data_dict = dict_loader(
-            {self.keys[0]: self.volume_path[index], self.keys[1]: self.mask_path[index]}
-        )
+        print(f"volume path: {self.volume_path[index]} mask path: {self.mask_path[index]}")
+        data_dict = dict_loader({self.keys[0]: self.volume_path[index],
+                                 self.keys[1]: self.mask_path[index]})
+        # print(self.volume_path[index],self.mask_path[index])
 
         if self.transform is True:
             data_dict = self.preprocess(data_dict)
