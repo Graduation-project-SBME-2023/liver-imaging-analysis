@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 import matplotlib.pyplot as plt
-
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
 import dataloader
 
 
@@ -43,7 +44,7 @@ class Engine (nn.Module):
         super(Engine,self).__init__()
 
 
-    def load_data(self,dataset_path,transformation_flag,transformation,batchsize=1,test_valid_split=0):
+    def load_data(self,training_datasetPath,testing_datasetPath,transformation_flag,transformation,batchsize=1,test_valid_split=0):
         '''
         description: loads and saves the data to the data attribute
         
@@ -63,8 +64,11 @@ class Engine (nn.Module):
         self.expand_flag= not transformation_flag
         self.train_dataloader=[]
         self.test_dataloader=[]
-        DataLoader= dataloader.DataLoader(dataset_path,batchsize,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
-        self.train_dataloader= DataLoader.get_training_data()
+        TrainDataLoader= dataloader.DataLoader(training_datasetPath,batchsize,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
+        TestDataLoader= dataloader.DataLoader(testing_datasetPath,batchsize,0,False,test_valid_split,transformation_flag,dataloader.keys,transformation)
+        self.train_dataloader= TrainDataLoader.get_training_data()
+        self.test_dataloader= TestDataLoader.get_training_data()
+
         # self.test_dataloader= DataLoader.get_testing_data()
              
 
@@ -109,7 +113,13 @@ class Engine (nn.Module):
         print(f"Loss= {self.loss} \n")
         print(f"Optimizer= {self.optimizer} \n")
         print(f"Metrics= {self.metrics} \n")
-        
+
+    def save_checkpoint(self,path):
+        torch.save(self.state_dict(), path)
+
+
+    def load_checkpoint(self,path):
+        self.load_state_dict(torch.load(path,map_location=torch.device('cpu'))) # if working with CUDA remove torch.device('cpu')
 
     def fit(self,epochs=1):
         '''
@@ -119,37 +129,38 @@ class Engine (nn.Module):
         '''
         self.Epochs=epochs
         self.totalloss=[]
-        for t in range(epochs):
+        tb = SummaryWriter()
+
+        for epoch in range(epochs):
             # torch.save(self.state_dict(), 'lastepch')
             EpochLoss=0
-            print(f"Epoch {t+1}\n-------------------------------")
+            print(f"Epoch {epoch+1}\n-------------------------------")
             size = self.train_dataloader.__len__()
             self.train()  # from pytorch
             for batch_num, batch in enumerate(self.train_dataloader):
-                
                 volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
                 volume=volume.permute(0,1,4,2,3)
                 mask=mask.permute(0,1,4,2,3)
                 # print(mask.shape,mask.dtype)
                 # print(volume.shape,volume.dtype)
 
-                plt.subplot(1,3,1)
-                plt.imshow(volume[0,0][45,:,:].cpu())
-                plt.title("Volume")
-                plt.subplot(1,3,2)
-                plt.imshow(mask[0,0][45,:,:].cpu())
-                plt.title("Mask")
+                # plt.subplot(1,3,1)
+                # plt.imshow(volume[0,0][15,:,:].cpu())
+                # plt.title("Volume")
+                # plt.subplot(1,3,2)
+                # plt.imshow(mask[0,0][15,:,:].cpu())
+                # plt.title("Mask")
                 if (self.expand_flag):
                     volume=volume.expand(1,volume.shape[0],volume.shape[1],volume.shape[2],volume.shape[3])
                     mask=mask.expand(1,mask.shape[0],mask.shape[1],mask.shape[2],mask.shape[3])
                 pred = self(volume)
                 # print(pred.shape)
-                display_pred=torch.sigmoid(pred.detach())
-                display_pred=(display_pred>0.5).float()
-                plt.subplot(1,3,3)
-                plt.imshow(display_pred[0,0][45,:,:].cpu())
-                plt.title("Prediction")
-                plt.show()
+                # display_pred=torch.sigmoid(pred.detach())
+                # display_pred=(display_pred>0.5).float()
+                # plt.subplot(1,3,3)
+                # plt.imshow(display_pred[0,0][15,:,:].cpu())
+                # plt.title("Prediction")
+                # plt.show()
                 loss = self.loss(pred, mask)
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -160,19 +171,17 @@ class Engine (nn.Module):
                 if 'loss' in self.metrics:
                     print(f"loss: {loss.item():>7f}        [{current:>5d}/{size:>5d}]")
                     EpochLoss=EpochLoss+loss.item()
+
             EpochLoss=EpochLoss/len(self.train_dataloader)
             self.totalloss.append(EpochLoss)
-            print(" TOTAL LOSS = ",self.totalloss)
-                
-                # if 'dice_score' in self.metrics:
-                #     print(f"Dice Score: {(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]")
-                # if 'accuracy' in self.Metrics:
-                #     self.eval()
-                #     with torch.no_grad():
-                #             pred = self(X)
-                #     correct = int((pred.round()==y).sum())
-                #     correct /= math.prod(pred.shape)
-                #     print(f"Accuracy: {(100*correct):>0.1f}%       [{current:>5d}/{size:>5d}]")
+            # print(" TOTAL LOSS = ",self.totalloss)
+            tb.add_scalar("Epoch average loss", EpochLoss, epoch)
+            if(epoch==0):
+                self.save_checkpoint("First_epoch")
+            elif(self.totalloss[epoch]<self.totalloss[epoch-1]):
+                self.save_checkpoint("Best_epoch")
+
+
 
                     
     def test(self, dataloader):
@@ -196,14 +205,14 @@ class Engine (nn.Module):
                     test_loss += self.loss(pred, mask).item()
         test_loss /= num_batches
         if 'loss' in self.metrics:
-            print(f"loss: {test_loss:>7f}")
+            print(f"Test loss: {test_loss:>7f}")
         if 'dice_score' in self.metrics:
-            print(f"Dice Score: {(1-test_loss):>7f}")
+            print(f"Test Dice Score: {(1-test_loss):>7f}")
 
 
     def evaluate_train(self):
         '''
-        description: function that evaluates the model on the stored training dataset by calling "Test" 
+        description: plot the training loss vs epochs
         '''
         # self.test(self.train_dataloader)
         import numpy as np
