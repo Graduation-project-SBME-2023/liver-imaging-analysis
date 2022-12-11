@@ -1,0 +1,22 @@
+{
+    "dataset" :
+        {
+        "Mn3n3" : "/Users/mn3n3/Downloads/dataset",
+        "Barbary" : "C:/dataset",
+        "Test" : "engine/TestDataset"
+        },
+    "transformation_size": [256,256,64],
+    "epochs" : 1,
+    "batch_size": 1,
+    "optimizer":
+        {
+        "name":"Adam",
+        "learning_rate": 0.01
+        },
+    "loss_function":"DiceLoss",
+    "ImagePath":"C:/dataset/Path/liver-orig002.nii"
+}
+
+
+
+
