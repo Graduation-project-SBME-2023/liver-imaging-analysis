@@ -1,9 +1,12 @@
+'''
+Dice loss module
+'''
+
 import torch
 import torch.nn.functional as F
 from torch import nn as nn
 from torch.autograd import Variable
 from torch.nn import MSELoss, SmoothL1Loss, L1Loss
-
 
 
 def compute_per_channel_dice(input, target, epsilon=1e-6, weight=None):
@@ -19,7 +22,9 @@ def compute_per_channel_dice(input, target, epsilon=1e-6, weight=None):
     """
 
     # input and target shapes must match
-    assert input.size() == target.size(), "'input' and 'target' must have the same shape"
+    assert (
+        input.size() == target.size()
+    ), "'input' and 'target' must have the same shape"
 
     input = flatten(input)
     target = flatten(target)
@@ -41,12 +46,15 @@ class _MaskingLossWrapper(nn.Module):
     """
 
     def __init__(self, loss, ignore_index):
-        super(_MaskingLossWrapper, self).__init__()
-        assert ignore_index is not None, 'ignore_index cannot be None'
+        super().__init__()
+        assert ignore_index is not None, "ignore_index cannot be None"
         self.loss = loss
         self.ignore_index = ignore_index
 
     def forward(self, input, target):
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
         mask = target.clone().ne_(self.ignore_index)
         mask.requires_grad = False
 
@@ -64,12 +72,17 @@ class SkipLastTargetChannelWrapper(nn.Module):
     """
 
     def __init__(self, loss, squeeze_channel=False):
-        super(SkipLastTargetChannelWrapper, self).__init__()
+        super().__init__()
         self.loss = loss
         self.squeeze_channel = squeeze_channel
 
     def forward(self, input, target):
-        assert target.size(1) > 1, 'Target tensor has a singleton channel dimension, cannot remove channel'
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
+        assert (
+            target.size(1) > 1
+        ), "Target tensor has a singleton channel dimension, cannot remove channel"
 
         # skips last target channel if needed
         target = target[:, :-1, ...]
@@ -85,27 +98,32 @@ class _AbstractDiceLoss(nn.Module):
     Base class for different implementations of Dice loss.
     """
 
-    def __init__(self, weight=None, normalization='sigmoid'):
-        super(_AbstractDiceLoss, self).__init__()
-        self.register_buffer('weight', weight)
+    def __init__(self, weight=None, normalization="sigmoid"):
+        super().__init__()
+        self.register_buffer("weight", weight)
         # The output from the network during training is assumed to be un-normalized probabilities and we would
         # like to normalize the logits. Since Dice (or soft Dice in this case) is usually used for binary data,
         # normalizing the channels with Sigmoid is the default choice even for multi-class segmentation problems.
         # However if one would like to apply Softmax in order to get the proper probability distribution from the
         # output, just specify `normalization=Softmax`
-        assert normalization in ['sigmoid', 'softmax', 'none']
-        if normalization == 'sigmoid':
+        assert normalization in ["sigmoid", "softmax", "none"]
+        if normalization == "sigmoid":
             self.normalization = nn.Sigmoid()
-        elif normalization == 'softmax':
+        elif normalization == "softmax":
             self.normalization = nn.Softmax(dim=1)
         else:
             self.normalization = lambda x: x
 
     def dice(self, input, target, weight):
-        # actual Dice score computation; to be implemented by the subclass
+        '''
+        actual Dice score computation; to be implemented by the subclass
+        '''
         raise NotImplementedError
 
     def forward(self, input, target):
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
         # get probabilities from logits
         input = self.normalization(input)
 
@@ -113,16 +131,17 @@ class _AbstractDiceLoss(nn.Module):
         per_channel_dice = self.dice(input, target, weight=self.weight)
 
         # average Dice score across all channels/classes
-        return 1. - torch.mean(per_channel_dice)
+        return 1.0 - torch.mean(per_channel_dice)
 
 
 class DiceLoss(_AbstractDiceLoss):
-    """Computes Dice Loss according to https://arxiv.org/abs/1606.04797.
+    """
+    Computes Dice Loss according to https://arxiv.org/abs/1606.04797.
     For multi-class segmentation `weight` parameter can be used to assign different weights per class.
     The input to the loss function is assumed to be a logit and will be normalized by the Sigmoid function.
     """
 
-    def __init__(self, weight=None, normalization='sigmoid'):
+    def __init__(self, weight=None, normalization="sigmoid"):
         super().__init__(weight, normalization)
 
     def dice(self, input, target, weight):
@@ -130,15 +149,16 @@ class DiceLoss(_AbstractDiceLoss):
 
 
 class GeneralizedDiceLoss(_AbstractDiceLoss):
-    """Computes Generalized Dice Loss (GDL) as described in https://arxiv.org/pdf/1707.03237.pdf.
-    """
+    """Computes Generalized Dice Loss (GDL) as described in https://arxiv.org/pdf/1707.03237.pdf."""
 
-    def __init__(self, normalization='sigmoid', epsilon=1e-6):
+    def __init__(self, normalization="sigmoid", epsilon=1e-6):
         super().__init__(weight=None, normalization=normalization)
         self.epsilon = epsilon
 
     def dice(self, input, target, weight):
-        assert input.size() == target.size(), "'input' and 'target' must have the same shape"
+        assert (
+            input.size() == target.size()
+        ), "'input' and 'target' must have the same shape"
 
         input = flatten(input)
         target = flatten(target)
@@ -168,52 +188,69 @@ class BCEDiceLoss(nn.Module):
     """Linear combination of BCE and Dice losses"""
 
     def __init__(self, alpha, beta):
-        super(BCEDiceLoss, self).__init__()
+        super().__init__()
         self.alpha = alpha
         self.bce = nn.BCEWithLogitsLoss()
         self.beta = beta
         self.dice = DiceLoss()
 
     def forward(self, input, target):
-        return self.alpha * self.bce(input, target) + self.beta * self.dice(input, target)
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
+        return self.alpha * self.bce(input, target) + self.beta * self.dice(
+            input, target
+        )
 
 
 class WeightedCrossEntropyLoss(nn.Module):
-    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
-    """
+    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf"""
 
     def __init__(self, ignore_index=-1):
-        super(WeightedCrossEntropyLoss, self).__init__()
+        super().__init__()
         self.ignore_index = ignore_index
 
     def forward(self, input, target):
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
         weight = self._class_weights(input)
-        return F.cross_entropy(input, target, weight=weight, ignore_index=self.ignore_index)
+        return F.cross_entropy(
+            input, target, weight=weight, ignore_index=self.ignore_index
+        )
 
     @staticmethod
     def _class_weights(input):
         # normalize the input first
         input = F.softmax(input, dim=1)
         flattened = flatten(input)
-        nominator = (1. - flattened).sum(-1)
+        nominator = (1.0 - flattened).sum(-1)
         denominator = flattened.sum(-1)
         class_weights = Variable(nominator / denominator, requires_grad=False)
         return class_weights
 
 
 class PixelWiseCrossEntropyLoss(nn.Module):
+    '''
+    pixel-wise cross entropy loss implementation
+    '''
     def __init__(self, class_weights=None, ignore_index=None):
-        super(PixelWiseCrossEntropyLoss, self).__init__()
-        self.register_buffer('class_weights', class_weights)
+        super().__init__()
+        self.register_buffer("class_weights", class_weights)
         self.ignore_index = ignore_index
         self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, target, weights):
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
         assert target.size() == weights.size()
         # normalize the input
         log_probabilities = self.log_softmax(input)
         # standard CrossEntropyLoss requires the target to be (NxDxHxW), so we need to expand it to (NxCxDxHxW)
-        target = expand_as_one_hot(target, C=input.size()[1], ignore_index=self.ignore_index)
+        target = expand_as_one_hot(
+            target, C=input.size()[1], ignore_index=self.ignore_index
+        )
         # expand weights
         weights = weights.unsqueeze(1)
         weights = weights.expand_as(input)
@@ -244,16 +281,19 @@ class WeightedSmoothL1Loss(nn.SmoothL1Loss):
         self.weight = initial_weight
 
     def forward(self, input, target):
-        l1 = super().forward(input, target)
+        '''
+        forward propagation that does calculation process as the output layers values from the input data
+        '''
+        l_1 = super().forward(input, target)
 
         if self.apply_below_threshold:
             mask = target < self.threshold
         else:
             mask = target >= self.threshold
 
-        l1[mask] = l1[mask] * self.weight
+        l_1[mask] = l_1[mask] * self.weight
 
-        return l1.mean()
+        return l_1.mean()
 
 
 def flatten(tensor):
@@ -262,13 +302,13 @@ def flatten(tensor):
        (N, C, D, H, W) -> (C, N * D * H * W)
     """
     # number of channels
-    C = tensor.size(1)
+    channel_axis = tensor.size(1)
     # new axis order
     axis_order = (1, 0) + tuple(range(2, tensor.dim()))
     # Transpose: (N, C, D, H, W) -> (C, N, D, H, W)
     transposed = tensor.permute(axis_order)
     # Flatten: (C, N, D, H, W) -> (C, N * D * H * W)
-    return transposed.contiguous().view(C, -1)
+    return transposed.contiguous().view(channel_axis, -1)
 
 
 def get_loss_criterion(config):
@@ -277,69 +317,82 @@ def get_loss_criterion(config):
     :param config: (dict) a top level configuration object containing the 'loss' key
     :return: an instance of the loss function
     """
-    assert 'loss' in config, 'Could not find loss function configuration'
-    loss_config = config['loss']
-    name = loss_config.pop('name')
+    assert "loss" in config, "Could not find loss function configuration"
+    loss_config = config["loss"]
+    name = loss_config.pop("name")
 
-    ignore_index = loss_config.pop('ignore_index', None)
-    skip_last_target = loss_config.pop('skip_last_target', False)
-    weight = loss_config.pop('weight', None)
+    ignore_index = loss_config.pop("ignore_index", None)
+    skip_last_target = loss_config.pop("skip_last_target", False)
+    weight = loss_config.pop("weight", None)
 
     if weight is not None:
         # convert to cuda tensor if necessary
-        weight = torch.tensor(weight).to(config['device'])
+        weight = torch.tensor(weight).to(config["device"])
 
-    pos_weight = loss_config.pop('pos_weight', None)
+    pos_weight = loss_config.pop("pos_weight", None)
     if pos_weight is not None:
         # convert to cuda tensor if necessary
-        pos_weight = torch.tensor(pos_weight).to(config['device'])
+        pos_weight = torch.tensor(pos_weight).to(config["device"])
 
     loss = _create_loss(name, loss_config, weight, ignore_index, pos_weight)
 
-    if not (ignore_index is None or name in ['CrossEntropyLoss', 'WeightedCrossEntropyLoss']):
+    if not (
+        ignore_index is None or name in ["CrossEntropyLoss", "WeightedCrossEntropyLoss"]
+    ):
         # use MaskingLossWrapper only for non-cross-entropy losses, since CE losses allow specifying 'ignore_index' directly
         loss = _MaskingLossWrapper(loss, ignore_index)
 
     if skip_last_target:
-        loss = SkipLastTargetChannelWrapper(loss, loss_config.get('squeeze_channel', False))
+        loss = SkipLastTargetChannelWrapper(
+            loss, loss_config.get("squeeze_channel", False)
+        )
 
     return loss
 
 
 #######################################################################################################################
 
+
 def _create_loss(name, loss_config, weight, ignore_index, pos_weight):
-    if name == 'BCEWithLogitsLoss':
+    if name == "BCEWithLogitsLoss":
         return nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    elif name == 'BCEDiceLoss':
-        alpha = loss_config.get('alphs', 1.)
-        beta = loss_config.get('beta', 1.)
+    elif name == "BCEDiceLoss":
+        alpha = loss_config.get("alphs", 1.0)
+        beta = loss_config.get("beta", 1.0)
         return BCEDiceLoss(alpha, beta)
-    elif name == 'CrossEntropyLoss':
+    elif name == "CrossEntropyLoss":
         if ignore_index is None:
-            ignore_index = -100  # use the default 'ignore_index' as defined in the CrossEntropyLoss
+            ignore_index = (
+                -100
+            )  # use the default 'ignore_index' as defined in the CrossEntropyLoss
         return nn.CrossEntropyLoss(weight=weight, ignore_index=ignore_index)
-    elif name == 'WeightedCrossEntropyLoss':
+    elif name == "WeightedCrossEntropyLoss":
         if ignore_index is None:
-            ignore_index = -100  # use the default 'ignore_index' as defined in the CrossEntropyLoss
+            ignore_index = (
+                -100
+            )  # use the default 'ignore_index' as defined in the CrossEntropyLoss
         return WeightedCrossEntropyLoss(ignore_index=ignore_index)
-    elif name == 'PixelWiseCrossEntropyLoss':
-        return PixelWiseCrossEntropyLoss(class_weights=weight, ignore_index=ignore_index)
-    elif name == 'GeneralizedDiceLoss':
-        normalization = loss_config.get('normalization', 'sigmoid')
+    elif name == "PixelWiseCrossEntropyLoss":
+        return PixelWiseCrossEntropyLoss(
+            class_weights=weight, ignore_index=ignore_index
+        )
+    elif name == "GeneralizedDiceLoss":
+        normalization = loss_config.get("normalization", "sigmoid")
         return GeneralizedDiceLoss(normalization=normalization)
-    elif name == 'DiceLoss':
-        normalization = loss_config.get('normalization', 'sigmoid')
+    elif name == "DiceLoss":
+        normalization = loss_config.get("normalization", "sigmoid")
         return DiceLoss(weight=weight, normalization=normalization)
-    elif name == 'MSELoss':
+    elif name == "MSELoss":
         return MSELoss()
-    elif name == 'SmoothL1Loss':
+    elif name == "SmoothL1Loss":
         return SmoothL1Loss()
-    elif name == 'L1Loss':
+    elif name == "L1Loss":
         return L1Loss()
-    elif name == 'WeightedSmoothL1Loss':
-        return WeightedSmoothL1Loss(threshold=loss_config['threshold'],
-                                    initial_weight=loss_config['initial_weight'],
-                                    apply_below_threshold=loss_config.get('apply_below_threshold', True))
+    elif name == "WeightedSmoothL1Loss":
+        return WeightedSmoothL1Loss(
+            threshold=loss_config["threshold"],
+            initial_weight=loss_config["initial_weight"],
+            apply_below_threshold=loss_config.get("apply_below_threshold", True),
+        )
     else:
         raise RuntimeError(f"Unsupported loss function: '{name}'")
