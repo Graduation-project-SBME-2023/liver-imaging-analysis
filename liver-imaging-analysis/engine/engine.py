@@ -11,10 +11,9 @@ class Engine(nn.Module):
     Neural Networks should inherit from this class
     """
 
-    def __init__(self):
-        # self.Device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = "cpu"
-        super(Engine, self).__init__()
+    def __init__(self,device):
+        self.device = device
+        super(Engine,self).__init__()
 
     def load_data(
         self,
@@ -56,24 +55,24 @@ class Engine(nn.Module):
         self.test_dataloader = []
 
         trainloader = dataloader.DataLoader(
-            training_data_path,
-            batchsize,
-            0,
-            False,
-            test_valid_split,
-            transformation_flag,
-            dataloader.keys,
-            transformation,
+            dataset_path=training_data_path,
+            batch_size=batchsize,
+            num_workers=0,
+            pin_memory=False,
+            test_size=test_valid_split,
+            transform=transformation_flag,
+            # keys=dataloader.keys,
+            size=transformation,
         )
         testloader = dataloader.DataLoader(
-            testing_data_path,
-            batchsize,
-            0,
-            False,
-            test_valid_split,
-            transformation_flag,
-            dataloader.keys,
-            transformation,
+            dataset_path=testing_data_path,
+            batch_size=batchsize,
+            num_workers=0,
+            pin_memory=False,
+            test_size=test_valid_split,
+            transform=transformation_flag,
+            # keys=dataloader.keys,
+            size=transformation,
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
