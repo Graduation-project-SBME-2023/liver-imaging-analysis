@@ -1,11 +1,11 @@
 {
     "dataset" :
         {
-        "training" : "C:/dataset/",
-        "testing" : "C:/dataset/Predict"
+        "training" : "C:/GP-Dr.Meena-LiverSeg/demo/",
+        "testing" : "C:/GP-Dr.Meena-LiverSeg/Test/"
         },
-    "transformation_size": [64,64,32],
-    "epochs" : 1,
+    "transformation_size": [256,256,64],
+    "epochs" : 5,
     "batch_size": 1,
     "optimizer":
         {
@@ -13,7 +13,7 @@
         "learning_rate": 0.01
         },
     "loss_function":"DiceLoss",
-    "ImagePath":"C:/dataset/volume/liver-orig002.nii",
+    "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/Predict/volume/liver-orig002.nii",
     "model checkpoint":"final epoch"
     
 }
