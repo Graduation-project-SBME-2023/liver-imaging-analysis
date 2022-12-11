@@ -5,8 +5,8 @@
         "Barbary" : "C:/dataset",
         "Test" : "engine/TestDataset"
         },
-    "transformation_size": [64,64,32],
-    "epochs" : 20,
+    "transformation_size": [128,128,64],
+    "epochs" : 50,
     "batch_size": 1,
     "optimizer":
         {
