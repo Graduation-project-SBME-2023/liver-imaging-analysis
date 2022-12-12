@@ -5,7 +5,6 @@ import dataloader
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 class Engine(nn.Module):
     """Class that implements the basic PyTorch methods for neural network
     Neural Networks should inherit from this class
@@ -170,6 +169,7 @@ class Engine(nn.Module):
         self.epochs = epochs
         self.total_epochs_loss = []
         tb = SummaryWriter()
+        best_epoch_loss=1
         for epoch in range(epochs):
             print(f"Epoch {epoch+1}\n-------------------------------")
             epoch_loss = 0
@@ -191,7 +191,7 @@ class Engine(nn.Module):
                         mask.shape[2], mask.shape[3]
                     )
                 pred = self(volume)
-                loss = self.loss(pred, mask)
+                loss = self.loss(pred, mask)                
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -208,14 +208,17 @@ class Engine(nn.Module):
                         f"Dice Score: "
                         f"{(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]"
                     )
+            
             epoch_loss = epoch_loss / len(self.train_dataloader)
             self.total_epochs_loss.append(epoch_loss)
             # print(" TOTAL LOSS = ",self.totalloss)
             tb.add_scalar("Epoch average loss", epoch_loss, epoch)
             if epoch == 0:
-                self.save_checkpoint("First_epoch")
-            elif self.total_epochs_loss[epoch] < self.total_epochs_loss[epoch - 1]:
-                self.save_checkpoint("Best_epoch")
+                best_epoch_loss=epoch_loss
+                self.save_checkpoint("first_epoch")
+            elif epoch_loss < best_epoch_loss:
+                best_epoch_loss=epoch_loss
+                self.save_checkpoint("best_epoch")
 
 
     def test(self, dataloader):
