@@ -5,7 +5,7 @@
         "testing" : "C:/GP-Dr.Meena-LiverSeg/Test/"
         },
     "transformation_size": [256,256,64],
-    "epochs" : 5,
+    "epochs" : 1,
     "batch_size": 1,
     "optimizer":
         {
@@ -13,8 +13,8 @@
         "learning_rate": 0.01
         },
     "loss_function":"DiceLoss",
-    "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/Predict/volume/liver-orig002.nii",
-    "model checkpoint":"final epoch"
+    "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
+    "model checkpoint":"final epoch2"
     
 }
 

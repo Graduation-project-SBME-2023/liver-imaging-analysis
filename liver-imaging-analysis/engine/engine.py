@@ -4,6 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 import dataloader
 import numpy as np
 import matplotlib.pyplot as plt
+from monai.visualize import plot_2d_or_3d_image
 
 
 class Engine(nn.Module):
@@ -192,6 +193,8 @@ class Engine(nn.Module):
                     )
                 pred = self(volume)
                 loss = self.loss(pred, mask)
+
+
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -208,6 +211,9 @@ class Engine(nn.Module):
                         f"Dice Score: "
                         f"{(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]"
                     )
+                
+                plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,frame_dim=-1,tag=f"volume{batch_num}")
+                plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,frame_dim=-1,tag=f"mask{batch_num}")
             epoch_loss = epoch_loss / len(self.train_dataloader)
             self.total_epochs_loss.append(epoch_loss)
             # print(" TOTAL LOSS = ",self.totalloss)
@@ -228,7 +234,7 @@ class Engine(nn.Module):
                 the dataset to evaluate on
         """
         num_batches = len(dataloader)
-        self.eval()
+        # self.eval()
         test_loss = 0
         with torch.no_grad():
             for batch in dataloader:
@@ -289,6 +295,9 @@ class Engine(nn.Module):
         data_dict = dict_loader({"image": volume_path, "label": volume_path})
         preprocess = dataloader.Preprocessing(("image", "label"),
                                               self.transformation)
+        inverse_transformation= data_dict['label'].shape
+        plt.imshow(data_dict['label'][:,:,105])
+        print(inverse_transformation)
         data_dict_processed = preprocess(data_dict)
         volume = data_dict_processed["image"]
         volume = volume.expand(
@@ -296,6 +305,7 @@ class Engine(nn.Module):
             volume.shape[2], volume.shape[3]
         )
         self.eval()
+       
         with torch.no_grad():
             pred = self(volume.to(self.device))
         return pred
