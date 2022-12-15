@@ -1,12 +1,11 @@
 {
     "dataset" :
         {
-        "Mn3n3" : "/Users/mn3n3/Downloads/dataset",
-        "Barbary" : "C:/dataset",
-        "Test" : "engine/TestDataset"
+        "training" : "/content/drive/MyDrive/Mini Liver Dataset",
+        "testing" : "/content/drive/MyDrive/Mini Liver Dataset/Test"
         },
     "transformation_size": [128,128,64],
-    "epochs" : 50,
+    "epochs" : 100,
     "batch_size": 1,
     "optimizer":
         {
@@ -15,9 +14,7 @@
         },
     "loss_function":"DiceLoss",
     "PredictPath":"C:/dataset/Predict",
-    "checkpoint": "model_checkpoint.pth.tar"
+    "model_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
+    "potential_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/potential_checkpoint"
 }
-
-
-
 

@@ -1,10 +1,6 @@
-liver-imaging-analysis/engine/__pycache__/
+__pycache__
 .DS_Store
-liver-imaging-analysis/engine/.vs/
-tests/__pycache__/
-liver-imaging-analysis/engine/.ipynb_checkpoints/
-liver-imaging-analysis/engine/model_dicts
-liver-imaging-analysis/engine/model_checkpoint.pth.tar
-liver-imaging-analysis/engine/true_label.nii
-liver-imaging-analysis/engine/nifti_prediction.nii
-liver-imaging-analysis/engine/overlay.gif
+.vs
+.ipynb_checkpoints
+liver-imaging-analysis/engine/model_checkpoint.zip
+liver-imaging-analysis/engine/potential_checkpoint.zip
