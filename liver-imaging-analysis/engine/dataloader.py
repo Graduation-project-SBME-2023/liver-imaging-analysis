@@ -64,7 +64,7 @@ class Preprocessing:
                 NormalizeIntensityD(keys=keys[0], channel_wise=True),
                 ForegroundMaskD(keys[1],threshold=0.5,invert=True),
                 # normalize intensity to have mean = 0 and std = 1.
-                # SqueezeDimd(keys),
+                SqueezeDimd(keys),
                 ToTensorD(keys),
             ]
         )

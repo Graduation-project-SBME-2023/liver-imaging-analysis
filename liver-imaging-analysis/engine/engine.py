@@ -281,6 +281,93 @@ class Engine(nn.Module,optimizers.Optimizers):
         return test_loss
 
 
+    def fit2d(
+        self,
+        epochs=1,
+        evaluation_set=None,
+        evaluate_epochs=1,
+        visualize_epochs=1,
+        save_flag=True,
+        save_path="best_epoch"
+        ):
+        """
+        train the model using the stored training set
+
+        Parameters
+        ----------
+        epochs: int
+            the number of iterations for fitting. (Default = 1)
+        evaluation_set: dict
+            the dataset to be used for evaluation
+        evaluate_epochs: int
+            the number of epochs to evaluate model after
+        visualize_epochs: int
+            the number of epochs to visualize gifs after
+        save_flag: bool
+            flag to save best weights
+        save_path: str
+            directory to save best weights at
+
+        """
+        tb = SummaryWriter()    
+        best_epoch_loss=float('inf') #initialization with largest possible number
+        for epoch in range(epochs):
+            print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
+            epoch_loss = 0
+            size = self.train_dataloader.__len__()
+            self.train()  # from pytorch
+            for batch_num, batch in enumerate(self.train_dataloader):
+                print(f"Batch: {batch_num+1}/{len(self.train_dataloader)}")
+                volume,mask= batch['image'].to(self.device),batch['label'].to(self.device)
+                volume=volume.permute(3, 0, 1, 2)
+                mask=mask.permute(3, 0, 1, 2)
+                pred2d = self(volume)
+                loss = self.loss(pred2d, mask)
+                # Backpropagation
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                # Visualize Output
+                if ((epoch+1)%visualize_epochs==0): #every visualize_epochs create gifs
+                    plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,
+                                        frame_dim=-1,tag=f"volume{batch_num}")
+                    plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,
+                                        frame_dim=-1,tag=f"mask{batch_num}")
+                    
+            if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs test model on test set
+                if evaluation_set != None:
+                    current_loss=self.test2d(evaluation_set)
+                    print(f"Current Loss={current_loss}")
+                    tb.add_scalar("Epoch Loss", current_loss, epoch)
+            
+            if save_flag:
+                if epoch_loss <= best_epoch_loss:
+                    best_epoch_loss=epoch_loss
+                    self.save_checkpoint(save_path)
+
+    def test2d(self, dataloader):
+        """
+        calculates loss on input dataset
+
+        Parameters
+        ----------
+        dataloader: dict
+                the dataset to evaluate on
+        """
+        num_batches = len(dataloader)
+        test_loss = 0
+        with torch.no_grad():
+            for batch in dataloader:
+                volume, mask = batch["image"].to(self.device),\
+                               batch["label"].to(self.device)
+                volume=volume.permute(3, 0, 1, 2)
+                mask=mask.permute(3, 0, 1, 2)                              
+                pred = self(volume)
+                test_loss += self.loss(pred, mask).item()
+            test_loss /= num_batches
+        return test_loss
+
+
     def predict(self, volume_path):
         """
         predict the label of the given input using the current weights
