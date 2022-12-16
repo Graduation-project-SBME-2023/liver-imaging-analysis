@@ -1,0 +1,25 @@
+<<<<<<< Updated upstream
+=======
+{
+    "dataset" :
+        {
+        "training" : "C:/GP-Dr.Meena-LiverSeg/demo/",
+        "testing" : "C:/GP-Dr.Meena-LiverSeg/Test/"
+        },
+    "transformation_size": [256,256,64],
+    "epochs" : 60,
+    "batch_size": 1,
+    "optimizer":
+        {
+        "name":"Adam",
+        "learning_rate": 0.01
+        },
+    "loss_function":"DiceLoss",
+    "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
+    "model checkpoint":"3dunet aug 40 epoch"
+    
+}
+
+
+
+>>>>>>> Stashed changes
