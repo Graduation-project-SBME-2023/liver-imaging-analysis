@@ -141,7 +141,7 @@ class CustomData(Dataset):
         """
 
         dict_loader = LoadImageD(keys=self.keys)
-        print(f"volume path: {self.volume_path[index]} mask path: {self.mask_path[index]}")
+        # print(f"volume path: {self.volume_path[index]} mask path: {self.mask_path[index]}")
         data_dict = dict_loader({self.keys[0]: self.volume_path[index],
                                  self.keys[1]: self.mask_path[index]})
         # print(self.volume_path[index],self.mask_path[index])

@@ -1,11 +1,11 @@
 {
     "dataset" :
         {
-        "training" : "C:/GP-Dr.Meena-LiverSeg/demo/",
-        "testing" : "C:/GP-Dr.Meena-LiverSeg/Test/"
+        "training" : "C:/dataset/Predict/",
+        "testing" : "C:/dataset/Predict/"
         },
-    "transformation_size": [256,256,64],
-    "epochs" : 1,
+    "transformation_size": [32,32,16],
+    "epochs" : 5,
     "batch_size": 1,
     "optimizer":
         {

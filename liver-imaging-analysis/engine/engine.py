@@ -5,27 +5,86 @@ import dataloader
 import numpy as np
 import matplotlib.pyplot as plt
 from monai.visualize import plot_2d_or_3d_image
+import optimizers
 
-class Engine(nn.Module):
+class Engine(nn.Module,optimizers.Optimizers):
     """Class that implements the basic PyTorch methods for neural network
     Neural Networks should inherit from this class
+    Parameters
+    ----------
+        device: str
+            the device to be used by the model.
+            either "cpu" or "cuda"
+        loss: class
+            the loss function to be used,
+            should be imported from diceloss class
+        optimizer: str
+            the optimizer to be used, should be imported from optimizers.py
+        metrics: array_like
+            the metrics calculated for each batch per epoch during training,
+            and for the whole data during evaluating expects an array of string
+            of one or more of: 'loss', 'dice_score'. eg; ['loss']
+        training_data_path: str
+              String containing paths of the training volumes at the folder
+              Path and masks at the folder Path2.
+        testing_data_path: str
+              String containing paths of the testing volumes at the folder
+              Path and masks at the folder Path2.
+        transformation_flag: bool
+              indicates if data preprocessing should be performed or not
+              False will ignore "transformation" argument
+        data_size: array_like
+              an array of the shape data will be transformed into.
+              eg; [64,512,512]
+        batchsize: int
+            the number of features to be loaded in each batch.(Default: 1)
+        train_valid_split: float
+            a fraction between 0-1 that indicate the portion of dataset to be
+            loaded to the validation set.( Default: 0)
+        learning_rate: float
+            learning rate to be used by the optimizer
     """
 
-    def __init__(self,device):
+    def __init__(
+        self, 
+        device, 
+        loss, 
+        optimizer,
+        metrics,
+        training_data_path,
+        testing_data_path,
+        transformation_flag,
+        data_size,
+        batchsize=1,
+        train_valid_split=0,
+        ):
+    
         self.device = device
         super(Engine,self).__init__()
+        self.loss = loss
+        optimizers.Optimizers.__init__(self)
+        self.optimizer = self.choose(optimizer)
+        self.metrics = metrics
+        self._load_data(training_data_path=training_data_path,\
+                        testing_data_path=testing_data_path,\
+                        transformation_flag=transformation_flag,\
+                        data_size=data_size,\
+                        batchsize=batchsize,train_valid_split=train_valid_split)
+    
+    def optimizer_init(self,lr):
+        self.optimizer=self.optimizer(self.parameters(),lr)
 
-    def load_data(
+    def _load_data(
         self,
         training_data_path,
         testing_data_path,
         transformation_flag,
-        transformation,
+        data_size,
         batchsize=1,
-        test_valid_split=0,
+        train_valid_split=0,
     ):
         """
-        Loads and saves the data to the data attribute
+        Internally used to load and save the data to the data attribute
 
         Parameters
         ----------
@@ -38,18 +97,18 @@ class Engine(nn.Module):
         transformation_flag: bool
               indicates if data preprocessing should be performed or not
               False will ignore "transformation" argument
-        transformation: array_like
+        data_size: array_like
               an array of the shape data will be transformed into.
               eg; [64,512,512]
         batchsize: int
             the number of features to be loaded in each batch.(Default: 1)
-        test_valid_split: float
-            a fraction between 0-1 that indicate the portion of dataset to be
+        train_valid_split: float
+            a fraction between 0-1 that indicate the portion of training dataset to be
             loaded to the validation set.( Default: 0)
         """
 
-        self.transformation = transformation
-        self.expand_flag = not transformation_flag
+        self.data_size = data_size
+        # self.expand_flag = not transformation_flag
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
@@ -59,20 +118,20 @@ class Engine(nn.Module):
             batch_size=batchsize,
             num_workers=0,
             pin_memory=False,
-            test_size=test_valid_split,
+            test_size=train_valid_split,
             transform=transformation_flag,
             # keys=dataloader.keys,
-            size=transformation,
+            size=data_size,
         )
         testloader = dataloader.DataLoader(
             dataset_path=testing_data_path,
             batch_size=batchsize,
             num_workers=0,
             pin_memory=False,
-            test_size=test_valid_split,
+            test_size=0, #testing set shouldn't be divided
             transform=transformation_flag,
             # keys=dataloader.keys,
-            size=transformation,
+            size=data_size,
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -125,30 +184,9 @@ class Engine(nn.Module):
             The path of the checkpoint
         """
         self.load_state_dict(
-            torch.load(path, map_location=torch.device("cpu"))
+            torch.load(path, map_location=torch.device(self.device))
         )  # if working with CUDA remove torch.device('cpu')
 
-    def compile(self, loss, optimizer, metrics=["loss"]):
-        """
-        Stores the loss function, the optimizer,
-        and the metrics to be used during fitting and evaluating
-
-        Parameters
-        ----------
-        loss: str
-            the loss function to be used,
-            should be imported from loss_functions class
-        optimizer: str
-            the optimizer to be used, should be imported from torch.optim
-        metrics: array_like
-            the metrics calculated for each batch per epoch during training,
-            and for the whole data during evaluating expects an array of string
-            of one or more of: 'loss', 'dice_score'. Default: ['loss']
-        """
-
-        self.loss = loss
-        self.optimizer = optimizer
-        self.metrics = metrics
 
     def compile_status(self):
         """
@@ -158,39 +196,45 @@ class Engine(nn.Module):
         print(f"Optimizer= {self.optimizer} \n")
         print(f"Metrics= {self.metrics} \n")
 
-    def fit(self, epochs=1):
+    def fit(
+        self,
+        epochs=1,
+        evaluation_set=None,
+        evaluate_epochs=1,
+        visualize_epochs=1,
+        save_flag=True,
+        save_path="best_epoch"
+        ):
         """
         train the model using the stored training set
 
         Parameters
         ----------
         epochs: int
-             the number of iterations for fitting. (Default = 1)
+            the number of iterations for fitting. (Default = 1)
+        evaluation_set: dict
+            the dataset to be used for evaluation
+        evaluate_epochs: int
+            the number of epochs to evaluate model after
+        visualize_epochs: int
+            the number of epochs to visualize gifs after
+        save_flag: bool
+            flag to save best weights
+        save_path: str
+            directory to save best weights at
+
         """
-        self.epochs = epochs
-        self.total_epochs_loss = []
-        tb = SummaryWriter()
-        best_epoch_loss=1
+        tb = SummaryWriter()    
+        best_epoch_loss=float('inf') #initialization with largest possible number
         for epoch in range(epochs):
-            print(f"Epoch {epoch+1}\n-------------------------------")
+            print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             epoch_loss = 0
             size = self.train_dataloader.__len__()
             self.train()  # from pytorch
             for batch_num, batch in enumerate(self.train_dataloader):
+                print(f"Batch {batch_num+1}/{len(self.train_dataloader)}")
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
-                if self.expand_flag:
-                    volume = volume.expand(
-                        1,
-                        volume.shape[0],
-                        volume.shape[1],
-                        volume.shape[2],
-                        volume.shape[3],
-                    )
-                    mask = mask.expand(
-                        1, mask.shape[0], mask.shape[1],
-                        mask.shape[2], mask.shape[3]
-                    )
                 pred = self(volume)
                 loss = self.loss(pred, mask)                
                 # Backpropagation
@@ -198,35 +242,27 @@ class Engine(nn.Module):
                 loss.backward()
                 self.optimizer.step()
                 # Print Progress
-                current = batch_num * len(volume) + 1
-                if "loss" in self.metrics:
-                    print(f"loss: {loss.item():>7f}"
-                          f"      [{current:>5d}/{size:>5d}]")
-                    epoch_loss = epoch_loss + loss.item()
-
-                if "dice_score" in self.metrics:
-                    print(
-                        f"Dice Score: "
-                        f"{(1-loss.item()):>7f}  [{current:>5d}/{size:>5d}]"
-                    )
-                
-                plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,frame_dim=-1,tag=f"volume{batch_num}")
-                plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,frame_dim=-1,tag=f"mask{batch_num}")
-            epoch_loss = epoch_loss / len(self.train_dataloader)
-            self.total_epochs_loss.append(epoch_loss)
-            # print(" TOTAL LOSS = ",self.totalloss)
-            tb.add_scalar("Epoch average loss", epoch_loss, epoch)
-            if epoch == 0:
-                best_epoch_loss=epoch_loss
-                self.save_checkpoint("first_epoch")
-            elif epoch_loss < best_epoch_loss:
-                best_epoch_loss=epoch_loss
-                self.save_checkpoint("best_epoch")
+                if ((epoch+1)%visualize_epochs==0): #every visualize_epochs create gifs
+                    plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,
+                                        frame_dim=-1,tag=f"volume{batch_num}")
+                    plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,
+                                        frame_dim=-1,tag=f"mask{batch_num}")
+                    
+            if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs test model on test set
+                if evaluation_set != None:
+                    current_loss=self.test(evaluation_set)
+                    print(f"Current Loss={current_loss}")
+                    tb.add_scalar("Epoch Loss", current_loss, epoch)
+            
+            if save_flag:
+                if epoch_loss <= best_epoch_loss:
+                    best_epoch_loss=epoch_loss
+                    self.save_checkpoint(save_path)
 
 
     def test(self, dataloader):
         """
-        function that calculates metrics without updating weights
+        calculates loss on input dataset
 
         Parameters
         ----------
@@ -234,49 +270,16 @@ class Engine(nn.Module):
                 the dataset to evaluate on
         """
         num_batches = len(dataloader)
-        # self.eval()
         test_loss = 0
         with torch.no_grad():
             for batch in dataloader:
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
-                if self.expand_flag:
-                    volume = volume.expand(
-                        1,
-                        volume.shape[0],
-                        volume.shape[1],
-                        volume.shape[2],
-                        volume.shape[3],
-                    )
-                    mask = mask.expand(
-                        1, mask.shape[0], mask.shape[1],
-                        mask.shape[2], mask.shape[3]
-                    )
                 pred = self(volume)
-                if "loss" or "dice_score" in self.metrics:
-                    test_loss += self.loss(pred, mask).item()
-        test_loss /= num_batches
-        if "loss" in self.metrics:
-            print(f"loss: {test_loss:>7f}")
-        if "dice_score" in self.metrics:
-            print(f"Dice Score: {(1-test_loss):>7f}")
+                test_loss += self.loss(pred, mask).item()
+            test_loss /= num_batches
+        return test_loss
 
-    def evaluate_train(self):
-        """
-        function that evaluates the model on the stored
-        training dataset by calling "Test"
-        """
-        self.test(self.train_dataloader)
-        epochs = np.arange(0, self.Epochs)
-        plt.plot(epochs, self.total_epochs_loss)
-        plt.show()
-
-    def evaluate_test(self):
-        """
-        function that evaluates the model on the stored
-        testing dataset by calling "Test"
-        """
-        self.test(self.test_dataloader)
 
     def predict(self, volume_path):
         """
@@ -294,7 +297,7 @@ class Engine(nn.Module):
         dict_loader = dataloader.LoadImageD(keys=("image", "label"))
         data_dict = dict_loader({"image": volume_path, "label": volume_path})
         preprocess = dataloader.Preprocessing(("image", "label"),
-                                              self.transformation)
+                                              self.data_size)
         inverse_transformation= data_dict['label'].shape
         plt.imshow(data_dict['label'][:,:,105])
         print(inverse_transformation)

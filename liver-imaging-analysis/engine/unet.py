@@ -55,7 +55,7 @@ class Abstract3DUNet(nn.Module):
         **kwargs
     ):
 
-        super().__init__(device)
+        # super().__init__(device)
         if isinstance(f_maps, int):
             f_maps = number_of_features_per_level(f_maps, num_levels=num_levels)
         assert isinstance(f_maps, (list, tuple))
