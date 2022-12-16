@@ -298,17 +298,12 @@ class Engine(nn.Module,optimizers.Optimizers):
         data_dict = dict_loader({"image": volume_path, "label": volume_path})
         preprocess = dataloader.Preprocessing(("image", "label"),
                                               self.data_size)
-        inverse_transformation= data_dict['label'].shape
-        plt.imshow(data_dict['label'][:,:,105])
-        print(inverse_transformation)
         data_dict_processed = preprocess(data_dict)
         volume = data_dict_processed["image"]
         volume = volume.expand(
             1, volume.shape[0], volume.shape[1],
             volume.shape[2], volume.shape[3]
-        )
-        self.eval()
-       
+        )       
         with torch.no_grad():
             pred = self(volume.to(self.device))
         return pred
