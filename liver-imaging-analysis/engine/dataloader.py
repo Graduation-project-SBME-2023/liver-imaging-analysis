@@ -37,8 +37,8 @@ class Preprocessing:
 
         Parameters
         ----------
-        keys: keys, optional
-             keys of the corresponding items to be loaded containing two
+        keys: dict
+             Dictionary of the corresponding items to be loaded containing two
              strings the first refers to the key for image and the second
              refers to the key for label.
         size: array_like
@@ -98,8 +98,8 @@ class CustomData(Dataset):
               Array containing paths of the volumes.
          mask_path: array_like(str)
               Array containing paths of the masks.
-         keys: keys, optional
-              keys of the corresponding items to be loaded containing
+         keys: dict
+              Dictionary of the corresponding items to be loaded containing
               two strings the first refers to the key for image and
               the second refers to the key for label.
          size: array_like
@@ -113,7 +113,8 @@ class CustomData(Dataset):
         self.mask_path = mask_path
         self.keys = keys
         self.transform = transform
-        self.preprocess = Preprocessing(keys, size)
+        if self.transform:
+            self.preprocess = Preprocessing(keys, size)
 
     def __len__(self):
         """Calculates the length of the dataset
@@ -185,8 +186,8 @@ class DataLoader:
              A number between 0 and 1.
          transform: bool
              True if data needs preprocessing, False otherwise.
-         keys: keys, optional
-              keys of the corresponding items to be loaded.
+         keys: dict
+              Dictionary of the corresponding items to be loaded.
               set by default to ("image","label")
          size: array_like
              Array of the wanted volume size
@@ -199,16 +200,9 @@ class DataLoader:
         mask_names = os.listdir(os.path.join(dataset_path, "mask"))
         mask_names.sort()
 
-        volume_paths = []
-        mask_paths = []
+        volume_paths = [os.path.join(dataset_path, "volume", fname) for fname in volume_names]
+        mask_paths = [os.path.join(dataset_path, "mask", fname) for fname in mask_names]
 
-        for fname in volume_names:
-            volume_paths.append(
-                os.path.join(os.path.join(dataset_path, "volume"), fname)
-            )
-
-        for fname in mask_names:
-            mask_paths.append(os.path.join(os.path.join(dataset_path, "mask"), fname))
 
         volume_paths.sort()
         mask_paths.sort()
