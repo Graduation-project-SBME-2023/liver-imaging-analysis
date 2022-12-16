@@ -5,14 +5,17 @@
         "testing" : "C:/dataset/Predict/"
         },
     "transformation_size": [32,32,16],
-    "epochs" : 5,
-    "batch_size": 1,
-    "optimizer":
-        {
-        "name":"Adam",
-        "learning_rate": 0.01
-        },
-    "loss_function":"DiceLoss",
+    "training":
+            {
+            "epochs" : 5,
+            "batch_size": 1,
+            "optimizer":
+                    {
+                    "name":"Adam",
+                    "learning_rate": 0.01
+                    },
+            "loss_function":"DiceLoss"
+            },
     "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
     "model checkpoint":"final epoch2"
     
