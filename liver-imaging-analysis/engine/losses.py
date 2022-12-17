@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-
+from config import config
 
 def flatten(tensor):
     """Flattens a given tensor such that the channel axis is first.

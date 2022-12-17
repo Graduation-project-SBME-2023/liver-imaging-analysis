@@ -1,3 +1,4 @@
+from typing import Dict
 import torch
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
@@ -6,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from monai.visualize import plot_2d_or_3d_image
 import optimizers
+import config
+
 
 class Engine(nn.Module,optimizers.Optimizers):
     """Class that implements the basic PyTorch methods for neural network
@@ -47,8 +50,9 @@ class Engine(nn.Module,optimizers.Optimizers):
 
     def __init__(
         self, 
-        device, 
-        loss, 
+        device,
+        network,
+        loss,
         optimizer,
         metrics,
         training_data_path,
@@ -62,15 +66,43 @@ class Engine(nn.Module,optimizers.Optimizers):
         self.device = device
         super(Engine,self).__init__()
         self.loss = loss
+        self.model = UNet()
+        self.optimizer = get_optimizer()
+
         optimizers.Optimizers.__init__(self)
         self.optimizer = self.choose(optimizer)
         self.metrics = metrics
+
         self._load_data(training_data_path=training_data_path,\
                         testing_data_path=testing_data_path,\
                         transformation_flag=transformation_flag,\
                         data_size=data_size,\
                         batchsize=batchsize,train_valid_split=train_valid_split)
     
+
+    def get_optimizer(self,):        
+        optimizers={
+            'Adam': Adam,
+            'SGD':SGD,
+
+        }
+        optim_name = config['training']['optimizer']
+        optim_params = config['training']['optimizer_params']
+        optim_parmas['params'] = self.model
+        return optimizers[optim_name](**optim_params)
+
+    def get_network(self,):
+        networks = {
+            'UNet': UNet,
+
+        }
+    
+
+    def get_pretraining_transforms():
+
+        raise NotImplementedError()
+
+
     def optimizer_init(self,lr):
         self.optimizer=self.optimizer(self.parameters(),lr)
 
@@ -116,6 +148,7 @@ class Engine(nn.Module,optimizers.Optimizers):
         trainloader = dataloader.DataLoader(
             dataset_path=training_data_path,
             batch_size=batchsize,
+            transforms = self.get_pretraining_transforms(),
             num_workers=0,
             pin_memory=False,
             test_size=train_valid_split,
@@ -235,7 +268,7 @@ class Engine(nn.Module,optimizers.Optimizers):
                 print(f"Batch {batch_num+1}/{len(self.train_dataloader)}")
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
-                pred = self(volume)
+                pred = self.network(volume)
                 loss = self.loss(pred, mask)                
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -247,7 +280,7 @@ class Engine(nn.Module,optimizers.Optimizers):
                                         frame_dim=-1,tag=f"volume{batch_num}")
                     plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,
                                         frame_dim=-1,tag=f"mask{batch_num}")
-                    
+
             if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs test model on test set
                 if evaluation_set != None:
                     current_loss=self.test(evaluation_set)

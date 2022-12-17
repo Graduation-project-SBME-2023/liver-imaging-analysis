@@ -31,6 +31,7 @@ import monai
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class Preprocessing:
     def __init__(self, keys, size):
         """Makes an instance of the preprocessing transforms.
@@ -47,6 +48,7 @@ class Preprocessing:
 
         self.transform = Compose(
             [
+                LoadLoadImageD(keys),
                 EnsureChannelFirstD(keys),
                 # AddChannelD(keys),
                 # assumes label is not rgb
@@ -159,6 +161,7 @@ class DataLoader:
         batch_size,
         num_workers=0,
         pin_memory=False,
+        transforms,
         test_size=0.15,
         transform=False,
         keys=("image", "label"),
