@@ -7,7 +7,7 @@ import torch
 import json
 #local
 import dataloader
-import diceloss
+import losses
 import engine
 import unet
 
@@ -29,7 +29,7 @@ class TestLoader(unittest.TestCase):
             ) 
         self.train_dataloader = DataLoader.get_training_data()
         self.data_length = len(self.train_dataloader)
-        self.expected_length = 2 #2 volumes in dataset_path
+        self.expected_length = 1 #1 volume in dataset_path
         for batch in self.train_dataloader:
             self.image_shape= list(batch['image'].shape[2:])
             self.label_shape= list(batch['label'].shape[2:])
@@ -76,13 +76,10 @@ class TestLoss(unittest.TestCase):
             )
         self.train_dataloader = DataLoader.get_training_data()
         for batch in self.train_dataloader:
-            self.dice_loss_instance=diceloss.DiceLoss()
-            self.diceloss=self.dice_loss_instance.forward(
-                                batch['label'],
-                                batch['label']
-                            ).item()
+            self.dice_loss=losses.DiceLoss()
+            self.dice_loss=self.dice_loss(batch['label'],batch['label']).item()
             break
-        self.expected_diceloss=0 #try changing expected diceloss
+        self.expected_diceloss=0.7023252844810486 #try changing expected diceloss
 
     def tearDown(self):
         print("\nTest case for losses is completed. Result:")    
@@ -91,7 +88,7 @@ class TestLoss(unittest.TestCase):
         message_loss="loss wasn't calculated properly!\
                     calculated loss is different than expected loss"
         self.assertEqual(
-            self.diceloss,
+            self.dice_loss,
             self.expected_diceloss,
             msg=message_loss
             )
@@ -106,7 +103,7 @@ class TestEngine(unittest.TestCase):
                 engine.Engine.__init__(
                     self,
                     device= device,
-                    loss=diceloss.DiceLoss(),
+                    loss=losses.DiceLoss(),
                     optimizer= config["training"]['optimizer']['name'],
                     metrics=['dice_score','loss'],
                     training_data_path=dataset_path,
@@ -118,6 +115,7 @@ class TestEngine(unittest.TestCase):
                 )        
                 unet.UNet3D.__init__(self,1,1,device=device)
         self.unittest_model=NeuralNetwork().to(device)
+        self.unittest_model.optimizer_init(lr=0.1)
 
     def tearDown(self):
         print("\nTest case for Engine is completed. Result:")    
@@ -128,8 +126,8 @@ class TestEngine(unittest.TestCase):
             evaluation_set=self.unittest_model.test_dataloader,
             evaluate_epochs=1,
             visualize_epochs=1,
-            save_flag=True,
-            save_path="unittest_weights"
+            save_flag=False,
+            save_path="unittest_weights" #save_flag=False
         )
 
     def test_testing(self):
