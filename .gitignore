@@ -11,3 +11,5 @@ liver-imaging-analysis/engine/Best_epoch
 liver-imaging-analysis/engine/First_epoch
 liver-imaging-analysis/engine/runs/
 model_checkpoint.zip
+final epoch2
+runs

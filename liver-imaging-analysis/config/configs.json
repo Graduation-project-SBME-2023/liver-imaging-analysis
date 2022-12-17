@@ -2,9 +2,13 @@
     "dataset" :
         {
         "training" : "C:/dataset/Predict/",
-        "testing" : "C:/dataset/Predict/"
+        "testing"  : "C:/dataset/Predict/",
+        "unittest" : "C:/dataset/Predict/"
         },
+
     "transformation_size": [32,32,16],
+    "unittest_size": [16,16,8],
+    "unittest_batch": 1,
     "training":
             {
             "epochs" : 5,
