@@ -31,17 +31,12 @@
     "transforms":
             {
             "transformation_size": [32,32,16],
-            "keys": ("image", "label"),
+            "key1": "image", 
+            "key2":"label",
             "transform_name":"3DUnet"
-            
 
-
-
-            }
+            },
     "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
     "model checkpoint":"final epoch2"
     
 }
-
-
-

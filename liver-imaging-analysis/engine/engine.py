@@ -127,11 +127,11 @@ class Engine():
         return loss_functions[loss_name](**kwargs)
 
 
-    def get_pretraining_transforms(self,transform_name,keys):
+    def get_pretraining_transforms(self,transform_name,keys,size):
         transforms= {
             '3DUnet': Compose(
             [
-                LoadLoadImageD(keys),
+                LoadImageD(keys),
                 EnsureChannelFirstD(keys),
                 OrientationD(keys, axcodes='LAS'), #preferred by radiologists
                 ResizeD(keys, size , mode=('trilinear', 'nearest')),
@@ -202,30 +202,26 @@ class Engine():
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
-        self.transform=self.get_pretraining_transforms(self.config["transforms"]['transform_name'],self.config["transforms"]['keys'])
+        self.keys = (self.config["transforms"]['key1'],self.config["transforms"]['key2'])
+        self.transform = self.get_pretraining_transforms(self.config["transforms"]['transform_name'], self.keys, data_size)
 
         trainloader = dataloader.DataLoader(
             dataset_path=training_data_path,
             batch_size=batchsize,
-            transforms =  self.transform,
+            transforms=self.transform,
             num_workers=0,
             pin_memory=False,
             test_size=train_valid_split,
-            transform=transformation_flag,
-            
-            # keys=dataloader.keys,
-            size=data_size,
+            keys=self.keys,
         )
         testloader = dataloader.DataLoader(
             dataset_path=testing_data_path,
             batch_size=batchsize,
-            transforms =  self.transform,
+            transforms=self.transform,
             num_workers=0,
             pin_memory=False,
             test_size=0, #testing set shouldn't be divided
-            transform=transformation_flag,
-            # keys=dataloader.keys,
-            size=data_size,
+            keys=self.keys,
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
