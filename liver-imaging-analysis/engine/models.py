@@ -51,11 +51,10 @@ class Abstract3DUNet(nn.Module):
         conv_kernel_size=3,
         pool_kernel_size=2,
         conv_padding=1,
-        device="cpu",
         **kwargs
     ):
 
-        # super().__init__(device)
+        super().__init__()
         if isinstance(f_maps, int):
             f_maps = number_of_features_per_level(f_maps, num_levels=num_levels)
         assert isinstance(f_maps, (list, tuple))
@@ -234,8 +233,3 @@ class UNet2D(Abstract3DUNet):
             conv_padding=conv_padding,
             **kwargs
         )
-
-
-# def get_model(model_config):
-#     model_class = get_class(model_config['name'], modules=['pytorch3dunet.unet3d.model'])
-#     return model_class(**model_config)

@@ -6,11 +6,10 @@ import dataloader
 import numpy as np
 import matplotlib.pyplot as plt
 from monai.visualize import plot_2d_or_3d_image
-import optimizers
-import config
+import models
+import losses
 
-
-class Engine(nn.Module,optimizers.Optimizers):
+class Engine():
     """Class that implements the basic PyTorch methods for neural network
     Neural Networks should inherit from this class
     Parameters
@@ -49,11 +48,9 @@ class Engine(nn.Module,optimizers.Optimizers):
     """
 
     def __init__(
-        self, 
+        self,
+        config, 
         device,
-        network,
-        loss,
-        optimizer,
         metrics,
         training_data_path,
         testing_data_path,
@@ -62,15 +59,22 @@ class Engine(nn.Module,optimizers.Optimizers):
         batchsize=1,
         train_valid_split=0,
         ):
-    
+        # super().__init__()
         self.device = device
-        super(Engine,self).__init__()
-        self.loss = loss
-        self.model = UNet()
-        self.optimizer = get_optimizer()
+        self.loss = self._get_loss(
+            loss_name=config["training"]["loss_name"],
+            **config["training"]["loss_params"]
+        )
+        self.network = self._get_network(
+            network_name=config["network_name"],
+            **config["network_params"]
+            ).to(device)
 
-        optimizers.Optimizers.__init__(self)
-        self.optimizer = self.choose(optimizer)
+        self.optimizer = self._get_optimizer(
+            optimizer_name=config['training']['optimizer'],
+            **config['training']['optimizer_params']
+            )
+
         self.metrics = metrics
 
         self._load_data(training_data_path=training_data_path,\
@@ -80,31 +84,30 @@ class Engine(nn.Module,optimizers.Optimizers):
                         batchsize=batchsize,train_valid_split=train_valid_split)
     
 
-    def get_optimizer(self,):        
+    def _get_optimizer(self,optimizer_name,**kwargs):        
         optimizers={
-            'Adam': Adam,
-            'SGD':SGD,
-
+            'Adam': torch.optim.Adam,
+            'SGD': torch.optim.SGD,
         }
-        optim_name = config['training']['optimizer']
-        optim_params = config['training']['optimizer_params']
-        optim_parmas['params'] = self.model
-        return optimizers[optim_name](**optim_params)
+        return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
-    def get_network(self,):
+    def _get_network(self,network_name,**kwargs):
         networks = {
-            'UNet': UNet,
-
+            '3D UNet': models.UNet3D,
+            '3D ResNet': models.ResidualUNet3D
         }
-    
+        return networks[network_name](**kwargs)
+
+    def _get_loss(self,loss_name,**kwargs):
+        loss_functions= {
+            'Dice Loss': losses.DiceLoss,
+        }        
+        return loss_functions[loss_name](**kwargs)
+
 
     def get_pretraining_transforms():
-
         raise NotImplementedError()
 
-
-    def optimizer_init(self,lr):
-        self.optimizer=self.optimizer(self.parameters(),lr)
 
     def _load_data(
         self,
@@ -148,7 +151,7 @@ class Engine(nn.Module,optimizers.Optimizers):
         trainloader = dataloader.DataLoader(
             dataset_path=training_data_path,
             batch_size=batchsize,
-            transforms = self.get_pretraining_transforms(),
+            # transforms = self.get_pretraining_transforms(),
             num_workers=0,
             pin_memory=False,
             test_size=train_valid_split,
@@ -205,7 +208,7 @@ class Engine(nn.Module,optimizers.Optimizers):
         path: int
             The path where the checkpoint will be saved at
         """
-        torch.save(self.state_dict(), path)
+        torch.save(self.network.state_dict(), path)
 
     def load_checkpoint(self, path):
         """
@@ -216,7 +219,7 @@ class Engine(nn.Module,optimizers.Optimizers):
         path: int
             The path of the checkpoint
         """
-        self.load_state_dict(
+        self.network.load_state_dict(
             torch.load(path, map_location=torch.device(self.device))
         )  # if working with CUDA remove torch.device('cpu')
 
@@ -258,12 +261,11 @@ class Engine(nn.Module,optimizers.Optimizers):
 
         """
         tb = SummaryWriter()    
-        best_epoch_loss=float('inf') #initialization with largest possible number
+        best_valid_loss=float('inf') #initialization with largest possible number
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
-            epoch_loss = 0
-            size = self.train_dataloader.__len__()
-            self.train()  # from pytorch
+            training_loss = 0
+            self.network.train()  
             for batch_num, batch in enumerate(self.train_dataloader):
                 print(f"Batch {batch_num+1}/{len(self.train_dataloader)}")
                 volume, mask = batch["image"].to(self.device),\
@@ -274,23 +276,27 @@ class Engine(nn.Module,optimizers.Optimizers):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                training_loss += loss.item()
                 # Print Progress
                 if ((epoch+1)%visualize_epochs==0): #every visualize_epochs create gifs
                     plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,
-                                        frame_dim=-1,tag=f"volume{batch_num}")
+                                        frame_dim=-1,tag=f"Batch{batch_num}:Volume")
                     plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,
-                                        frame_dim=-1,tag=f"mask{batch_num}")
-
+                                        frame_dim=-1,tag=f"Batch{batch_num}:Mask")
+                    plot_2d_or_3d_image(data=(torch.sigmoid(pred)>0.5).float(),step=0,writer=tb,
+                                        frame_dim=-1,tag=f"Batch{batch_num}:Prediction")                  
+            training_loss = training_loss / len(self.train_dataloader)
+            print("Training Loss=",training_loss)
+            tb.add_scalar("Training Loss", training_loss, epoch)
             if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs test model on test set
                 if evaluation_set != None:
-                    current_loss=self.test(evaluation_set)
-                    print(f"Current Loss={current_loss}")
-                    tb.add_scalar("Epoch Loss", current_loss, epoch)
-            
-            if save_flag:
-                if epoch_loss <= best_epoch_loss:
-                    best_epoch_loss=epoch_loss
-                    self.save_checkpoint(save_path)
+                    valid_loss=self.test(evaluation_set)
+                    print(f"Validation Loss={valid_loss}")
+                    tb.add_scalar("Validation Loss", valid_loss, epoch)
+                if save_flag: #save model if performance improved on validation set
+                    if valid_loss <= best_valid_loss:
+                        best_valid_loss=valid_loss
+                        self.save_checkpoint(save_path)
 
 
     def test(self, dataloader):
@@ -308,7 +314,7 @@ class Engine(nn.Module,optimizers.Optimizers):
             for batch in dataloader:
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
-                pred = self(volume)
+                pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
             test_loss /= num_batches
         return test_loss
@@ -338,5 +344,5 @@ class Engine(nn.Module,optimizers.Optimizers):
             volume.shape[2], volume.shape[3]
         )       
         with torch.no_grad():
-            pred = self(volume.to(self.device))
+            pred = self.network(volume.to(self.device))
         return pred

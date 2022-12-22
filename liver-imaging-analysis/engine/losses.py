@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from config import config
 
 def flatten(tensor):
     """Flattens a given tensor such that the channel axis is first.
@@ -95,3 +94,6 @@ class DiceLoss(_AbstractDiceLoss):
 
     def dice(self, input, target, weight):
         return compute_per_channel_dice(input, target, weight=self.weight)
+
+
+        
