@@ -6,7 +6,6 @@
         "unittest" : "C:/dataset/Predict/"
         },
 
-    "transformation_size": [32,32,16],
     "unittest_size": [16,16,8],
     "unittest_batch": 1,
     "network_name": "3D UNet",
@@ -28,7 +27,17 @@
 
                     }
             },
-    
+        
+    "transforms":
+            {
+            "transformation_size": [32,32,16],
+            "keys": ("image", "label"),
+            "transform_name":"3DUnet"
+            
+
+
+
+            }
     "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
     "model checkpoint":"final epoch2"
     

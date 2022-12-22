@@ -8,7 +8,29 @@ import matplotlib.pyplot as plt
 from monai.visualize import plot_2d_or_3d_image
 import models
 import losses
+from monai.transforms import (
+LoadImageD,
+ForegroundMaskD,
+EnsureChannelFirstD,
+AddChannelD,
+ScaleIntensityD,
+ToTensorD,
+Compose,
+NormalizeIntensityD,
+AsDiscreteD,
+SpacingD,
+OrientationD,
+ResizeD,
 
+RandSpatialCropd,
+Spacingd,
+RandFlipd,
+RandScaleIntensityd,
+RandShiftIntensityd,
+RandRotated,
+SqueezeDimd,
+CenterSpatialCropD,
+)
 class Engine():
     """Class that implements the basic PyTorch methods for neural network
     Neural Networks should inherit from this class
@@ -105,8 +127,41 @@ class Engine():
         return loss_functions[loss_name](**kwargs)
 
 
-    def get_pretraining_transforms():
-        raise NotImplementedError()
+    def get_pretraining_transforms(self,transform_name,keys):
+        transforms= {
+            '3DUnet': Compose(
+            [
+                LoadLoadImageD(keys),
+                EnsureChannelFirstD(keys),
+                OrientationD(keys, axcodes='LAS'), #preferred by radiologists
+                ResizeD(keys, size , mode=('trilinear', 'nearest')),
+                # RandFlipd(keys, prob=0.5, spatial_axis=1),
+                # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
+                # prob=0.5, keep_size=True),
+                NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                ForegroundMaskD(keys[1],threshold=0.5,invert=True),
+                # normalize intensity to have mean = 0 and std = 1.
+                ToTensorD(keys),
+            ]
+        ),
+        '2DUnet': Compose(
+            [
+                LoadLoadImageD(keys),
+                EnsureChannelFirstD(keys),
+                OrientationD(keys, axcodes='LAS'), #preferred by radiologists
+                ResizeD(keys, size , mode=('trilinear', 'nearest')),
+                # RandFlipd(keys, prob=0.5, spatial_axis=1),
+                # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
+                # prob=0.5, keep_size=True),
+                NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                ForegroundMaskD(keys[1],threshold=0.5,invert=True),
+                # normalize intensity to have mean = 0 and std = 1.
+                ToTensorD(keys),
+            ]
+        )
+        } 
+
+        return transforms[transform_name]     
 
 
     def _load_data(
@@ -147,21 +202,24 @@ class Engine():
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
+        self.transform=self.get_pretraining_transforms(self.config["transforms"]['transform_name'],self.config["transforms"]['keys'])
 
         trainloader = dataloader.DataLoader(
             dataset_path=training_data_path,
             batch_size=batchsize,
-            # transforms = self.get_pretraining_transforms(),
+            transforms =  self.transform,
             num_workers=0,
             pin_memory=False,
             test_size=train_valid_split,
             transform=transformation_flag,
+            
             # keys=dataloader.keys,
             size=data_size,
         )
         testloader = dataloader.DataLoader(
             dataset_path=testing_data_path,
             batch_size=batchsize,
+            transforms =  self.transform,
             num_workers=0,
             pin_memory=False,
             test_size=0, #testing set shouldn't be divided
