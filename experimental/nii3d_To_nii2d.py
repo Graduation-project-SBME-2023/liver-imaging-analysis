@@ -1,5 +1,5 @@
 '''
-this script converts 3d volumes to 2d png images to train on 2d architecture like 2DUnet
+this script converts 3d volumes to 2d nii files to train on 2d architecture like 2DUnet
 '''
 
 
@@ -7,13 +7,15 @@ import SimpleITK as sitk
 import os
 import natsort
 import cv2 as cv
+import nibabel as nib
+import numpy as np
 
 
 
 volume_nii_path  = '/Users/mn3n3/Downloads/experimental/volume/'  # path to nii files
-volume_save_path = '/Users/mn3n3/Downloads/experimental/volume2d' # path to generated png images
+volume_save_path = '/Users/mn3n3/Downloads/experimental/volume2d' # path to generated 2d nii images
 mask_nii_path    = '/Users/mn3n3/Downloads/experimental/mask/'  # path to nii files
-mask_save_path   = '/Users/mn3n3/Downloads/experimental/mask2d' # path to generated png images
+mask_save_path   = '/Users/mn3n3/Downloads/experimental/mask2d' # path to generated 2d nii images
 
 
 volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
@@ -37,14 +39,19 @@ for i in range(len(volume_folders)):
         volume_silce = img_volume_array[slice_number,:,:]
         mask_silce   = img_mask_array[slice_number,:,:]
 
+    
         volume_file_name = os.path.splitext(volume_folders[i])[0] ## delete extension from filename
         mask_file_name   = os.path.splitext(mask_folders[i])[0] ## delete extension from filename
         
 
+        ## nameConvention =  "defaultNameWithoutExtention_sliceNum.nii.gz"
+        nii_volume_path = os.path.join(volume_save_path, volume_file_name + "_" + str(slice_number))+'.nii.gz'
+        nii_mask_path   = os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))+'.nii.gz'
 
-        ## name =  "defaultNameWithoutExtention_sliceNum.png"
-        volume_png_path = os.path.join(volume_save_path, volume_file_name + "_" + str(slice_number))+'.png'  
-        mask_png_path   = os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))+'.png'  
+        new_nii_volume = nib.Nifti1Image(volume_silce, affine=np.eye(4))  ## ref : https://stackoverflow.com/questions/28330785/creating-a-nifti-file-from-a-numpy-array
+        new_nii_mask   = nib.Nifti1Image(mask_silce  , affine=np.eye(4)) 
 
-        cv.imwrite(volume_png_path , volume_silce)
-        cv.imwrite(mask_png_path   , mask_silce)
+
+        nib.save(new_nii_volume , nii_volume_path) 
+        nib.save(new_nii_mask   , nii_mask_path) 
+
