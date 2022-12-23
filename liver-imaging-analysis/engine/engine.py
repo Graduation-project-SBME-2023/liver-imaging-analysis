@@ -84,6 +84,7 @@ class Engine():
         # super().__init__()
         self.config=config
         self.device = device
+        print("Used Device: ",self.device)
         self.loss = self._get_loss(
             loss_name=config["training"]["loss_name"],
             **config["training"]["loss_params"]
@@ -318,7 +319,7 @@ class Engine():
             directory to save best weights at
 
         """
-        tb = SummaryWriter("/content/drive/MyDrive/liver-imaging-analysis/engine/runs/")    
+        tb = SummaryWriter(self.config["Tensor Board"])    
         best_valid_loss=float('inf') #initialization with largest possible number
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")

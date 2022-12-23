@@ -14,3 +14,5 @@ liver-imaging-analysis/engine/runs/
 model_checkpoint.zip
 final epoch2
 runs
+potential_checkpoint
+model_checkpoint
