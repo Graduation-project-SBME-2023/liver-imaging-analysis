@@ -41,6 +41,7 @@ class DataLoader:
             pin_memory=False,
             test_size=0.15,
             keys=("image", "label"),
+            shuffle=False,
     ):
         """Initializes and saves all the parameters required for creating
         transforms as well as initializing two dataset instances to be
@@ -68,6 +69,7 @@ class DataLoader:
               Dictionary of the corresponding items to be loaded.
               set by default to ("image","label")
         """
+        self.shuffle = shuffle
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -116,6 +118,7 @@ class DataLoader:
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            shuffle=self.shuffle,
         )
         return train_loader
 
@@ -133,9 +136,10 @@ class DataLoader:
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            shuffle=self.shuffle,
         )
 
         return test_loader
 
 # 2 args removed transform and size
-# 1 arg added transforms
+# 2 args added transforms and shuffle
