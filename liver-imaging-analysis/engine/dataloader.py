@@ -2,6 +2,7 @@ import os
 from glob import glob
 import torch
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle as sk_shuffle
 from monai.data import Dataset, DataLoader
 # from torch.utils.data import Dataset, DataLoader
 from monai.data.utils import decollate_batch, pad_list_data_collate
@@ -91,7 +92,7 @@ class DataLoader:
                 training_mask_path,
                 test_mask_path,
             ) = train_test_split(
-                volume_paths, mask_paths, test_size=test_size, shuffle=False
+                volume_paths, mask_paths, test_size=test_size,
             )
 
         train_files = [{keys[0]: image_name, keys[1]: label_name} for image_name, label_name in
