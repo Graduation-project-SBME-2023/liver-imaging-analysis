@@ -14,3 +14,4 @@ liver-imaging-analysis/engine/runs/
 model_checkpoint.zip
 final epoch2
 runs
+liver-imaging-analysis/models/tensorboard

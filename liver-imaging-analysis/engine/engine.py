@@ -1,15 +1,12 @@
+import sys
 from typing import Dict
 import torch
-from torch import nn
 from torch.utils.tensorboard import SummaryWriter
-import dataloader
-import numpy as np
-import matplotlib.pyplot as plt
+import monai
 from monai.visualize import plot_2d_or_3d_image
-import models
-import losses
 from monai.transforms import (
 LoadImageD,
+LoadImage,
 ForegroundMaskD,
 EnsureChannelFirstD,
 AddChannelD,
@@ -21,7 +18,6 @@ AsDiscreteD,
 SpacingD,
 OrientationD,
 ResizeD,
-
 RandSpatialCropd,
 Spacingd,
 RandFlipd,
@@ -31,8 +27,16 @@ RandRotated,
 SqueezeDimd,
 CenterSpatialCropD,
 )
+from configs.config import configuration
+import dataloader
+import models
+import losses
+import utils
+
+
 class Engine():
-    """Class that implements the basic PyTorch methods for neural network
+    """
+    Class that implements the basic PyTorch methods for neural network
     Neural Networks should inherit from this class
     Parameters
     ----------
@@ -60,7 +64,7 @@ class Engine():
         data_size: array_like
               an array of the shape data will be transformed into.
               eg; [64,512,512]
-        batchsize: int
+        batch_size: int
             the number of features to be loaded in each batch.(Default: 1)
         train_valid_split: float
             a fraction between 0-1 that indicate the portion of dataset to be
@@ -70,42 +74,30 @@ class Engine():
     """
 
     def __init__(
-        self,
-        config, 
+        self, 
         device,
-        metrics,
-        training_data_path,
-        testing_data_path,
-        transformation_flag,
-        data_size,
-        batchsize=1,
-        train_valid_split=0,
         ):
-        # super().__init__()
-        self.config=config
+    
         self.device = device
+
         self.loss = self._get_loss(
-            loss_name=config["training"]["loss_name"],
-            **config["training"]["loss_params"]
+            loss_name=configuration.loss_function,
         )
+
         self.network = self._get_network(
-            network_name=config["network_name"],
-            **config["network_params"]
+            network_name=configuration.network_name,
+            **configuration.network_parameters
             ).to(device)
 
+
         self.optimizer = self._get_optimizer(
-            optimizer_name=config['training']['optimizer'],
-            **config['training']['optimizer_params']
+            optimizer_name = configuration.optimizer,
+            **configuration.optimizer_parameters
             )
 
-        self.metrics = metrics
+        
 
-        self._load_data(training_data_path=training_data_path,\
-                        testing_data_path=testing_data_path,\
-                        transformation_flag=transformation_flag,\
-                        data_size=data_size,\
-                        batchsize=batchsize,train_valid_split=train_valid_split,
-                        )
+        self._load_data()
     
 
     def _get_optimizer(self,optimizer_name,**kwargs):        
@@ -123,21 +115,23 @@ class Engine():
         }
         return networks[network_name](**kwargs)
 
-    def _get_loss(self,loss_name,**kwargs):
-        loss_functions= {
-            'Dice Loss': losses.DiceLoss,
+    def _get_loss(self,loss_name):
+        loss_functions = {
+            'dice_loss': losses.DiceLoss(),
+            'monai_dice' : monai.losses.DiceLoss()
         }        
-        return loss_functions[loss_name](**kwargs)
+        return loss_functions[loss_name]
 
 
-    def get_pretraining_transforms(self,transform_name,keys,size):
+    def get_pretraining_transforms(self,transform_name,keys):
+        resize_size = configuration.resize
         transforms= {
-            '3DUnet': Compose(
+            '3DUnet_transform': Compose(
             [
                 LoadImageD(keys),
                 EnsureChannelFirstD(keys),
                 OrientationD(keys, axcodes='LAS'), #preferred by radiologists
-                ResizeD(keys, size , mode=('trilinear', 'nearest')),
+                ResizeD(keys, resize_size , mode=('trilinear', 'nearest')),
                 # RandFlipd(keys, prob=0.5, spatial_axis=1),
                 # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
                 # prob=0.5, keep_size=True),
@@ -147,20 +141,20 @@ class Engine():
                 ToTensorD(keys),
             ]
         ),
-        '2DUnet': Compose(
+        '2DUnet_transform': Compose(
             [
+                # LoadImage(image_only=True, ensure_channel_first=True),
                 LoadImageD(keys),
                 EnsureChannelFirstD(keys),
                 # OrientationD(keys, axcodes='LAS'), #preferred by radiologists
-                ResizeD(keys, size , mode=('bilinear', 'nearest')),
+                ResizeD(keys, resize_size , mode=('bilinear', 'nearest')),
                 # RandFlipd(keys, prob=0.5, spatial_axis=1),
                 # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
                 # prob=0.5, keep_size=True),
-                # NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                NormalizeIntensityD(keys=keys[0], channel_wise=True),
                 ForegroundMaskD(keys[1],threshold=0.5,invert=True),
-                # SqueezeDimd(keys),
-                # normalize intensity to have mean = 0 and std = 1.
                 ToTensorD(keys),
+         
             ]
         )
         } 
@@ -170,11 +164,7 @@ class Engine():
 
     def _load_data(
         self,
-        training_data_path,
-        testing_data_path,
-        transformation_flag,
-        data_size,
-        batchsize=1,
+        batch_size = configuration.batch_size,
         train_valid_split=0,
     ):
         """
@@ -194,38 +184,38 @@ class Engine():
         data_size: array_like
               an array of the shape data will be transformed into.
               eg; [64,512,512]
-        batchsize: int
+        batch_size: int
             the number of features to be loaded in each batch.(Default: 1)
         train_valid_split: float
             a fraction between 0-1 that indicate the portion of training dataset to be
             loaded to the validation set.( Default: 0)
         """
 
-        self.data_size = data_size
-        # self.expand_flag = not transformation_flag
+
+
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
-        self.keys = (self.config["transforms"]['key1'],self.config["transforms"]['key2'])
-        self.transform = self.get_pretraining_transforms(self.config["transforms"]['transform_name'], self.keys, data_size)
+        self.keys = (configuration.img_key,configuration.label_key)
+        self.transform = self.get_pretraining_transforms(configuration.tranform_name, keys = self.keys)
 
         trainloader = dataloader.DataLoader(
-            dataset_path=training_data_path,
-            batch_size=batchsize,
-            transforms=self.transform,
-            num_workers=0,
-            pin_memory=False,
-            test_size=train_valid_split,
-            keys=self.keys,
+            dataset_path = configuration.train_data_path,
+            batch_size = configuration.batch_size,
+            transforms = self.transform,
+            num_workers = 0,
+            pin_memory = False,
+            test_size = train_valid_split,
+            keys = self.keys,
         )
         testloader = dataloader.DataLoader(
-            dataset_path=testing_data_path,
-            batch_size=batchsize,
-            transforms=self.transform,
-            num_workers=0,
-            pin_memory=False,
-            test_size=0, #testing set shouldn't be divided
-            keys=self.keys,
+            dataset_path = configuration.test_data_path,
+            batch_size = batch_size,
+            transforms = self.transform,
+            num_workers = 0,
+            pin_memory = False,
+            test_size = 0, #testing set shouldn't be divided
+            keys = self.keys,
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -268,7 +258,7 @@ class Engine():
         """
         torch.save(self.network.state_dict(), path)
 
-    def load_checkpoint(self, path):
+    def load_checkpoint(self, path = configuration.model_checkpoint):
         """
         Loads checkpoint from a specific path
 
@@ -278,7 +268,7 @@ class Engine():
             The path of the checkpoint
         """
         self.network.load_state_dict(
-            torch.load(path, map_location=torch.device(self.device))
+            torch.load(path, map_location = torch.device(self.device))
         )  # if working with CUDA remove torch.device('cpu')
 
 
@@ -288,16 +278,16 @@ class Engine():
         """
         print(f"Loss= {self.loss} \n")
         print(f"Optimizer= {self.optimizer} \n")
-        print(f"Metrics= {self.metrics} \n")
+        
 
     def fit(
         self,
-        epochs=1,
-        evaluation_set=None,
-        evaluate_epochs=1,
-        visualize_epochs=1,
-        save_flag=True,
-        save_path="best_epoch"
+        epochs = configuration.epochs,
+        do_evaluation = False,
+        evaluate_epochs = 1,
+        visualize_epochs = 100,
+        save_flag = False,
+        save_path = configuration.potential_checkpoint
         ):
         """
         train the model using the stored training set
@@ -318,14 +308,16 @@ class Engine():
             directory to save best weights at
 
         """
-        tb = SummaryWriter("/content/drive/MyDrive/liver-imaging-analysis/engine/runs/")    
+        tb = SummaryWriter("tensorboard/")    
         best_valid_loss=float('inf') #initialization with largest possible number
+        
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             self.network.train()  
+            utils.progress_bar(0, len(self.train_dataloader))  ## batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
-                print(f"Batch {batch_num+1}/{len(self.train_dataloader)}")
+                utils.progress_bar(batch_num, len(self.train_dataloader))
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
                 pred = self.network(volume)
@@ -335,6 +327,7 @@ class Engine():
                 loss.backward()
                 self.optimizer.step()
                 training_loss += loss.item()
+
                 # Print Progress
                 if ((epoch+1)%visualize_epochs==0): #every visualize_epochs create gifs
                     plot_2d_or_3d_image(data=batch['image'],step=0,writer=tb,
@@ -342,18 +335,20 @@ class Engine():
                     plot_2d_or_3d_image(data=batch['label'],step=0,writer=tb,
                                         frame_dim=-1,tag=f"Batch{batch_num}:Mask")
                     plot_2d_or_3d_image(data=(torch.sigmoid(pred)>0.5).float(),step=0,writer=tb,
-                                        frame_dim=-1,tag=f"Batch{batch_num}:Prediction")                  
-            training_loss = training_loss / len(self.train_dataloader)
-            print("Training Loss=",training_loss)
-            tb.add_scalar("Training Loss", training_loss, epoch)
-            if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs test model on test set
-                if evaluation_set != None:
-                    valid_loss=self.test(evaluation_set)
+                                        frame_dim=-1,tag=f"Batch{batch_num}:Prediction") 
+
+            training_loss = training_loss / configuration.batch_size  ## normalize loss over batch size
+            print("\nTraining Loss=",training_loss)
+            tb.add_scalar("\nTraining Loss", training_loss, epoch)
+            
+            if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs, test model on test set
+                if do_evaluation == True:
+                    valid_loss=self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
                     tb.add_scalar("Validation Loss", valid_loss, epoch)
                 if save_flag: #save model if performance improved on validation set
                     if valid_loss <= best_valid_loss:
-                        best_valid_loss=valid_loss
+                        best_valid_loss = valid_loss
                         self.save_checkpoint(save_path)
 
 

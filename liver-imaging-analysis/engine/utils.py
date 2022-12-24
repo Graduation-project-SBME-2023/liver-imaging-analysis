@@ -122,3 +122,9 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
 
 # volume=gray_to_colored('C:/dataset/Path/liver-orig002.nii','C:/dataset/Path2/liver-seg002.nii')
 # animate(volume,'Vol_Mask_Overlay.gif')
+
+
+def progress_bar (progress, total):
+    percent = 100 * (progress / float (total))
+    bar = '#'  * int(percent) + '_' * (100 - int (percent))
+    print (f'\r|{bar}| {percent: .2f}%', end=f"  ---> {progress}/{total}")

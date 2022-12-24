@@ -99,7 +99,7 @@ class TestEngine(unittest.TestCase):
                     testing_data_path=dataset_path,
                     transformation_flag=True,
                     data_size=config["unittest_size"],
-                    batchsize=config["unittest_batch"],
+                    batch_size=config["unittest_batch"],
                     train_valid_split=0,
                 )
                 unet.UNet3D.__init__(self, 1, 1, device=device)

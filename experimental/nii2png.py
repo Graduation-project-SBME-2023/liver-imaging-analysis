@@ -10,10 +10,10 @@ import cv2 as cv
 
 
 
-volume_nii_path  = '/Users/mn3n3/Downloads/experimental/volume/'  # path to nii files
-volume_save_path = '/Users/mn3n3/Downloads/experimental/volume2d' # path to generated png images
-mask_nii_path    = '/Users/mn3n3/Downloads/experimental/mask/'  # path to nii files
-mask_save_path   = '/Users/mn3n3/Downloads/experimental/mask2d' # path to generated png images
+volume_nii_path  = '/Users/mn3n3/Documents/GP/toy_data/volume'  # path to nii files
+mask_nii_path    = '/Users/mn3n3/Documents/GP/toy_data/mask'  # path to nii files
+volume_save_path = '/Users/mn3n3/Documents/GP/toy_data/Train' # path to generated png images
+mask_save_path   = '/Users/mn3n3/Documents/GP/toy_data/Test' # path to generated png images
 
 
 volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
