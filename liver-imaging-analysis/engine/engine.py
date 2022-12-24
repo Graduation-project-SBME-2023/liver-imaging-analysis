@@ -247,7 +247,7 @@ class Engine():
             )
             break
 
-    def save_checkpoint(self, path):
+    def save_checkpoint(self, path = configuration.model_checkpoint):
         """
         Saves current checkpoint to a specific path
 
@@ -349,7 +349,7 @@ class Engine():
                 if save_flag: #save model if performance improved on validation set
                     if valid_loss <= best_valid_loss:
                         best_valid_loss = valid_loss
-                        self.save_checkpoint(save_path)
+                        self.save_checkpoint(path = save_path)
 
 
     def test(self, dataloader):
