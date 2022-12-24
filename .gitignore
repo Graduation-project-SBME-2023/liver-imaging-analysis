@@ -16,3 +16,4 @@ final epoch2
 runs
 potential_checkpoint
 model_checkpoint
+tensorboard

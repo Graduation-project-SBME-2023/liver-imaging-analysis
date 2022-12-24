@@ -1,35 +1,10 @@
 import os
-from glob import glob
-import torch
+import sys
+sys.path.append('/Users/mn3n3/Documents/GP/liver-imaging-analysis/liver-imaging-analysis/')
+from configs.config import configuration
 from sklearn.model_selection import train_test_split
-from sklearn.utils import shuffle as sk_shuffle
-from monai.data import Dataset, DataLoader
-# from torch.utils.data import Dataset, DataLoader
-from monai.data.utils import decollate_batch, pad_list_data_collate
-from monai.transforms import (
-LoadImageD,
-ForegroundMaskD,
-EnsureChannelFirstD,
-AddChannelD,
-ScaleIntensityD,
-ToTensorD,
-Compose,
-NormalizeIntensityD,
-AsDiscreteD,
-SpacingD,
-OrientationD,
-ResizeD,
-
-RandSpatialCropd,
-Spacingd,
-RandFlipd,
-RandScaleIntensityd,
-RandShiftIntensityd,
-RandRotated,
-SqueezeDimd,
-CenterSpatialCropD,
-)
 import monai
+from monai.data import Dataset
 
 
 class DataLoader:
@@ -38,11 +13,11 @@ class DataLoader:
             dataset_path,
             batch_size,
             transforms,
-            num_workers=0,
-            pin_memory=False,
-            test_size=0.15,
-            keys=("image", "label"),
-            shuffle=False,
+            num_workers = 0,
+            pin_memory = False,
+            test_size = 0.15,
+            keys = ("image", "label"),
+            shuffle =  False,
     ):
         """Initializes and saves all the parameters required for creating
         transforms as well as initializing two dataset instances to be
@@ -104,8 +79,9 @@ class DataLoader:
         test_files = [{keys[0]: image_name, keys[1]: label_name} for image_name, label_name in
                       zip(test_volume_path, test_mask_path)]
 
-        self.train_ds = Dataset(data=train_files, transform=transforms)
+        self.train_ds = Dataset(data=train_files, transform = transforms)
         self.test_ds = Dataset(data=test_files, transform=transforms)
+        
 
     def get_training_data(self):
         """Loads the training dataset.
@@ -118,15 +94,15 @@ class DataLoader:
         """
         train_loader = monai.data.DataLoader(
             self.train_ds,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            shuffle=self.shuffle,
+            batch_size = self.batch_size,
+            num_workers = self.num_workers,
+            pin_memory = self.pin_memory,
+            shuffle = self.shuffle,
         )
         return train_loader
 
     def get_testing_data(self):
-        """Loads the testing dataset.
+        """Loads the testing data set.
 
         Returns
         -------
@@ -136,10 +112,10 @@ class DataLoader:
         """
         test_loader = monai.data.DataLoader(
             self.test_ds,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            shuffle=self.shuffle,
+            batch_size = self.batch_size,
+            num_workers = self.num_workers,
+            pin_memory = self.pin_memory,
+            shuffle = self.shuffle,
         )
 
         return test_loader

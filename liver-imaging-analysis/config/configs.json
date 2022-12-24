@@ -1,43 +1,46 @@
 {
-    "dataset" :
+        "dataset" :
         {
-        "training" : "C:/dataset/2D_Slices/",
-        "testing"  : "C:/dataset/2D_Slices/",
-        "unittest" : "/content/drive/MyDrive/LiTS_2D/Test/"
+                "training" : "C:/dataset/2D_Slices/",
+                "testing"  : "C:/dataset/2D_Slices/",
+                "unittest" : "/content/drive/MyDrive/LiTS_2D/Test/"
         },
 
-    "unittest_size": [16,16,8],
-    "unittest_batch": 1,
-    "network_name": "2DUNet",
-    "network_params": {
-        "in_channels":1,
-        "out_channels":1
-    },
-    "training":
-            {
-            "epochs" : 10,
-            "batch_size": 16,
-            "optimizer":"Adam",
-            "optimizer_params":
-                    {
-                    "lr": 0.01
-                    },
-            "loss_name":"Dice Loss",
-            "loss_params": {
+        "unittest_size": [16,16,8],
+        "unittest_batch": 1,
+        "network_name": "2DUNet",
+        "network_params": 
+        {
+                "in_channels":1,
+                "out_channels":1
+        },
+        "training":
+        {
+                "epochs" : 10,
+                "batch_size": 16,
+                "optimizer":"Adam",
+                "optimizer_params":
+                        {
+                                "lr": 0.01
+                        },
+                "loss_name":"Dice Loss",
+                "loss_params": 
+                {
 
-                    }
-            },
+                }
+        },
         
-    "transforms":
-            {
-            "transformation_size": [128,128],
-            "key1": "image", 
-            "key2":"label",
-            "transform_name":"2DUnet"
-
-            },
-    "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
-    "model_checkpoint":"/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
-    "potential_checkpoint":"potential_checkpoint",
-    "Tensor Board": ""
+        "transforms":
+        {
+                "transformation_size": [128,128],
+                "key1": "image", 
+                "key2":"label",
+                "transform_name":"2DUnet"
+        },
+        "save":
+        {
+                "model_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/model_checkpoint",
+                "potential_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/potential_checkpoint",
+                "Tensor Board": ""
+        }
 }
