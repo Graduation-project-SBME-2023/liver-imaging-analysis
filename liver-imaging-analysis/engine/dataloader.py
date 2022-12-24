@@ -69,6 +69,8 @@ class DataLoader:
          keys: dict
               Dictionary of the corresponding items to be loaded.
               set by default to ("image","label")
+        shuffle: bool
+              If, True will shuffle the loaded images and masks before returning them 
         """
         self.shuffle = shuffle
         self.batch_size = batch_size
@@ -141,6 +143,3 @@ class DataLoader:
         )
 
         return test_loader
-
-# 2 args removed transform and size
-# 2 args added transforms and shuffle
