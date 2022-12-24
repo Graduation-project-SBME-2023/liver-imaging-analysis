@@ -82,6 +82,7 @@ class Engine():
         train_valid_split=0,
         ):
         # super().__init__()
+        self.config=config
         self.device = device
         self.loss = self._get_loss(
             loss_name=config["training"]["loss_name"],
@@ -103,7 +104,8 @@ class Engine():
                         testing_data_path=testing_data_path,\
                         transformation_flag=transformation_flag,\
                         data_size=data_size,\
-                        batchsize=batchsize,train_valid_split=train_valid_split)
+                        batchsize=batchsize,train_valid_split=train_valid_split,
+                        )
     
 
     def _get_optimizer(self,optimizer_name,**kwargs):        
@@ -115,8 +117,9 @@ class Engine():
 
     def _get_network(self,network_name,**kwargs):
         networks = {
-            '3D UNet': models.UNet3D,
-            '3D ResNet': models.ResidualUNet3D
+            '3DUNet': models.UNet3D,
+            '3DResNet': models.ResidualUNet3D,
+            '2DUNet' : models.UNet2D
         }
         return networks[network_name](**kwargs)
 
@@ -146,15 +149,16 @@ class Engine():
         ),
         '2DUnet': Compose(
             [
-                LoadLoadImageD(keys),
+                LoadImageD(keys),
                 EnsureChannelFirstD(keys),
-                OrientationD(keys, axcodes='LAS'), #preferred by radiologists
-                ResizeD(keys, size , mode=('trilinear', 'nearest')),
+                # OrientationD(keys, axcodes='LAS'), #preferred by radiologists
+                ResizeD(keys, size , mode=('bilinear', 'nearest')),
                 # RandFlipd(keys, prob=0.5, spatial_axis=1),
                 # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
                 # prob=0.5, keep_size=True),
-                NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                # NormalizeIntensityD(keys=keys[0], channel_wise=True),
                 ForegroundMaskD(keys[1],threshold=0.5,invert=True),
+                # SqueezeDimd(keys),
                 # normalize intensity to have mean = 0 and std = 1.
                 ToTensorD(keys),
             ]
@@ -314,7 +318,7 @@ class Engine():
             directory to save best weights at
 
         """
-        tb = SummaryWriter()    
+        tb = SummaryWriter("/content/drive/MyDrive/liver-imaging-analysis/engine/runs/")    
         best_valid_loss=float('inf') #initialization with largest possible number
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")

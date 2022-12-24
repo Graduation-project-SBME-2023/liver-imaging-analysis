@@ -1,14 +1,14 @@
 {
     "dataset" :
         {
-        "training" : "C:/dataset/Predict/",
-        "testing"  : "C:/dataset/Predict/",
-        "unittest" : "C:/dataset/Predict/"
+        "training" : "/content/drive/MyDrive/LiTS_2D/Train/",
+        "testing"  : "/content/drive/MyDrive/LiTS_2D/Test/",
+        "unittest" : "/content/drive/MyDrive/LiTS_2D/Test/"
         },
 
     "unittest_size": [16,16,8],
     "unittest_batch": 1,
-    "network_name": "3D UNet",
+    "network_name": "2DUNet",
     "network_params": {
         "in_channels":1,
         "out_channels":1
@@ -16,7 +16,7 @@
     "training":
             {
             "epochs" : 10,
-            "batch_size": 1,
+            "batch_size": 100,
             "optimizer":"Adam",
             "optimizer_params":
                     {
@@ -30,13 +30,13 @@
         
     "transforms":
             {
-            "transformation_size": [32,32,16],
+            "transformation_size": [128,128],
             "key1": "image", 
             "key2":"label",
-            "transform_name":"3DUnet"
+            "transform_name":"2DUnet"
 
             },
     "ImagePath":"C:/GP-Dr.Meena-LiverSeg/Mini Liver Dataset/volume/liver-orig009.nii",
-    "model checkpoint":"final epoch2"
-    
+    "model_checkpoint":"/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
+    "potential_checkpoint":"/content/drive/MyDrive/liver-imaging-analysis/engine/potential_checkpoint"
 }
