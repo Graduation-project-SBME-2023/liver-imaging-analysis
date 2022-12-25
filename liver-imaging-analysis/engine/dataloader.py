@@ -1,6 +1,5 @@
 import os
 import sys
-sys.path.append('/Users/mn3n3/Documents/GP/liver-imaging-analysis/liver-imaging-analysis/')
 from configs.config import configuration
 from sklearn.model_selection import train_test_split
 import monai

@@ -1,5 +1,8 @@
 import torch
 from torch import nn
+from torch.autograd import Variable
+import torch.nn.functional as F
+
 
 
 def flatten(tensor):
@@ -98,3 +101,113 @@ class DiceLoss(_AbstractDiceLoss):
 
 
         
+class GeneralizedDiceLoss(_AbstractDiceLoss):
+    """Computes Generalized Dice Loss (GDL) as described in https://arxiv.org/pdf/1707.03237.pdf.
+    """
+
+    def __init__(self, normalization='sigmoid', epsilon=1e-6):
+        super().__init__(weight=None, normalization=normalization)
+        self.epsilon = epsilon
+
+    def dice(self, input, target, weight):
+        assert input.size() == target.size(), "'input' and 'target' must have the same shape"
+
+        input = flatten(input)
+        target = flatten(target)
+        target = target.float()
+
+        if input.size(0) == 1:
+            # for GDL to make sense we need at least 2 channels (see https://arxiv.org/pdf/1707.03237.pdf)
+            # put foreground and background voxels in separate channels
+            input = torch.cat((input, 1 - input), dim=0)
+            target = torch.cat((target, 1 - target), dim=0)
+
+        # GDL weighting: the contribution of each label is corrected by the inverse of its volume
+        w_l = target.sum(-1)
+        w_l = 1 / (w_l * w_l).clamp(min=self.epsilon)
+        w_l.requires_grad = False
+
+        intersect = (input * target).sum(-1)
+        intersect = intersect * w_l
+
+        denominator = (input + target).sum(-1)
+        denominator = (denominator * w_l).clamp(min=self.epsilon)
+
+        return 2 * (intersect.sum() / denominator.sum())
+
+
+class BCEDiceLoss(nn.Module):
+    """Linear combination of BCE and Dice losses"""
+
+    def __init__(self, alpha, beta):
+        super(BCEDiceLoss, self).__init__()
+        self.alpha = alpha
+        self.bce = nn.BCEWithLogitsLoss()
+        self.beta = beta
+        self.dice = DiceLoss()
+
+    def forward(self, input, target):
+        return self.alpha * self.bce(input, target) + self.beta * self.dice(input, target)
+
+class WeightedCrossEntropyLoss(nn.Module):
+    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
+    """
+
+    def __init__(self, ignore_index=-1):
+        super(WeightedCrossEntropyLoss, self).__init__()
+        self.ignore_index = ignore_index
+
+    def forward(self, input, target):
+        weight = self._class_weights(input)
+        return F.cross_entropy(input, target, weight=weight, ignore_index=self.ignore_index)
+
+    @staticmethod
+    def _class_weights(input):
+        # normalize the input first
+        input = F.softmax(input, dim=1)
+        flattened = flatten(input)
+        nominator = (1. - flattened).sum(-1)
+        denominator = flattened.sum(-1)
+        class_weights = Variable(nominator / denominator, requires_grad=False)
+        return class_weights
+
+
+class PixelWiseCrossEntropyLoss(nn.Module):
+    def __init__(self, class_weights=None, ignore_index=None):
+        super(PixelWiseCrossEntropyLoss, self).__init__()
+        self.register_buffer('class_weights', class_weights)
+        self.ignore_index = ignore_index
+        self.log_softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, input, target, weights):
+        assert target.size() == weights.size()
+        # normalize the input
+        log_probabilities = self.log_softmax(input)
+        # standard CrossEntropyLoss requires the target to be (NxDxHxW), so we need to expand it to (NxCxDxHxW)
+        target = expand_as_one_hot(target, C=input.size()[1], ignore_index=self.ignore_index) # Not ready yet for use ( more investigation in future )
+        # expand weights
+        weights = weights.unsqueeze(1)
+        weights = weights.expand_as(input)
+
+        # create default class_weights if None
+        if self.class_weights is None:
+            class_weights = torch.ones(input.size()[1]).float().to(input.device)
+        else:
+            class_weights = self.class_weights
+
+        # resize class_weights to be broadcastable into the weights
+        class_weights = class_weights.view(1, -1, 1, 1, 1)
+
+        # multiply weights tensor by class weights
+        weights = class_weights * weights
+
+        # compute the losses
+        result = -weights * target * log_probabilities
+        # average the losses
+        return result.mean()
+
+
+
+
+
+

@@ -2,13 +2,13 @@ import sys
 from typing import Dict
 import torch
 from torch.utils.tensorboard import SummaryWriter
-import monai
+from monai.losses import DiceLoss as monaiDiceLoss
 from monai.visualize import plot_2d_or_3d_image
 from config import config
 import dataloader
 import models
-import losses
-import utils
+import losses 
+from utils import progress_bar
 
 
 class Engine():
@@ -90,7 +90,10 @@ class Engine():
         """
         loss_functions = {
             'dice_loss': losses.DiceLoss,
-            'monai_dice' : monai.losses.DiceLoss
+            'monai_dice' : monaiDiceLoss,
+            'bce_dice': losses.BCEDiceLoss
+            
+
         }        
         return loss_functions[loss_name](**kwargs)
 
@@ -240,16 +243,16 @@ class Engine():
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        tensorboard_writer = SummaryWriter(self.config["save"]["Tensor Board"])    
+        summary_writer = SummaryWriter(self.config["save"]["Tensor Board"])    
         best_training_loss=float('inf') #initialization with largest possible number
         
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             self.network.train()  
-            utils.progress_bar(0, len(self.train_dataloader))  ## batch progress bar
+            progress_bar(0, len(self.train_dataloader))  ## batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
-                utils.progress_bar(batch_num, len(self.train_dataloader))
+                progress_bar(batch_num, len(self.train_dataloader))
                 volume, mask = batch["image"].to(self.device),\
                                batch["label"].to(self.device)
                 pred = self.network(volume)
@@ -263,16 +266,16 @@ class Engine():
                 # Print Progress
                 if visualize_epochs != None:
                     if ((epoch+1)%visualize_epochs==0): #every visualize_epochs create gifs
-                        plot_2d_or_3d_image(data=batch['image'],step=0,writer=tensorboard_writer,
+                        plot_2d_or_3d_image(data=batch['image'],step=0,writer=summary_writer,
                                             frame_dim=-1,tag=f"Batch{batch_num}:Volume")
-                        plot_2d_or_3d_image(data=batch['label'],step=0,writer=tensorboard_writer,
+                        plot_2d_or_3d_image(data=batch['label'],step=0,writer=summary_writer,
                                             frame_dim=-1,tag=f"Batch{batch_num}:Mask")
-                        plot_2d_or_3d_image(data=(torch.sigmoid(pred)>0.5).float(),step=0,writer=tensorboard_writer,
+                        plot_2d_or_3d_image(data=(torch.sigmoid(pred)>0.5).float(),step=0,writer=summary_writer,
                                             frame_dim=-1,tag=f"Batch{batch_num}:Prediction") 
 
             training_loss = training_loss / config.batch_size  ## normalize loss over batch size
             print("\nTraining Loss=",training_loss)
-            tensorboard_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+            summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
             
             if save_weight: #save model if performance improved on validation set
                 if training_loss <= best_training_loss:
@@ -283,7 +286,7 @@ class Engine():
                 if do_evaluation == True:
                     valid_loss=self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
-                    tensorboard_writer.add_scalar("Validation Loss", valid_loss, epoch)
+                    summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
 
 
     def test(self, dataloader):

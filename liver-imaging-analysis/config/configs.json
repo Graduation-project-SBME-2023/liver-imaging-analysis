@@ -35,8 +35,8 @@
         "transforms":
         {
                 "transformation_size": [128,128],
-                "key1": "image", 
-                "key2":"label",
+                "img_key": "image", 
+                "label_key":"label",
                 "transform_name":"2DUnet"
         },
         "save":
