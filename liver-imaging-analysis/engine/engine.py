@@ -234,7 +234,7 @@ class Engine():
         evaluate_epochs: int
             the number of epochs to evaluate model after. (Default is 1)
         visualize_epochs: int
-            the number of epochs to visualize gifs after. (Default is 1)
+            the number of epochs to visualize gifs after, if exists. (Default is None)
         save_weight: bool
             flag to save best weights. (Default is False)
         save_path: str
