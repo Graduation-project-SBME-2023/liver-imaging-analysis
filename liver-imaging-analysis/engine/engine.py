@@ -165,21 +165,21 @@ class Engine():
         for batch in self.train_dataloader:
             print(
                 f"Batch Shape of Training Features:"
-                f" {batch['image'].shape} {batch['image'].dtype}"
+                f" {batch[config.img_key].shape} {batch[config.img_key].dtype}"
             )
             print(
                 f"Batch Shape of Training Labels:"
-                f" {batch['label'].shape} {batch['label'].dtype}"
+                f" {batch[config.label_key].shape} {batch[config.label_key].dtype}"
             )
             break
         for batch in self.val_dataloader:
             print(
                 f"Batch Shape of Testing Features:"
-                f" {batch['image'].shape} {batch['image'].dtype}"
+                f" {batch[config.img_key].shape} {batch[config.img_key].dtype}"
             )
             print(
                 f"Batch Shape of Testing Labels:"
-                f" {batch['label'].shape} {batch['label'].dtype}"
+                f" {batch[config.label_key].shape} {batch[config.label_key].dtype}"
             )
             break
 
