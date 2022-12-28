@@ -2,9 +2,9 @@
         "device": "cuda",
         "dataset" :
         {
-                "training" : "/content/drive/MyDrive/LITSS/one/",
-                "testing"  : "/content/drive/MyDrive/LITSS/one/",
-                "unittest" : "/content/drive/MyDrive/LITSS/one/"
+                "training" : "C:/dataset",
+                "testing"  : "C:/dataset",
+                "unittest" : "C:/dataset"
         },
 
         "unittest_size": [16,16,8],
@@ -18,7 +18,7 @@
         "training":
         {
                 "epochs" : 10,
-                "batch_size": 16,
+                "batch_size": 1,
                 "train_valid_split": 0,
                 "optimizer":"Adam",
                 "optimizer_params":
@@ -34,10 +34,10 @@
         
         "transforms":
         {
-                "transformation_size": [512,512,150],
+                "transformation_size": [256,256],
                 "img_key": "image", 
                 "label_key":"label",
-                "transform_name":"3DUnet_transform"
+                "transform_name":"2DUnet_transform"
         },
         "save":
         {

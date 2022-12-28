@@ -3,7 +3,7 @@ import json
 class Config:
 
     def __init__(self) -> None:
-        with open("/content/drive/MyDrive/liver-imaging-analysis/config/configs.json") as json_path:
+        with open("config/configs.json") as json_path:
             config_dict = json.load(json_path)
         self.device= config_dict["device"]
         self.train_data_path = config_dict['dataset']['training']

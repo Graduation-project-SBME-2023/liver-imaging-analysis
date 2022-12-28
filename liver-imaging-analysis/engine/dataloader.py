@@ -1,6 +1,6 @@
 import os
 import sys
-from config import config
+from engine.config import config
 from sklearn.model_selection import train_test_split
 import monai
 

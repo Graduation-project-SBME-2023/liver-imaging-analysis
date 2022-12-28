@@ -4,12 +4,11 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from monai.losses import DiceLoss as monaiDiceLoss
 from monai.visualize import plot_2d_or_3d_image
-from config import config
-import dataloader
-import models
-import losses 
-from utils import progress_bar
-
+from engine.config import config
+from engine import dataloader
+from engine import models
+from engine import losses 
+from engine.utils import progress_bar
 
 class Engine():
     """

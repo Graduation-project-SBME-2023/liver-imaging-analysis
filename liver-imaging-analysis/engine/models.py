@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from buildingblocks import DoubleConv, ExtResNetBlock, create_encoders, \
+from engine.buildingblocks import DoubleConv, ExtResNetBlock, create_encoders, \
     create_decoders
 
 
