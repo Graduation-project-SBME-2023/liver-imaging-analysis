@@ -2,9 +2,9 @@
         "device": "cuda",
         "dataset" :
         {
-                "training" : "C:/dataset/2D_Slices/",
-                "testing"  : "C:/dataset/2D_Slices/",
-                "unittest" : "/content/drive/MyDrive/LiTS_2D/Test/"
+                "training" : "/content/drive/MyDrive/LITSS/one/",
+                "testing"  : "/content/drive/MyDrive/LITSS/one/",
+                "unittest" : "/content/drive/MyDrive/LITSS/one/"
         },
 
         "unittest_size": [16,16,8],
@@ -25,7 +25,7 @@
                         {
                                 "lr": 0.01
                         },
-                "loss_name":"Dice Loss",
+                "loss_name":"dice_loss",
                 "loss_params": 
                 {
 
@@ -34,10 +34,10 @@
         
         "transforms":
         {
-                "transformation_size": [128,128],
+                "transformation_size": [512,512,150],
                 "img_key": "image", 
                 "label_key":"label",
-                "transform_name":"2DUnet"
+                "transform_name":"3DUnet_transform"
         },
         "save":
         {

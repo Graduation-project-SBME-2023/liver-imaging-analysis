@@ -3,11 +3,11 @@ import json
 class Config:
 
     def __init__(self) -> None:
-        with open('../configs/configs.json') as json_path:
+        with open("/content/drive/MyDrive/liver-imaging-analysis/config/configs.json") as json_path:
             config_dict = json.load(json_path)
         self.device= config_dict["device"]
-        self.train_data_path = config_dict['dataset']['train']
-        self.test_data_path = config_dict['dataset']['test']
+        self.train_data_path = config_dict['dataset']['training']
+        self.test_data_path = config_dict['dataset']['testing']
 
         self.batch_size =   config_dict["training"]['batch_size']
         self.train_valid_split =   config_dict["training"]['train_valid_split']
@@ -18,8 +18,8 @@ class Config:
         self.optimizer = config_dict['training']['optimizer']
         self.optimizer_parameters = config_dict["training"]["optimizer_params"]
 
-        self.resize = config_dict["transforms"]["resize"]
-        self.apply_transform = config_dict["transforms"]["apply_transform"]
+        self.resize = config_dict["transforms"]["transformation_size"]
+        # self.apply_transform = config_dict["transforms"]["apply_transform"]
         self.img_key = config_dict["transforms"]["img_key"]
         self.label_key = config_dict["transforms"]["label_key"]
         self.tranform_name = config_dict["transforms"]["transform_name"]
@@ -33,4 +33,4 @@ class Config:
         
 
 
-configuration = Config()
+config = Config()

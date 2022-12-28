@@ -24,8 +24,8 @@ class Engine():
         self.device = config.device
         print("Used Device: ",self.device)
         self.loss = self.get_loss(
-            loss_name=config.loss_function,
-            loss_params=config.loss_params
+            loss_name=config.loss_function
+       
         )
 
         self.network = self.get_network(
@@ -77,7 +77,7 @@ class Engine():
         }
         return networks[network_name](**kwargs)
 
-    def get_loss(self,loss_name,**kwargs):
+    def get_loss(self,loss_name):
         """
         internally used to load loss function.
         Parameters
@@ -95,7 +95,7 @@ class Engine():
             
 
         }        
-        return loss_functions[loss_name](**kwargs)
+        return loss_functions[loss_name]()
 
 
     def get_pretraining_transforms(self):
@@ -150,12 +150,12 @@ class Engine():
             transforms = self.test_transform,
             num_workers = 0,
             pin_memory = False,
-            test_size = 1, #testing set should all be set as evaluation (no training)
+            test_size = 0, #testing set should all be set as evaluation (no training)
             keys = (config.img_key,config.label_key),
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
-        self.test_dataloader = testloader.get_testing_data()
+        self.test_dataloader = testloader.get_training_data()
 
     def data_status(self):
         """
@@ -243,7 +243,7 @@ class Engine():
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        summary_writer = SummaryWriter(self.config["save"]["Tensor Board"])    
+        # summary_writer = SummaryWriter(config["save"]["Tensor Board"])    
         best_training_loss=float('inf') #initialization with largest possible number
         
         for epoch in range(epochs):
@@ -275,7 +275,7 @@ class Engine():
 
             training_loss = training_loss / config.batch_size  ## normalize loss over batch size
             print("\nTraining Loss=",training_loss)
-            summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+            # summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
             
             if save_weight: #save model if performance improved on validation set
                 if training_loss <= best_training_loss:
@@ -286,7 +286,7 @@ class Engine():
                 if do_evaluation == True:
                     valid_loss=self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
-                    summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+                    # summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
 
 
     def test(self, dataloader):
