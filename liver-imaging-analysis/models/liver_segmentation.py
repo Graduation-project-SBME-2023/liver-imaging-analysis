@@ -40,6 +40,58 @@ volume_save_path = 'D:/GP/nii2png/images/volume' # path to generated png images
 mask_save_path   = 'D:/GP/nii2png/images/mask' # path to generated png images
 
 
+
+class LoadLITSLiverd(LoadImage):
+    def __init__(self, keys) -> None:
+        super().__init__()
+        self.keys = keys
+#        ('image', 'label')
+
+    def __call__(self, file_path: str) -> Any:
+        data = {}
+        
+        # keys loop
+
+        data_2d_path = 'local_path'
+        slice_id =  data_2d_path + '_'.join(file_path.split('_')[-2:])
+        if '2D':
+            if slice_id.exist():
+                image = super().__call__(slice_id)
+            else:
+                vol_path = '_'.join(file_path.split('_')[:-2])
+                slice_idx = int(file_path.split('_')[-1])
+                vol = super().__call__(file_path)
+                image = vol[..., slice_idx]
+                # check storage
+                image.save(slice_id)
+            
+        elif '3D':
+            image = super().__call__(file_path)
+        
+        data[key] = image
+        return data
+
+
+
+if '2D':
+    image_paths = [
+        'location_to_volume1_s1',
+        'location_to_volume1_s2',
+        'location_to_volume1_s3',
+        'location_to_volume1_sn',
+
+        'location_to_volume2',
+    ]
+    label_paths = [
+        'location_to_volume1_s1',
+        'location_to_volume1_s2',
+        'location_to_volume1_s3',
+        'location_to_volume1_sn',
+
+        'location_to_volume2',
+    ]
+
+
 volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
 mask_folders   = natsort.natsorted(os.listdir(mask_nii_path))
 class nii2png(MapTransform):
@@ -167,5 +219,12 @@ class LiverSegmentation(engine.Engine):
             return transforms[transform_name]     
 
 
-liver_segm = LiverSegmentation()
-liver_segm.fit()
+def segment_liver(*args):
+    liver_segm = LiverSegmentation()
+    liver_segm.fit()
+
+
+
+if __name__ == '__main__':
+    # args
+    segment_liver(args)
