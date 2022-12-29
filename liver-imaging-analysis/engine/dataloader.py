@@ -4,6 +4,23 @@ from engine.config import config
 from sklearn.model_selection import train_test_split
 import monai
 
+def slices_paths_reader(volume_text_path,mask_text_path):
+  # empty list to read list from a file
+  volume_paths = []
+  mask_paths = []
+  # open file and read the content in a list
+  with open(volume_text_path, 'r') as fp:
+      for line in fp:
+          # remove linebreak from a current name
+          # linebreak is the last character of each line
+          x = line[:-1]
+          # add current item to the list
+          volume_paths.append(x)
+  with open(mask_text_path, 'r') as fp:
+      for line in fp:
+          x = line[:-1]
+          mask_paths.append(x)
+  return volume_paths,mask_paths
 
 class DataLoader:
     def __init__(
@@ -55,6 +72,7 @@ class DataLoader:
         volume_paths = [os.path.join(dataset_path, "volume", file_name) for file_name in volume_names]
         mask_paths = [os.path.join(dataset_path, "mask", file_name) for file_name in mask_names]
 
+        volume_paths,mask_paths = slices_paths_reader("C:/dataset/volumes.txt",'C:/dataset/masks.txt')
         volume_paths.sort()
         mask_paths.sort()
 
@@ -62,6 +80,10 @@ class DataLoader:
             training_volume_path, training_mask_path = volume_paths, mask_paths
             test_volume_path = []
             test_mask_path = []
+        elif test_size == 1:  # train_test_split does not take 0 as a valid test_size, so we have to implement manually.
+            test_volume_path, test_mask_path = volume_paths, mask_paths
+            training_volume_path = []
+            training_mask_path = []
         else:
             (
                 training_volume_path,

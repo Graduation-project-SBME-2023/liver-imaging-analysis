@@ -149,12 +149,12 @@ class Engine():
             transforms = self.test_transform,
             num_workers = 0,
             pin_memory = False,
-            test_size = 0, #testing set should all be set as evaluation (no training)
+            test_size = 1, #testing set should all be set as evaluation (no training)
             keys = (config.img_key,config.label_key),
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
-        self.test_dataloader = testloader.get_training_data()
+        self.test_dataloader = testloader.get_testing_data()
 
     def data_status(self):
         """

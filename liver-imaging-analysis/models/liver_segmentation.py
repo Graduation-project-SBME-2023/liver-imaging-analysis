@@ -10,6 +10,7 @@ LoadImage,
 ForegroundMaskD,
 EnsureChannelFirstD,
 AddChannelD,
+
 ScaleIntensityD,
 ToTensorD,
 Compose,
@@ -39,116 +40,54 @@ volume_save_path = 'C:/dataset/nii2png/volume' # path to generated png images
 mask_save_path   = 'C:/dataset/nii2png/mask' # path to generated png images
 
 
-
 class LoadLITSLiverd(LoadImage):
     def __init__(self, keys) -> None:
         super().__init__()
         self.keys = keys
-#        ('image', 'label')
+        # MapTransform.__init__(self, keys, allow_missing_keys=False)
 
-    def __call__(self, file_path: str) -> Any:
-        data = {}
-        
+
+    def __call__(self, data) -> None:
+        d = dict(data)
+        for key  in list(data.keys()):
         # keys loop
-
-        data_2d_path = 'local_path'
-        slice_id =  data_2d_path + '_'.join(file_path.split('_')[-2:])
-        if '2D':
-            if slice_id.exist():
-                image = super().__call__(slice_id)
+            file_path=d[key]
+            if key=="image":
+                data_2d_path = 'models/Temp2D/volume/'
+            elif key=="label":
+                data_2d_path = 'models/Temp2D/mask/'
+            slice_id =  data_2d_path + '_'.join(file_path.split('/')[-1:]) #Temp2D/mask/segmentation-0_0.nii
+            # if '2D': 
+            current_paths=os.listdir(data_2d_path)
+            if ((slice_id.split("/")[-1]).split(".")[0]+".png") in current_paths:
+                image = super().__call__(slice_id.split(".")[0]+".png")[0]
             else:
-                vol_path = '_'.join(file_path.split('_')[:-2])
-                slice_idx = int(file_path.split('_')[-1])
-                vol = super().__call__(file_path)
+                # print((slice_id.split("/")[-1]).split(".")[0]+".png")
+                print("writing")
+                vol_path = '_'.join(file_path.split('_')[:-1])+'.nii'
+                slice_idx = int(file_path.split('_')[-1].split(".")[0])
+                vol = super().__call__(vol_path)[0]
                 image = vol[..., slice_idx]
                 # check storage
-                image.save(slice_id)
+                cv.imwrite(slice_id.split(".")[0]+".png" , np.asarray(image))
+
+                
+            # elif '3D':
+            #     image = super().__call__(file_path)
             
-        elif '3D':
-            image = super().__call__(file_path)
-        
-        data[key] = image
-        return data
+            d[key] = image
+        return d
 
 
+# if '2D':
+#     train_volume_paths,train_mask_paths = slices_paths_reader("C:/dataset/volumes.txt",'C:/dataset/masks.txt')
+    # test_volume_paths, test_mask_paths = slices_paths_reader("test_volumes.txt",'test_masks.txt')
 
-if '2D':
-    image_paths = [
-        'location_to_volume1_s1',
-        'location_to_volume1_s2',
-        'location_to_volume1_s3',
-        'location_to_volume1_sn',
-
-        'location_to_volume2',
-    ]
-    label_paths = [
-        'location_to_volume1_s1',
-        'location_to_volume1_s2',
-        'location_to_volume1_s3',
-        'location_to_volume1_sn',
-
-        'location_to_volume2',
-    ]
 
 
 volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
 mask_folders   = natsort.natsorted(os.listdir(mask_nii_path))
-class ShuffleSlices(MapTransform):
-    def __init__(self, keys)->None:
-        # self.shape = [shape, shape, shape] if isinstance(shape, int) else shape
-        MapTransform.__init__(self, keys, allow_missing_keys=False)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> None:
-        volume=data[list(data.keys())[0]]
-        mask= data[list(data.keys())[1]]
-        volume=volume.permute(2,0,1)
-        mask=mask.permute(2,0,1)
-        data[list(data.keys())[0]]=volume
-        data[list(data.keys())[1]]=mask
-        return data
-
-class nii2png(MapTransform):
-    def __init__(self, keys,volume_folders=volume_folders,mask_folders=mask_folders)->None:
-        # self.shape = [shape, shape, shape] if isinstance(shape, int) else shape
-        MapTransform.__init__(self, keys, allow_missing_keys=False)
-
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> None:
-
-        d = dict(data)
-        for key  in self.key_iterator(d):
-        
-            # for i in range(len(volume_folders)): 
-
-                # volume_path = os.path.join(volume_nii_path, volume_folders[i])
-                # mask_path   = os.path.join(mask_nii_path, mask_folders[i])
-
-                # img_volume = sitk.ReadImage(volume_path)
-                # img_mask   = sitk.ReadImage(mask_path)
-
-                img_volume_array = d[key]
-                img_volume_array=torch.squeeze(img_volume_array,dim=0)
-                # img_mask_array   = d[key][1]
-            
-                number_of_slices = img_volume_array.shape[2] 
-
-                for slice_number in range(number_of_slices):
-
-                    volume_silce = img_volume_array[:,:,slice_number]
-                    # mask_silce   = img_mask_array[slice_number,:,:]
-
-                    volume_file_name = "HI" ## delete extension from filename
-                    mask_file_name   = "BYE" ## delete extension from filename
-                    
-
-
-                    ## name =  "defaultNameWithoutExtention_sliceNum.png"
-                    volume_png_path = os.path.join(volume_save_path, volume_file_name + "_" + str(slice_number))+'.png'  
-                    # mask_png_path   = os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))+'.png'  
-
-                    cv.imwrite(volume_png_path , np.asarray(volume_silce))
-                    # cv.imwrite(mask_png_path   , mask_silce)
-        return d
 
 class LiverSegmentation(Engine):
     def get_pretraining_transforms(self,transform_name,keys):
@@ -165,28 +104,18 @@ class LiverSegmentation(Engine):
                 # prob=0.5, keep_size=True),
                 NormalizeIntensityD(keys=keys[0], channel_wise=True),
                 ForegroundMaskD(keys[1],threshold=0.5,invert=True),
-                ShuffleSlices(keys),
                 ToTensorD(keys),
             ]
         ),
 
         '2DUnet_transform': Compose(
             [
-                # LoadImage(image_only=True, ensure_channel_first=True),
-                LoadImageD(keys),
+                LoadLITSLiverd(keys),
                 EnsureChannelFirstD(keys),
-                nii2png(keys[0]),
-                LoadImageD(keys),
-                OrientationD(keys, axcodes='LAS'), #preferred by radiologists
-                ResizeD(keys, resize_size , mode=('trilinear', 'nearest')),
-                # RandFlipd(keys, prob=0.5, spatial_axis=1),
-                # RandRotated(keys, range_x=0.1, range_y=0.1, range_z=0.1,
-                # prob=0.5, keep_size=True),
+                ResizeD(keys, resize_size , mode=('bilinear', 'nearest')),
                 NormalizeIntensityD(keys=keys[0], channel_wise=True),
                 ForegroundMaskD(keys[1],threshold=0.5,invert=True),
-                SqueezeDimd(keys),
                 ToTensorD(keys),
-                ShuffleSlices(keys),
             ]
         ),
 
@@ -215,16 +144,12 @@ class LiverSegmentation(Engine):
             ),
             '2DUnet_transform': Compose(
                 [
-                    # LoadImage(image_only=True, ensure_channel_first=True),
-                    LoadImageD(keys),
-                    # ShuffleSlices(keys),
+                    LoadLITSLiverd(keys),
                     EnsureChannelFirstD(keys),
-                    # OrientationD(keys, axcodes='LAS'), #preferred by radiologists
                     ResizeD(keys, resize_size , mode=('bilinear', 'nearest')),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
                     ForegroundMaskD(keys[1],threshold=0.5,invert=True),
-                    ToTensorD(keys),
-            
+                    ToTensorD(keys),  
                 ]
             ),
             'custom_transform': Compose(
@@ -235,13 +160,16 @@ class LiverSegmentation(Engine):
             } 
             return transforms[transform_name]     
 
+model=LiverSegmentation()
+model.data_status()
+model.fit()
 
-def segment_liver(*args):
-    liver_segm = LiverSegmentation()
-    liver_segm.fit()
+# def segment_liver(*args):
+#     liver_segm = LiverSegmentation()
+#     liver_segm.fit()
 
 
 
-if __name__ == '__main__':
-    # args
-    segment_liver(args)
+# if __name__ == '__main__':
+#     # args
+#     segment_liver(args)

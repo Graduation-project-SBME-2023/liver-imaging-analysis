@@ -18,7 +18,7 @@
         "training":
         {
                 "epochs" : 10,
-                "batch_size": 1,
+                "batch_size": 10,
                 "train_valid_split": 0,
                 "optimizer":"Adam",
                 "optimizer_params":
@@ -34,7 +34,7 @@
         
         "transforms":
         {
-                "transformation_size": [256,256],
+                "transformation_size": [32,32],
                 "img_key": "image", 
                 "label_key":"label",
                 "transform_name":"2DUnet_transform"
