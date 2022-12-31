@@ -3,6 +3,7 @@ import monai
 import torch
 from monai.utils import ensure_tuple_rep
 import numpy as np
+from engine.preprocessing import LoadLITSLiverd
 from monai.transforms import (
 MapTransform,
 LoadImageD,
@@ -34,59 +35,7 @@ import os
 import natsort
 import cv2 as cv
 from engine.engine import Engine
-volume_nii_path  = 'C:/dataset/volume'  # path to nii files
-mask_nii_path    = 'C:/dataset/mask'  # path to nii files
-volume_save_path = 'C:/dataset/nii2png/volume' # path to generated png images
-mask_save_path   = 'C:/dataset/nii2png/mask' # path to generated png images
 
-
-class LoadLITSLiverd(LoadImage):
-    def __init__(self, keys) -> None:
-        super().__init__()
-        self.keys = keys
-        # MapTransform.__init__(self, keys, allow_missing_keys=False)
-
-
-    def __call__(self, data) -> None:
-        d = dict(data)
-        for key  in list(data.keys()):
-        # keys loop
-            file_path=d[key]
-            if key=="image":
-                data_2d_path = 'models/Temp2D/volume/'
-            elif key=="label":
-                data_2d_path = 'models/Temp2D/mask/'
-            slice_id =  data_2d_path + '_'.join(file_path.split('/')[-1:]) #Temp2D/mask/segmentation-0_0.nii
-            # if '2D': 
-            current_paths=os.listdir(data_2d_path)
-            if ((slice_id.split("/")[-1]).split(".")[0]+".png") in current_paths:
-                image = super().__call__(slice_id.split(".")[0]+".png")[0]
-            else:
-                # print((slice_id.split("/")[-1]).split(".")[0]+".png")
-                print("writing")
-                vol_path = '_'.join(file_path.split('_')[:-1])+'.nii'
-                slice_idx = int(file_path.split('_')[-1].split(".")[0])
-                vol = super().__call__(vol_path)[0]
-                image = vol[..., slice_idx]
-                # check storage
-                cv.imwrite(slice_id.split(".")[0]+".png" , np.asarray(image))
-
-                
-            # elif '3D':
-            #     image = super().__call__(file_path)
-            
-            d[key] = image
-        return d
-
-
-# if '2D':
-#     train_volume_paths,train_mask_paths = slices_paths_reader("C:/dataset/volumes.txt",'C:/dataset/masks.txt')
-    # test_volume_paths, test_mask_paths = slices_paths_reader("test_volumes.txt",'test_masks.txt')
-
-
-
-volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
-mask_folders   = natsort.natsorted(os.listdir(mask_nii_path))
 
 
 class LiverSegmentation(Engine):
@@ -160,16 +109,8 @@ class LiverSegmentation(Engine):
             } 
             return transforms[transform_name]     
 
-model=LiverSegmentation()
-model.data_status()
-model.fit()
 
-# def segment_liver(*args):
-#     liver_segm = LiverSegmentation()
-#     liver_segm.fit()
-
-
-
-# if __name__ == '__main__':
-#     # args
-#     segment_liver(args)
+def segment_liver(*args):
+    model=LiverSegmentation()
+    model.data_status()
+    model.fit()

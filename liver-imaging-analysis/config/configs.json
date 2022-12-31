@@ -2,9 +2,9 @@
         "device": "cuda",
         "dataset" :
         {
-                "training" : "C:/dataset",
-                "testing"  : "C:/dataset",
-                "unittest" : "C:/dataset"
+                "training" : "C:/dataset/",
+                "testing"  : "C:/dataset/",
+                "unittest" : "C:/dataset/"
         },
 
         "unittest_size": [16,16,8],
@@ -41,6 +41,8 @@
         },
         "save":
         {
+                "volume_png_path":"models/Temp2D/volume/",
+                "mask_png_path":"models/Temp2D/mask/",
                 "model_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/model_checkpoint",
                 "potential_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/potential_checkpoint",
                 "Tensor Board": ""

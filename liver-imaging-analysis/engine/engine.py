@@ -242,7 +242,7 @@ class Engine():
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        # summary_writer = SummaryWriter(config["save"]["Tensor Board"])    
+        summary_writer = SummaryWriter(config.tensorboard_save_path)    
         best_training_loss=float('inf') #initialization with largest possible number
         
         for epoch in range(epochs):
@@ -272,9 +272,9 @@ class Engine():
                         plot_2d_or_3d_image(data=(torch.sigmoid(pred)>0.5).float(),step=0,writer=summary_writer,
                                             frame_dim=-1,tag=f"Batch{batch_num}:Prediction") 
 
-            training_loss = training_loss / config.batch_size  ## normalize loss over batch size
+            training_loss = training_loss / len(self.train_dataloader)  ## normalize loss over batch size
             print("\nTraining Loss=",training_loss)
-            # summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+            summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
             
             if save_weight: #save model if performance improved on validation set
                 if training_loss <= best_training_loss:
@@ -285,7 +285,7 @@ class Engine():
                 if do_evaluation == True:
                     valid_loss=self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
-                    # summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+                    summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
 
 
     def test(self, dataloader):
@@ -307,31 +307,3 @@ class Engine():
                 test_loss += self.loss(pred, mask).item()
             test_loss /= num_batches
         return test_loss
-
-
-    # def predict(self, volume_path):
-    #     """
-    #     predict the label of the given input using the current weights
-
-    #     Parameters
-    #     ----------
-    #     volume_path: str
-    #               path of the input feature. expects a nifti file.
-    #     Returns
-    #     -------
-    #     tensor
-    #         tensor of the predicted label
-    #     """
-    #     dict_loader = dataloader.LoadImageD(keys=("image", "label"))
-    #     data_dict = dict_loader({"image": volume_path, "label": volume_path})
-    #     preprocess = dataloader.Preprocessing(("image", "label"),
-    #                                           self.data_size)
-    #     data_dict_processed = preprocess(data_dict)
-    #     volume = data_dict_processed["image"]
-    #     volume = volume.expand(
-    #         1, volume.shape[0], volume.shape[1],
-    #         volume.shape[2], volume.shape[3]
-    #     )       
-    #     with torch.no_grad():
-    #         pred = self.network(volume.to(self.device))
-    #     return pred

@@ -30,7 +30,9 @@ class Config:
 
         self.model_checkpoint = config_dict["save"]["model_checkpoint"]
         self.potential_checkpoint = config_dict["save"]["potential_checkpoint"]
-        
+        self.volume_png_path=config_dict["save"]["volume_png_path"]
+        self.mask_png_path=config_dict["save"]["mask_png_path"]
+        self.tensorboard_save_path=config_dict["save"]["Tensor Board"]        
 
 
 config = Config()
