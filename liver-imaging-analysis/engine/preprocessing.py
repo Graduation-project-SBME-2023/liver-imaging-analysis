@@ -1,28 +1,20 @@
-# volume_nii_path  = 'C:/dataset/volume'  # path to nii files
-# mask_nii_path    = 'C:/dataset/mask'  # path to nii files
-# volume_save_path = 'C:/dataset/nii2png/volume' # path to generated png images
-# mask_save_path   = 'C:/dataset/nii2png/mask' # path to generated png images
-
-
-
-
-
 import os
 import numpy as np
-# volume_folders = natsort.natsorted(os.listdir(volume_nii_path)) ## sort the directory of files
-# mask_folders   = natsort.natsorted(os.listdir(mask_nii_path))
 from engine.config import config
 from monai.transforms import LoadImage
 import cv2 as cv
 
 
-class LoadLITSLiverd(LoadImage):
-
-    """ a class that takes the path of volume with a specific slice and saves it localy if not saved then reads it, 
+class LoadImageLocaly(LoadImage):
+    """
+    a class that takes the path of volume with a specific slice and saves it localy if not saved then reads it, 
     if saved it reads it only
 
+    Args:
+        keys (list): paths of the images to be loaded.
 
-
+    Return:
+        d (list): loaded image 
     """
     def __init__(self, keys) -> None:
         super().__init__()

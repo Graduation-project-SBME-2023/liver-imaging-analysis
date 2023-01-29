@@ -1,5 +1,3 @@
-import sys
-from typing import Dict
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from monai.losses import DiceLoss as monaiDiceLoss
@@ -22,21 +20,23 @@ class Engine():
 
         self.device = config.device
         print("Used Device: ",self.device)
-        self.loss = self.get_loss(
-            loss_name=config.loss_function
-       
-        )
 
-        self.network = self.get_network(
+        self.loss = self.get_loss(
+            loss_name=config.training["loss_name"],
+             **config.training["loss_parameters"],
+                )
+
+        self.network = self._get_network(
             network_name=config.network_name,
             **config.network_parameters
-            ).to(self.device)
+        ).to(self.device)
 
 
-        self.optimizer = self.get_optimizer(
-            optimizer_name = config.optimizer,
-            **config.optimizer_parameters
-            )
+
+        self.optimizer = self._get_optimizer(
+            optimizer_name=config.training["optimizer"],
+            **config.training["optimizer_parameters"],
+        )
 
         self.load_data()
     
@@ -99,7 +99,7 @@ class Engine():
 
     def get_pretraining_transforms(self):
         """
-        Should be Implemented by user.
+        Should be Implemented by user in liver_segmentation module.
         Transforms to be applied on training set before training.
         Expected to return a monai Compose object with desired transforms.
         """
@@ -107,7 +107,7 @@ class Engine():
 
     def get_pretesting_transforms(self):
         """
-        Should be Implemented by user.
+        Should be Implemented by user in liver_segmentation module.
         Transforms to be applied on testing set before evaluation.
         Expected to return a monai Compose object with desired transforms.        
         """
@@ -125,32 +125,36 @@ class Engine():
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
+        self.keys = (config.transforms["img_key"], config.transforms["label_key"])
+        self.batch_size=config.training["batch_size"]
         self.train_transform = self.get_pretraining_transforms(
-            config.tranform_name,
-            keys = (config.img_key,config.label_key)
+            config.transforms["train_transform"],
+            self.keys
             )
         self.test_transform = self.get_pretesting_transforms(
-            config.tranform_name,
-            keys = (config.img_key,config.label_key)
+            config.transforms["test_transform"],
+            self.keys
             )
 
         trainloader = dataloader.DataLoader(
-            dataset_path = config.train_data_path,
-            batch_size = config.batch_size,
-            transforms = self.train_transform,
+            dataset_path = config.dataset["training"],
+            batch_size = config.training["batch_size"],
+            train_transforms = self.train_transform,
+            test_transforms=self.test_transform,
             num_workers = 0,
             pin_memory = False,
-            test_size = config.train_valid_split,
-            keys = (config.img_key,config.label_key),
+            test_size = config.training["train_valid_split"],
+            keys = self.keys,
         )
         testloader = dataloader.DataLoader(
-            dataset_path = config.test_data_path,
-            batch_size = config.batch_size,
-            transforms = self.test_transform,
+            dataset_path = config.dataset["testing"],
+            batch_size = config.training["batch_size"],
+            train_transforms = self.train_transform,
+            test_transforms=self.test_transform,
             num_workers = 0,
             pin_memory = False,
             test_size = 1, #testing set should all be set as evaluation (no training)
-            keys = (config.img_key,config.label_key),
+            keys = self.keys,
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -161,28 +165,46 @@ class Engine():
         Prints the shape and data type of a training batch
         and a testing batch, if exists.
         """
-        for batch in self.train_dataloader:
-            print(
-                f"Batch Shape of Training Features:"
-                f" {batch[config.img_key].shape} {batch[config.img_key].dtype}"
-            )
-            print(
-                f"Batch Shape of Training Labels:"
-                f" {batch[config.label_key].shape} {batch[config.label_key].dtype}"
-            )
-            break
-        for batch in self.val_dataloader:
-            print(
-                f"Batch Shape of Testing Features:"
-                f" {batch[config.img_key].shape} {batch[config.img_key].dtype}"
-            )
-            print(
-                f"Batch Shape of Testing Labels:"
-                f" {batch[config.label_key].shape} {batch[config.label_key].dtype}"
-            )
-            break
 
-    def save_checkpoint(self, path = config.model_checkpoint):
+        img_key= config.transforms["img_key"]
+        label_key= config.transforms["label_key"]
+
+        dataloader_iterator = iter(self.train_dataloader)
+        batch = next(dataloader_iterator)
+        print(
+            f"Batch Shape of Training Features:"
+            f" {batch[img_key].shape} {batch[img_key].dtype}"
+        )
+        print(
+            f"Batch Shape of Training Labels:"
+            f" {batch[label_key].shape} {batch[label_key].dtype}"
+        )
+
+        dataloader_iterator = iter(self.val_dataloader)
+        batch = next(dataloader_iterator)
+        print(
+            f"Batch Shape of Validation Features:"
+            f" {batch[img_key].shape} {batch[img_key].dtype}"
+        )
+        print(
+            f"Batch Shape of Validation Labels:"
+            f" {batch[label_key].shape} {batch[label_key].dtype}"
+        )
+
+        dataloader_iterator = iter(self.test_dataloader)
+        batch = next(dataloader_iterator)
+        print(
+            f"Batch Shape of Testing Features:"
+            f" {batch[img_key].shape} {batch[img_key].dtype}"
+        )
+        print(
+            f"Batch Shape of Testing Labels:"
+            f" {batch[label_key].shape} {batch[label_key].dtype}"
+        )
+
+       
+
+    def save_checkpoint(self, path = config.save["potential_checkpoint"]):
         """
         Saves current checkpoint to a specific path. (Default is the model path in config)
 
@@ -193,7 +215,7 @@ class Engine():
         """
         torch.save(self.network.state_dict(), path)
 
-    def load_checkpoint(self, path = config.model_checkpoint):
+    def load_checkpoint(self, path = config.save["model_checkpoint"]):
         """
         Loads checkpoint from a specific path
 
@@ -217,12 +239,12 @@ class Engine():
 
     def fit(
         self,
-        epochs = config.epochs,
+        epochs = config.training["epochs"],
         do_evaluation = False,
         evaluate_epochs = 1,
         visualize_epochs = None,
         save_weight = False,
-        save_path = config.potential_checkpoint
+        save_path =  config.save["potential_checkpoint"]
         ):
         """
         train the model using the stored training set
@@ -242,8 +264,8 @@ class Engine():
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        summary_writer = SummaryWriter(config.tensorboard_save_path)    
-        best_training_loss=float('inf') #initialization with largest possible number
+        summary_writer = SummaryWriter( config.save["tensor_board"])    
+        best_valid_loss=float('inf') #initialization with largest possible number
         
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
@@ -276,16 +298,16 @@ class Engine():
             print("\nTraining Loss=",training_loss)
             summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
             
-            if save_weight: #save model if performance improved on validation set
-                if training_loss <= best_training_loss:
-                    best_training_loss = training_loss
-                    self.save_checkpoint(path = save_path)
 
             if ((epoch+1)%evaluate_epochs==0): #every evaluate_epochs, test model on test set
                 if do_evaluation == True:
                     valid_loss=self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
                     summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+                if save_weight: #save model if performance improved on validation set
+                    if valid_loss <= best_valid_loss:
+                        best_valid_loss=valid_loss
+                        self.save_checkpoint(save_path)
 
 
     def test(self, dataloader):

@@ -3,7 +3,7 @@ import monai
 import torch
 from monai.utils import ensure_tuple_rep
 import numpy as np
-from engine.preprocessing import LoadLITSLiverd
+from engine.preprocessing import LoadImageLocaly
 from monai.transforms import (
 MapTransform,
 LoadImageD,
@@ -11,7 +11,6 @@ LoadImage,
 ForegroundMaskD,
 EnsureChannelFirstD,
 AddChannelD,
-
 ScaleIntensityD,
 ToTensorD,
 Compose,
@@ -39,8 +38,28 @@ from engine.engine import Engine
 
 
 class LiverSegmentation(Engine):
+    """
+
+    a class that must be used when you want to run the liver segmentation engine, contains the transforms required by the user
+    and the function that is used to start training
+
+    """
     def get_pretraining_transforms(self,transform_name,keys):
-        resize_size = config.resize
+        """
+    Function used to define the needed transforms for the training data
+
+    Args:
+         transform_name: string
+         Name of the required set of transforms
+         keys: list
+         Keys of the corresponding items to be transformed.
+
+    Return:
+        transforms: compose
+         Return the compose of transforms selected
+    """
+        
+        resize_size = config.transforms["transformation_size"]
         transforms= {
             '3DUnet_transform': Compose(
             [
@@ -59,7 +78,7 @@ class LiverSegmentation(Engine):
 
         '2DUnet_transform': Compose(
             [
-                LoadLITSLiverd(keys),
+                LoadImageLocaly(keys),
                 EnsureChannelFirstD(keys),
                 ResizeD(keys, resize_size , mode=('bilinear', 'nearest')),
                 NormalizeIntensityD(keys=keys[0], channel_wise=True),
@@ -78,7 +97,20 @@ class LiverSegmentation(Engine):
 
 
     def get_pretesting_transforms(self,transform_name,keys):
-            resize_size = config.resize
+            """
+    Function used to define the needed transforms for the training data
+
+    Args:
+         transform_name(string): name of the required set of transforms
+         keys(list): keys of the corresponding items to be transformed.
+
+    Return:
+        transforms(compose): return the compose of transforms selected
+
+    """
+
+
+            resize_size = config.transforms["transformation_size"]
             transforms= {
                 '3DUnet_transform': Compose(
                 [
@@ -93,7 +125,7 @@ class LiverSegmentation(Engine):
             ),
             '2DUnet_transform': Compose(
                 [
-                    LoadLITSLiverd(keys),
+                    LoadImageLocaly(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size , mode=('bilinear', 'nearest')),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
@@ -111,6 +143,10 @@ class LiverSegmentation(Engine):
 
 
 def segment_liver(*args):
+    """
+    a function used to start the training of liver segmentation
+    
+    """
     model=LiverSegmentation()
     model.data_status()
     model.fit()

@@ -1,9 +1,6 @@
 import os
-import sys
-from engine.config import config
 from sklearn.model_selection import train_test_split
-import monai
-
+from monai.data import dataset, dataloader
 def slices_paths_reader(volume_text_path,mask_text_path):
     """ Read two paths contain txt files and return two lists contain the content of txt files
 
@@ -44,11 +41,13 @@ class DataLoader:
             self,
             dataset_path,
             batch_size,
-            transforms,
+            train_transforms,
+            test_transforms,
             num_workers=0,
             pin_memory=False,
             test_size=0.1,
             keys=("image", "label"),
+            mode='2D',
             shuffle=False,
     ):
         """Initializes and saves all the parameters required for creating
@@ -58,12 +57,13 @@ class DataLoader:
          Parameters
          ----------
          dataset_path: str
-              String containing paths of the volumes at the folder volume and
-              masks at the folder mask.
+              String containing paths of the directory contains volume and mask txt files if '2D' or volume and mask folders if '3D'
          batch_size: int
              Size of batches to be returned
-         transforms: list
-             List of transforms to be applied on the data
+         train_transforms: list
+             List of transforms to be applied on the training data
+         test_transforms: list
+             List of transforms to be applied on the testing data
          num_workers : int, optional
              Integer that specifies how many sub-processes to use for data
              loading and is set by default to 0.
@@ -76,15 +76,24 @@ class DataLoader:
          keys: dict
               Dictionary of the corresponding items to be loaded.
               set by default to ("image","label")
+        mode: string
+              a string defines whether we will work with 2D images or 3D volumes 
          shuffle: bool
               If, True will shuffle the loaded images and masks before returning them 
+        
+        Returns
+        -------
+        train_ds: monai dataset
+            Dataset of training data
+        test_ds: monai dataset
+            Dataset of testing data
         """
         self.shuffle = shuffle
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
-        self.mode='2D'
-        if (self.mode=='2D'): # naive way will be optimized later 
+        self.mode=mode
+        if (self.mode=='2D'): 
             volume_names = os.path.join(dataset_path, "volume.txt")
             mask_names = os.path.join(dataset_path, "mask.txt")
             volume_paths,mask_paths = slices_paths_reader(volume_names,mask_names)
@@ -120,8 +129,8 @@ class DataLoader:
         test_files = [{keys[0]: image_name, keys[1]: label_name} for image_name, label_name in
                       zip(test_volume_path, test_mask_path)]
 
-        self.train_ds = monai.data.Dataset(data=train_files, transform=transforms)
-        self.test_ds = monai.data.Dataset(data=test_files, transform=transforms)
+        self.train_ds = dataset(data=train_files, transform=train_transforms)
+        self.test_ds = dataset(data=test_files, transform=test_transforms)
 
     def get_training_data(self):
         """Loads the training dataset.
@@ -133,7 +142,7 @@ class DataLoader:
             that can be called using their specified keys.
             An iterable object over the training data
         """
-        train_loader = monai.data.DataLoader(
+        train_loader = dataloader(
             self.train_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -151,7 +160,7 @@ class DataLoader:
         Dictionary containing the testing volumes and masks
         that can be called using their specified keys.
         """
-        test_loader = monai.data.DataLoader(
+        test_loader = dataloader(
             self.test_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,

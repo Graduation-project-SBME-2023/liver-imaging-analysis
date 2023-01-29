@@ -37,7 +37,9 @@
                 "transformation_size": [32,32],
                 "img_key": "image", 
                 "label_key":"label",
-                "transform_name":"2DUnet_transform"
+                "train_transform":"2DUnet_transform",
+                "test_transform":"2DUnet_transform"
+
         },
         "save":
         {
@@ -45,6 +47,6 @@
                 "mask_png_path":"models/Temp2D/mask/",
                 "model_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/model_checkpoint",
                 "potential_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/potential_checkpoint",
-                "Tensor Board": ""
+                "tensorboard": ""
         }
 }
