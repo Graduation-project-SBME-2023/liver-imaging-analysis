@@ -4,7 +4,6 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 
 
-
 def flatten(tensor):
     """Flattens a given tensor such that the channel axis is first.
     The shapes are transformed as follows:
@@ -100,17 +99,17 @@ class DiceLoss(_AbstractDiceLoss):
         return compute_per_channel_dice(input, target, weight=self.weight)
 
 
-        
 class GeneralizedDiceLoss(_AbstractDiceLoss):
-    """Computes Generalized Dice Loss (GDL) as described in https://arxiv.org/pdf/1707.03237.pdf.
-    """
+    """Computes Generalized Dice Loss (GDL) as described in https://arxiv.org/pdf/1707.03237.pdf."""
 
-    def __init__(self, normalization='sigmoid', epsilon=1e-6):
+    def __init__(self, normalization="sigmoid", epsilon=1e-6):
         super().__init__(weight=None, normalization=normalization)
         self.epsilon = epsilon
 
     def dice(self, input, target, weight):
-        assert input.size() == target.size(), "'input' and 'target' must have the same shape"
+        assert (
+            input.size() == target.size()
+        ), "'input' and 'target' must have the same shape"
 
         input = flatten(input)
         target = flatten(target)
@@ -147,11 +146,13 @@ class BCEDiceLoss(nn.Module):
         self.dice = DiceLoss()
 
     def forward(self, input, target):
-        return self.alpha * self.bce(input, target) + self.beta * self.dice(input, target)
+        return self.alpha * self.bce(input, target) + self.beta * self.dice(
+            input, target
+        )
+
 
 class WeightedCrossEntropyLoss(nn.Module):
-    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
-    """
+    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf"""
 
     def __init__(self, ignore_index=-1):
         super(WeightedCrossEntropyLoss, self).__init__()
@@ -159,14 +160,16 @@ class WeightedCrossEntropyLoss(nn.Module):
 
     def forward(self, input, target):
         weight = self._class_weights(input)
-        return F.cross_entropy(input, target, weight=weight, ignore_index=self.ignore_index)
+        return F.cross_entropy(
+            input, target, weight=weight, ignore_index=self.ignore_index
+        )
 
     @staticmethod
     def _class_weights(input):
         # normalize the input first
         input = F.softmax(input, dim=1)
         flattened = flatten(input)
-        nominator = (1. - flattened).sum(-1)
+        nominator = (1.0 - flattened).sum(-1)
         denominator = flattened.sum(-1)
         class_weights = Variable(nominator / denominator, requires_grad=False)
         return class_weights
@@ -175,7 +178,7 @@ class WeightedCrossEntropyLoss(nn.Module):
 class PixelWiseCrossEntropyLoss(nn.Module):
     def __init__(self, class_weights=None, ignore_index=None):
         super(PixelWiseCrossEntropyLoss, self).__init__()
-        self.register_buffer('class_weights', class_weights)
+        self.register_buffer("class_weights", class_weights)
         self.ignore_index = ignore_index
         self.log_softmax = nn.LogSoftmax(dim=1)
 
@@ -184,7 +187,9 @@ class PixelWiseCrossEntropyLoss(nn.Module):
         # normalize the input
         log_probabilities = self.log_softmax(input)
         # standard CrossEntropyLoss requires the target to be (NxDxHxW), so we need to expand it to (NxCxDxHxW)
-        target = expand_as_one_hot(target, C=input.size()[1], ignore_index=self.ignore_index) # Not ready yet for use ( more investigation in future )
+        target = expand_as_one_hot(
+            target, C=input.size()[1], ignore_index=self.ignore_index
+        )  # Not ready yet for use ( more investigation in future )
         # expand weights
         weights = weights.unsqueeze(1)
         weights = weights.expand_as(input)
@@ -205,9 +210,3 @@ class PixelWiseCrossEntropyLoss(nn.Module):
         result = -weights * target * log_probabilities
         # average the losses
         return result.mean()
-
-
-
-
-
-
