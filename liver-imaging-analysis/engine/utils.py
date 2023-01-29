@@ -1,14 +1,19 @@
+import os
+import cv2 as cv
+import matplotlib.pyplot as plt
+import natsort
 import nibabel as nib
 import numpy as np
-import matplotlib.pyplot as plt
-import cv2 as cv
+import SimpleITK as sitk
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
 rc('animation', html='html5')
+from itertools import permutations
 
 
-""""
-    A module that display the original CT volume and the segmented mask and its labels
+
+"""
+    A method to display the original CT volume and the segmented mask and its labels
     with different color and opacity on it and saves the overlay into a gif file
     Methods:
         gray_to_colored: changes the input nfti from 3 channels gray scale ( L , W , N) to 4 channels RGB ( L , W , N , 3)
@@ -23,8 +28,8 @@ rc('animation', html='html5')
                   volumename: the name of the output gif file to be saved
 """
 
-
 def gray_to_colored (VolumePath,MaskPath,alpha=0.2):
+   
     def normalize(arr):
         return (255*(arr - np.min(arr)) / (np.max(arr) - np.min(arr)))
 
@@ -33,20 +38,9 @@ def gray_to_colored (VolumePath,MaskPath,alpha=0.2):
     Masklabel=[]
     masksNo=np.unique(Mask)[1:]
     dest=np.stack((normalize(Volume).astype(np.uint8),)*3,axis=-1) # stacked array of volume
-
-    if masksNo.shape[0]<7:  # a loop to generate an array of unique rgb colors to be used for each label 
-        numbers=[0,1]
-    else:
-        numbers=[0,0.5,1]
-    colors=[]
-    for i in numbers:
-        for j in numbers:
-            for k in numbers:
-                if(i==j==k):
-                    continue
-                colors.append([i,j,k])
-                
-    colors= np.asarray((colors))
+    numbers=[0,0.5,1]
+    perm=permutations(numbers)
+    colors= [color for color in perm]
     for i,label in enumerate(masksNo):     # a loop to iterate over each label in the mask and perform weighted add for each
                                             # label with a unique color for each one
         Masklabel.append(Mask==label)
@@ -54,7 +48,6 @@ def gray_to_colored (VolumePath,MaskPath,alpha=0.2):
         Masklabel[i]=np.multiply((Masklabel[i].astype(np.uint8)*255),colors[i]).astype(np.uint8)
         dest = cv.addWeighted(dest, alpha, Masklabel[i],alpha, 0.0)
     return dest              # return an array of the volume with the mask overlayed on it with different label colors
-
 
 
 def animate(volume,outputName):
@@ -84,19 +77,9 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
         masks_number2=np.unique(mask2)[1:0]
     dest=np.stack((normalize(Volume).astype(np.uint8),)*3,axis=-1) # stacked array of volume
 
-    if masksNo.shape[0]<7:  # a loop to generate an array of unique rgb colors to be used for each label 
-        numbers=[0,1]
-    else:
-        numbers=[0,0.5,1]
-    colors=[]
-    for i in numbers:
-        for j in numbers:
-            for k in numbers:
-                if(i==j==k):
-                    continue
-                colors.append([i,j,k])
-                
-    colors= np.asarray((colors))
+    numbers=[0,0.5,1]
+    perm=permutations(numbers)
+    colors= [color for color in perm]
 
     for i,label in enumerate(masksNo):     # a loop to iterate over each label in the mask and perform weighted add for each
                                             # label with a unique color for each one
@@ -120,11 +103,117 @@ def gray_to_colored_from_array (Volume,Mask,mask2=None,alpha=0.2):
 
 
 
-# volume=gray_to_colored('C:/dataset/Path/liver-orig002.nii','C:/dataset/Path2/liver-seg002.nii')
-# animate(volume,'Vol_Mask_Overlay.gif')
+
 
 
 def progress_bar (progress, total):
     percent = 100 * (progress / float (total))
     bar = '#'  * int(percent) + '_' * (100 - int (percent))
     print (f'\r|{bar}| {percent: .2f}%', end=f"  ---> {progress}/{total}")
+
+def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
+
+    """
+    generates slices(with png extensions) from volumes (with nii extensions)
+    """
+
+    volume_folders = natsort.natsorted(
+        os.listdir(volume_nii_path)
+    )  ## sort the directory of files
+    mask_folders = natsort.natsorted(os.listdir(mask_nii_path))
+
+    for i in range(len(volume_folders)):
+
+        volume_path = os.path.join(volume_nii_path, volume_folders[i])
+        mask_path = os.path.join(mask_nii_path, mask_folders[i])
+
+        img_volume = sitk.ReadImage(volume_path)
+        img_mask = sitk.ReadImage(mask_path)
+
+        img_volume_array = sitk.GetArrayFromImage(img_volume)
+        img_mask_array = sitk.GetArrayFromImage(img_mask)
+
+        number_of_slices = img_volume_array.shape[0]
+
+        for slice_number in range(number_of_slices):
+
+            volume_silce = img_volume_array[slice_number, :, :]
+            mask_silce = img_mask_array[slice_number, :, :]
+
+            volume_file_name = os.path.splitext(volume_folders[i])[
+                0
+            ]  ## delete extension from filename
+            mask_file_name = os.path.splitext(mask_folders[i])[
+                0
+            ]  ## delete extension from filename
+
+            ## name =  "defaultNameWithoutExtention_sliceNum.png"
+            volume_png_path = (
+                os.path.join(
+                    volume_save_path, volume_file_name + "_" + str(slice_number)
+                )
+                + ".png"
+            )
+            mask_png_path = (
+                os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))
+                + ".png"
+            )
+
+            cv.imwrite(volume_png_path, volume_silce)
+            cv.imwrite(mask_png_path, mask_silce)
+
+
+def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
+
+    """
+    generates slices (with nii extensions) from volumes (with nii extensions)
+    """
+    volume_folders = natsort.natsorted(
+        os.listdir(volume_nii_path)
+    )  ## sort the directory of files
+    mask_folders = natsort.natsorted(os.listdir(mask_nii_path))
+
+    for i in range(len(volume_folders)):
+
+        volume_path = os.path.join(volume_nii_path, volume_folders[i])
+        mask_path = os.path.join(mask_nii_path, mask_folders[i])
+
+        img_volume = sitk.ReadImage(volume_path)
+        img_mask = sitk.ReadImage(mask_path)
+
+        img_volume_array = sitk.GetArrayFromImage(img_volume)
+        img_mask_array = sitk.GetArrayFromImage(img_mask)
+
+        number_of_slices = img_volume_array.shape[0]
+
+        for slice_number in range(number_of_slices):
+
+            volume_silce = img_volume_array[slice_number, :, :]
+            mask_silce = img_mask_array[slice_number, :, :]
+
+            volume_file_name = os.path.splitext(volume_folders[i])[
+                0
+            ]  ## delete extension from filename
+            mask_file_name = os.path.splitext(mask_folders[i])[
+                0
+            ]  ## delete extension from filename
+
+            ## nameConvention =  "defaultNameWithoutExtention_sliceNum.nii.gz"
+            nii_volume_path = (
+                os.path.join(
+                    volume_save_path, volume_file_name + "_" + str(slice_number)
+                )
+                + ".nii.gz"
+            )
+            nii_mask_path = (
+                os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))
+                + ".nii.gz"
+            )
+
+            new_nii_volume = nib.Nifti1Image(
+                volume_silce, affine=np.eye(4)
+            )  # ref : https://stackoverflow.com/questions/28330785/creating-a-nifti-file-from-a-numpy-array
+            new_nii_mask = nib.Nifti1Image(mask_silce, affine=np.eye(4))
+
+            nib.save(new_nii_volume, nii_volume_path)
+            nib.save(new_nii_mask, nii_mask_path)
