@@ -1,12 +1,17 @@
-import torch
+"""
+a module contains the fixed structure of the core of our code
+
+"""
+
 from torch.utils.tensorboard import SummaryWriter
 from monai.losses import DiceLoss as monaiDiceLoss
 from monai.visualize import plot_2d_or_3d_image
-from engine.config import config
-from engine import dataloader
-from engine import models
-from engine import losses
-from engine.utils import progress_bar
+import torch
+import dataloader
+import losses
+from utils import progress_bar
+import models
+from config import config
 
 
 class Engine:
@@ -25,11 +30,11 @@ class Engine:
             **config.training["loss_parameters"],
         )
 
-        self.network = self._get_network(
+        self.network = self.get_network(
             network_name=config.network_name, **config.network_parameters
         ).to(self.device)
 
-        self.optimizer = self._get_optimizer(
+        self.optimizer = self.get_optimizer(
             optimizer_name=config.training["optimizer"],
             **config.training["optimizer_parameters"],
         )
@@ -134,6 +139,7 @@ class Engine:
             pin_memory=False,
             test_size=config.training["train_valid_split"],
             keys=self.keys,
+            mode=config.training["mode"],
         )
         testloader = dataloader.DataLoader(
             dataset_path=config.dataset["testing"],
@@ -144,6 +150,7 @@ class Engine:
             pin_memory=False,
             test_size=1,  # testing set should all be set as evaluation (no training)
             keys=self.keys,
+            mode=config.training["mode"],
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -256,7 +263,7 @@ class Engine:
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             self.network.train()
-            progress_bar(0, len(self.train_dataloader))  ## batch progress bar
+            progress_bar(0, len(self.train_dataloader))  # batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num, len(self.train_dataloader))
                 volume, mask = batch["image"].to(self.device), batch["label"].to(
@@ -271,7 +278,7 @@ class Engine:
                 training_loss += loss.item()
 
                 # Print Progress
-                if visualize_epochs != None:
+                if visualize_epochs is not None:
                     if (
                         epoch + 1
                     ) % visualize_epochs == 0:  # every visualize_epochs create gifs
@@ -299,14 +306,14 @@ class Engine:
 
             training_loss = training_loss / len(
                 self.train_dataloader
-            )  ## normalize loss over batch size
+            )  # normalize loss over batch size
             print("\nTraining Loss=", training_loss)
             summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
 
             if (
                 epoch + 1
             ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
-                if do_evaluation == True:
+                if do_evaluation is True:
                     valid_loss = self.test(self.test_dataloader)
                     print(f"Validation Loss={valid_loss}")
                     summary_writer.add_scalar("Validation Loss", valid_loss, epoch)

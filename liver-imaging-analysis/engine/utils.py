@@ -78,7 +78,7 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
 
     Masklabel = []
     masksNo = np.unique(Mask)[1:]
-    if mask2 != None:
+    if mask2 is not None:
         mask_label2 = []
         masks_number2 = np.unique(mask2)[1:0]
     dest = np.stack(
@@ -99,7 +99,7 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
             (Masklabel[i].astype(np.uint8) * 255), colors[i]
         ).astype(np.uint8)
         dest = cv.addWeighted(dest, 1, Masklabel[i], alpha, 0.0)
-    if mask2 != None:
+    if mask2 is not None:
         colors = np.flip(colors)
         for i, label in enumerate(
             masks_number2

@@ -1,52 +1,36 @@
 {
-        "device": "cuda",
-        "dataset" :
-        {
-                "training" : "C:/dataset/",
-                "testing"  : "C:/dataset/",
-                "unittest" : "C:/dataset/"
-        },
-
-        "unittest_size": [16,16,8],
-        "unittest_batch": 1,
-        "network_name": "2DUNet",
-        "network_params": 
-        {
-                "in_channels":1,
-                "out_channels":1
-        },
-        "training":
-        {
-                "epochs" : 10,
-                "batch_size": 10,
-                "train_valid_split": 0.15,
-                "optimizer":"Adam",
-                "optimizer_params":
-                        {
-                                "lr": 0.01
-                        },
-                "loss_name":"dice_loss",
-                "loss_params": 
-                {
-
-                }
-        },
-        
-        "transforms":
-        {
-                "transformation_size": [32,32],
-                "img_key": "image", 
-                "label_key":"label",
-                "train_transform":"2DUnet_transform",
-                "test_transform":"2DUnet_transform"
-
-        },
-        "save":
-        {
-                "volume_png_path":"models/Temp2D/volume/",
-                "mask_png_path":"models/Temp2D/mask/",
-                "model_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/model_checkpoint",
-                "potential_checkpoint":"/Users/mn3n3/Documents/GP/experimental_notebooks/potential_checkpoint",
-                "tensorboard": ""
-        }
+    "device": "cuda",
+    "dataset": {
+        "mode":"2D",
+        "training": ".../dataset/",
+        "testing": ".../dataset/",
+        "unittest": ".../dataset/"
+    },
+    "unittest_size": [16, 16, 8],
+    "unittest_batch": 1,
+    "network_name": "2DUNet",
+    "network_params": {"in_channels": 1, "out_channels": 1},
+    "training": {
+        "epochs": 10,
+        "batch_size": 10,
+        "train_valid_split": 0.15,
+        "optimizer": "Adam",
+        "optimizer_params": {"lr": 0.01},
+        "loss_name": "dice_loss",
+        "loss_params": {}
+    },
+    "transforms": {
+        "transformation_size": [32, 32],
+        "img_key": "image",
+        "label_key": "label",
+        "train_transform": "2DUnet_transform",
+        "test_transform": "2DUnet_transform"
+    },
+    "save": {
+        "volume_png_path": ".../Temp2D/volume/",
+        "mask_png_path": ".../Temp2D/mask/",
+        "model_checkpoint": ".../model_checkpoint",
+        "potential_checkpoint": ".../potential_checkpoint",
+        "tensorboard": ""
+    }
 }
