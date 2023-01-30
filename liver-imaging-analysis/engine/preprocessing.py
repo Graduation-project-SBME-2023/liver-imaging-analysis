@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from engine.config import config
+from config import config
 from monai.transforms import LoadImage
 import cv2 as cv
 
@@ -26,9 +26,9 @@ class LoadImageLocaly(LoadImage):
             # keys loop
             input_data_path = d[key]  # ".../training/volume/volume-0_0.nii"
             if key == "image":
-                model_png_path = config.volume_png_path  # ".../Temp2D/volume/"
+                model_png_path = config.save["volume_png_path"]  # ".../Temp2D/volume/"
             elif key == "label":
-                model_png_path = config.mask_png_path  # ".../Temp2D/volume/"
+                model_png_path = config.save["mask_png_path"]  # ".../Temp2D/volume/"
             slice_id = (
                 model_png_path + input_data_path.split("/")[-1]
             )  # "/Temp2D/volume/volume-0_0.nii"

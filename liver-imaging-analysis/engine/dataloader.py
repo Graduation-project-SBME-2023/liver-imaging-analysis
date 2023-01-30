@@ -1,6 +1,6 @@
 import os
 from sklearn.model_selection import train_test_split
-from monai.data import dataset, dataloader
+from monai.data import Dataset, DataLoader as MonaiLoader
 
 
 def slices_paths_reader(volume_text_path, mask_text_path):
@@ -96,6 +96,7 @@ class DataLoader:
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.mode = mode
+
         if self.mode == "2D":
             volume_names = os.path.join(dataset_path, "volume.txt")
             mask_names = os.path.join(dataset_path, "mask.txt")
@@ -147,8 +148,8 @@ class DataLoader:
             for image_name, label_name in zip(test_volume_path, test_mask_path)
         ]
 
-        self.train_ds = dataset(data=train_files, transform=train_transforms)
-        self.test_ds = dataset(data=test_files, transform=test_transforms)
+        self.train_ds = Dataset(data=train_files, transform=train_transforms)
+        self.test_ds = Dataset(data=test_files, transform=test_transforms)
 
     def get_training_data(self):
         """Loads the training dataset.
@@ -160,7 +161,7 @@ class DataLoader:
             that can be called using their specified keys.
             An iterable object over the training data
         """
-        train_loader = dataloader(
+        train_loader = MonaiLoader(
             self.train_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
@@ -178,7 +179,7 @@ class DataLoader:
         Dictionary containing the testing volumes and masks
         that can be called using their specified keys.
         """
-        test_loader = dataloader(
+        test_loader = MonaiLoader(
             self.test_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,

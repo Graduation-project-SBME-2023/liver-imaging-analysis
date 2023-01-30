@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import natsort
 import nibabel as nib
 import numpy as np
-import SimpleITK as sitk
+# import SimpleITK as sitk
 
 
 rc("animation", html="html5")

@@ -10,7 +10,7 @@ class Config:
     """
 
     def __init__(self) -> None:
-        with open('../config/configs.json') as json_path:
+        with open('/content/drive/MyDrive/liver-imaging-analysis/config/configs.json') as json_path:
             config_dict = json.load(json_path)
 
         for key in config_dict:

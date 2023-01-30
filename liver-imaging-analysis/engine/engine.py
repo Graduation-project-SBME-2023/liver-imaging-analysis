@@ -76,7 +76,7 @@ class Engine:
         }
         return networks[network_name](**kwargs)
 
-    def get_loss(self, loss_name):
+    def get_loss(self, loss_name, **kwargs):
         """
         internally used to load loss function.
         Parameters
@@ -92,7 +92,7 @@ class Engine:
             "monai_dice": monaiDiceLoss,
             "bce_dice": losses.BCEDiceLoss,
         }
-        return loss_functions[loss_name]()
+        return loss_functions[loss_name](**kwargs)
 
     def get_pretraining_transforms(self):
         """
@@ -139,7 +139,7 @@ class Engine:
             pin_memory=False,
             test_size=config.training["train_valid_split"],
             keys=self.keys,
-            mode=config.training["mode"],
+            mode=config.dataset["mode"],
         )
         testloader = dataloader.DataLoader(
             dataset_path=config.dataset["testing"],
@@ -150,7 +150,7 @@ class Engine:
             pin_memory=False,
             test_size=1,  # testing set should all be set as evaluation (no training)
             keys=self.keys,
-            mode=config.training["mode"],
+            mode=config.dataset["mode"],
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -256,7 +256,7 @@ class Engine:
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        summary_writer = SummaryWriter(config.save["tensor_board"])
+        summary_writer = SummaryWriter(config.save["tensorboard"])
         best_valid_loss = float("inf")  # initialization with largest possible number
 
         for epoch in range(epochs):

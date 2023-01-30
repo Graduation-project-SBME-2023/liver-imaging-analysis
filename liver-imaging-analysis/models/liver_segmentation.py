@@ -1,5 +1,5 @@
-from engine.config import config
-from engine.preprocessing import LoadImageLocaly
+from config import config
+from preprocessing import LoadImageLocaly
 from monai.transforms import (
     LoadImageD,
     ForegroundMaskD,
@@ -12,7 +12,7 @@ from monai.transforms import (
     RandFlipd,
     RandRotated,
 )
-from engine.engine import Engine
+from engine import Engine
 
 
 class LiverSegmentation(Engine):
