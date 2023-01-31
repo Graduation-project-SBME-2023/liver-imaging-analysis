@@ -48,7 +48,7 @@ class Engine:
         self.metrics = self.get_metrics(
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
-        )
+        ).to(self.device)
         self.load_data()
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -75,12 +75,14 @@ class Engine:
         ----------
             scheduler_name: str
                 name of scheduler to fetch from dictionary
-                should be chosen from: 'StepLR','...'
+                should be chosen from: 'StepLR','CyclicLR','...'
             kwargs: dict
                 parameters of optimizer, if exist.
         """
         schedulers = {
             "StepLR": torch.optim.lr_scheduler.StepLR,
+            "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
+
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
 
@@ -327,7 +329,7 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                batch_metric=self.metrics(pred,mask)
+                batch_metric=self.metrics(pred,mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -360,7 +362,7 @@ class Engine:
                 valid_loss = None
                 valid_metric=None
             if per_epoch_callback is not None:
-                per_epoch_callback(epoch, training_loss, valid_loss,training_metric,valid_metric)
+                per_epoch_callback(epoch, training_loss, valid_loss,training_metric.item(),valid_metric)
 
             self.metrics.reset()
 
@@ -383,12 +385,12 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                metric=self.metrics(pred,mask)
+                metric=self.metrics(pred,mask.int())
             test_metric=self.metrics.compute()
 
             test_loss /= num_batches
 
-        return test_loss,test_metric
+        return test_loss,test_metric.item()
 
 
 def set_seed(self):

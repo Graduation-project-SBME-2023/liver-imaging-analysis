@@ -19,7 +19,9 @@
         "lr_scheduler":"StepLR",
         "scheduler_parameters":{"step_size":3, "gamma":0.5},
         "loss_name": "dice_loss",
-        "loss_parameters": {}
+        "loss_parameters": {},
+        "metrics":"dice",
+        "metrics_parameters":{}
     },
     "transforms": {
         "transformation_size": [256, 256],
@@ -33,7 +35,7 @@
         "mask_png_path": "/content/Temp2D/mask/",
         "model_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
         "potential_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/potential_checkpoint",
-        "tensorboard": "/content/drive/MyDrive/liver-imaging-analysis/engine/"
+        "tensorboard": "/content/drive/MyDrive/liver-imaging-analysis/engine/runs/"
     },
     "seed": 0
 }
