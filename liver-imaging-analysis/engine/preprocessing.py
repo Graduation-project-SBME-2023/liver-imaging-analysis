@@ -1,11 +1,14 @@
+"""
+a module contains the implemented preprocessing classes 
+
+"""
 import os
 import numpy as np
 from config import config
 from monai.transforms import LoadImage
 import cv2 as cv
 
-
-class LoadImageLocaly(LoadImage):
+class LoadImageLocally(LoadImage):
     """
     a class that takes the path of volume with a specific slice and saves it localy if not saved then reads it,
     if saved it reads it only
@@ -17,7 +20,7 @@ class LoadImageLocaly(LoadImage):
         d (list): loaded image
     """
 
-    def __init__(self, keys) -> None:
+    def __init__(self) -> None:
         super().__init__()
 
     def __call__(self, data) -> None:

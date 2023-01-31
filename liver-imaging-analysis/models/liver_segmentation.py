@@ -1,5 +1,5 @@
 from config import config
-from preprocessing import LoadImageLocaly
+from preprocessing import LoadImageLocally
 from monai.transforms import (
     LoadImageD,
     ForegroundMaskD,
@@ -13,8 +13,10 @@ from monai.transforms import (
     RandRotated,
 )
 from engine import Engine
+from monai.visualize import plot_2d_or_3d_image
+from torch.utils.tensorboard import SummaryWriter
 
-
+summary_writer = SummaryWriter(config.save["tensorboard"])
 class LiverSegmentation(Engine):
     """
 
@@ -22,7 +24,6 @@ class LiverSegmentation(Engine):
      contains the transforms required by the user and the function that is used to start training
 
     """
-
     def get_pretraining_transforms(self, transform_name, keys):
         """
         Function used to define the needed transforms for the training data
@@ -62,7 +63,7 @@ class LiverSegmentation(Engine):
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageLocaly(keys),
+                    LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
@@ -106,7 +107,7 @@ class LiverSegmentation(Engine):
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageLocaly(keys),
+                    LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
@@ -122,6 +123,36 @@ class LiverSegmentation(Engine):
         }
         return transforms[transform_name]
 
+def per_batch_callback(batch_num,image,label,prediction):
+    plot_2d_or_3d_image(
+    data=image,
+    step=0,
+    writer=summary_writer,
+    frame_dim=-1,
+    tag=f"Batch{batch_num}:Volume",
+    )
+    plot_2d_or_3d_image(
+        data=label,
+        step=0,
+        writer=summary_writer,
+        frame_dim=-1,
+        tag=f"Batch{batch_num}:Mask",
+    )
+    plot_2d_or_3d_image(
+        data=prediction,
+        step=0,
+        writer=summary_writer,
+        frame_dim=-1,
+        tag=f"Batch{batch_num}:Prediction",
+    )
+
+def per_epoch_callback(epoch,training_loss,valid_loss):
+    print("\nTraining Loss=", training_loss)
+    summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+    if valid_loss is not None:
+        print(f"Validation Loss={valid_loss}")
+        summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+
 
 def segment_liver(*args):
     """
@@ -130,4 +161,12 @@ def segment_liver(*args):
     """
     model = LiverSegmentation()
     model.data_status()
-    model.fit()
+    
+    model.fit(
+      evaluate_epochs=1,
+      batch_callback_epochs=1,
+      save_weight=True,
+      per_batch_callback=per_batch_callback,
+      per_epoch_callback=per_epoch_callback
+    )
+    print("final test loss:", model.test(model.test_dataloader))

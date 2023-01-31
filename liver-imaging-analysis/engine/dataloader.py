@@ -1,7 +1,7 @@
 import os
 from sklearn.model_selection import train_test_split
 from monai.data import Dataset, DataLoader as MonaiLoader
-
+from config import config
 
 def slices_paths_reader(volume_text_path, mask_text_path):
     """Read two paths contain txt files and return two lists contain the content of txt files
@@ -96,13 +96,15 @@ class DataLoader:
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.mode = mode
-
-        if self.mode == "2D":
+        # 3Dto2D mode requires txt files of slices names
+        if self.mode == "3Dto2D":
             volume_names = os.path.join(dataset_path, "volume.txt")
             mask_names = os.path.join(dataset_path, "mask.txt")
             volume_paths, mask_paths = slices_paths_reader(volume_names, mask_names)
 
         else:
+            volume_names = os.listdir(os.path.join(dataset_path, "volume"))
+            mask_names = os.listdir(os.path.join(dataset_path, "mask"))
             volume_paths = [
                 os.path.join(dataset_path, "volume", file_name)
                 for file_name in volume_names
@@ -137,6 +139,7 @@ class DataLoader:
                 volume_paths,
                 mask_paths,
                 test_size=test_size,
+                random_state=config.seed
             )
 
         train_files = [

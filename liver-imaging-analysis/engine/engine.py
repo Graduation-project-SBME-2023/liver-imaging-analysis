@@ -6,7 +6,10 @@ a module contains the fixed structure of the core of our code
 from torch.utils.tensorboard import SummaryWriter
 from monai.losses import DiceLoss as monaiDiceLoss
 from monai.visualize import plot_2d_or_3d_image
+import numpy as np
+import random
 import torch
+import torch.optim.lr_scheduler
 import dataloader
 import losses
 from utils import progress_bar
@@ -39,6 +42,10 @@ class Engine:
             **config.training["optimizer_parameters"],
         )
 
+        self.scheduler =self.get_scheduler(
+            scheduler_name=config.training["lr_scheduler"],
+            **config.training["scheduler_parameters"],
+        )
         self.load_data()
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -57,6 +64,24 @@ class Engine:
             "SGD": torch.optim.SGD,
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
+
+
+    def get_scheduler(self, scheduler_name, **kwargs):
+        """
+        internally used to load lr scheduler.
+        Parameters
+        ----------
+            scheduler_name: str
+                name of scheduler to fetch from dictionary
+                should be chosen from: 'StepLR','...'
+            kwargs: dict
+                parameters of optimizer, if exist.
+        """
+        schedulers = {
+            "StepLR": torch.optim.lr_scheduler.StepLR,
+        }
+        return schedulers[scheduler_name](self.optimizer, **kwargs)
+
 
     def get_network(self, network_name, **kwargs):
         """
@@ -166,37 +191,48 @@ class Engine:
         label_key = config.transforms["label_key"]
 
         dataloader_iterator = iter(self.train_dataloader)
-        batch = next(dataloader_iterator)
-        print(
-            f"Batch Shape of Training Features:"
-            f" {batch[img_key].shape} {batch[img_key].dtype}"
-        )
-        print(
-            f"Batch Shape of Training Labels:"
-            f" {batch[label_key].shape} {batch[label_key].dtype}"
-        )
+        try:
+          batch = next(dataloader_iterator)
+          print(
+              f"Batch Shape of Training Features:"
+              f" {batch[img_key].shape} {batch[img_key].dtype}"
+          )
+          print(
+              f"Batch Shape of Training Labels:"
+              f" {batch[label_key].shape} {batch[label_key].dtype}"
+          )
+        except StopIteration:
+          print("No Training Set")
+
 
         dataloader_iterator = iter(self.val_dataloader)
-        batch = next(dataloader_iterator)
-        print(
-            f"Batch Shape of Validation Features:"
-            f" {batch[img_key].shape} {batch[img_key].dtype}"
-        )
-        print(
-            f"Batch Shape of Validation Labels:"
-            f" {batch[label_key].shape} {batch[label_key].dtype}"
-        )
-
+        try:
+          batch = next(dataloader_iterator)
+          print(
+              f"Batch Shape of Validation Features:"
+              f" {batch[img_key].shape} {batch[img_key].dtype}"
+          )
+          print(
+              f"Batch Shape of Validation Labels:"
+              f" {batch[label_key].shape} {batch[label_key].dtype}"
+          )
+        except StopIteration:
+          print("No Validation Set")
+        
         dataloader_iterator = iter(self.test_dataloader)
-        batch = next(dataloader_iterator)
-        print(
-            f"Batch Shape of Testing Features:"
-            f" {batch[img_key].shape} {batch[img_key].dtype}"
-        )
-        print(
-            f"Batch Shape of Testing Labels:"
-            f" {batch[label_key].shape} {batch[label_key].dtype}"
-        )
+        try:
+          batch = next(dataloader_iterator)
+          print(
+              f"Batch Shape of Testing Features:"
+              f" {batch[img_key].shape} {batch[img_key].dtype}"
+          )
+          print(
+              f"Batch Shape of Testing Labels:"
+              f" {batch[label_key].shape} {batch[label_key].dtype}"
+          )
+        except StopIteration:
+          print("No Testing Set")
+
 
     def save_checkpoint(self, path=config.save["potential_checkpoint"]):
         """
@@ -232,11 +268,12 @@ class Engine:
     def fit(
         self,
         epochs=config.training["epochs"],
-        do_evaluation=False,
         evaluate_epochs=1,
-        visualize_epochs=None,
+        batch_callback_epochs=None,
         save_weight=False,
         save_path=config.save["potential_checkpoint"],
+        per_batch_callback=None,
+        per_epoch_callback=None
     ):
         """
         train the model using the stored training set
@@ -245,8 +282,6 @@ class Engine:
         ----------
         epochs: int
             the number of iterations for fitting. (Default is the value in config)
-        do_evaluation: bool
-            if true, evaluate on the test set, occurs every evaluate_epochs. (Default is False)
         evaluate_epochs: int
             the number of epochs to evaluate model after. (Default is 1)
         visualize_epochs: int
@@ -256,7 +291,6 @@ class Engine:
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
         """
-        summary_writer = SummaryWriter(config.save["tensorboard"])
         best_valid_loss = float("inf")  # initialization with largest possible number
 
         for epoch in range(epochs):
@@ -275,53 +309,26 @@ class Engine:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                self.scheduler.step()
                 training_loss += loss.item()
-
-                # Print Progress
-                if visualize_epochs is not None:
-                    if (
-                        epoch + 1
-                    ) % visualize_epochs == 0:  # every visualize_epochs create gifs
-                        plot_2d_or_3d_image(
-                            data=batch["image"],
-                            step=0,
-                            writer=summary_writer,
-                            frame_dim=-1,
-                            tag=f"Batch{batch_num}:Volume",
-                        )
-                        plot_2d_or_3d_image(
-                            data=batch["label"],
-                            step=0,
-                            writer=summary_writer,
-                            frame_dim=-1,
-                            tag=f"Batch{batch_num}:Mask",
-                        )
-                        plot_2d_or_3d_image(
-                            data=(torch.sigmoid(pred) > 0.5).float(),
-                            step=0,
-                            writer=summary_writer,
-                            frame_dim=-1,
-                            tag=f"Batch{batch_num}:Prediction",
-                        )
-
+                if batch_callback_epochs is not None:
+                    if (epoch + 1) % batch_callback_epochs == 0:
+                        if per_batch_callback is not None:
+                            per_batch_callback(batch_num,batch["image"],batch["label"],(torch.sigmoid(pred) > 0.5).float())
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            print("\nTraining Loss=", training_loss)
-            summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
-
-            if (
-                epoch + 1
-            ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
-                if do_evaluation is True:
-                    valid_loss = self.test(self.test_dataloader)
-                    print(f"Validation Loss={valid_loss}")
-                    summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+            if (epoch + 1) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
+                valid_loss = self.test(self.test_dataloader)
                 if save_weight:  # save model if performance improved on validation set
                     if valid_loss <= best_valid_loss:
                         best_valid_loss = valid_loss
                         self.save_checkpoint(save_path)
-
+            else:
+                valid_loss = None
+            if per_epoch_callback is not None:
+                per_epoch_callback(epoch,training_loss,valid_loss)
+                
     def test(self, dataloader):
         """
         calculates loss on input dataset
@@ -342,3 +349,12 @@ class Engine:
                 test_loss += self.loss(pred, mask).item()
             test_loss /= num_batches
         return test_loss
+
+def set_seed(self):
+        """
+        function to set seed for all randomized attributes of the packages and modules
+        """
+        seed = config.seed
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)

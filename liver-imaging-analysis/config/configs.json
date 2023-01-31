@@ -2,25 +2,27 @@
     "device": "cuda",
     "dataset": {
         "mode":"2D",
-        "training": "/content/drive/MyDrive/BMATM_LiverSeg_2023/Model Data/LiTS_Extracted/Train/",
-        "testing": "/content/drive/MyDrive/BMATM_LiverSeg_2023/Model Data/LiTS_Extracted/Test/",
-        "unittest": "/content/drive/MyDrive/BMATM_LiverSeg_2023/Model Data/LiTS_Extracted/Test/"
+        "training": "/content/Temp2D/Train/",
+        "testing": "/content/Temp2D/Test/",
+        "unittest": "/content/Temp2D/Test/"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
     "network_name": "2DUNet",
     "network_parameters": {"in_channels": 1, "out_channels": 1},
     "training": {
-        "epochs": 10,
-        "batch_size": 10,
-        "train_valid_split": 0.15,
+        "epochs": 1,
+        "batch_size": 8,
+        "train_valid_split": 0,
         "optimizer": "Adam",
         "optimizer_parameters": {"lr": 0.01},
+        "lr_scheduler":"StepLR",
+        "scheduler_parameters":{"step_size":3, "gamma":0.5},
         "loss_name": "dice_loss",
         "loss_parameters": {}
     },
     "transforms": {
-        "transformation_size": [32, 32],
+        "transformation_size": [256, 256],
         "img_key": "image",
         "label_key": "label",
         "train_transform": "2DUnet_transform",
@@ -31,6 +33,7 @@
         "mask_png_path": "/content/Temp2D/mask/",
         "model_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
         "potential_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/potential_checkpoint",
-        "tensorboard": ""
-    }
+        "tensorboard": "/content/drive/MyDrive/liver-imaging-analysis/engine/"
+    },
+    "seed": 0
 }
