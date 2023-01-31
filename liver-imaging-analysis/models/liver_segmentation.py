@@ -107,12 +107,12 @@ class LiverSegmentation(Engine):
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageD(keys),
-                    EnsureChannelFirstD(keys),
-                    ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
+                    LoadImageD(keys, allow_missing_keys=True),
+                    EnsureChannelFirstD(keys, allow_missing_keys=True),
+                    ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True),
-                    ToTensorD(keys),
+                    ForegroundMaskD(keys[1], threshold=0.5, invert=True, allow_missing_keys=True),
+                    ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
             "custom_transform": Compose(
@@ -169,7 +169,7 @@ def segment_liver(*args):
     """
     model = LiverSegmentation()
     model.data_status()
-    
+    model.load_checkpoint()
     model.fit(
       evaluate_epochs=1,
       batch_callback_epochs=1,
@@ -178,3 +178,4 @@ def segment_liver(*args):
       per_epoch_callback=per_epoch_callback
     )
     print("final test loss:", model.test(model.test_dataloader))
+    return(model.predict("/content/drive/MyDrive/ToyLiver2DPredict"))

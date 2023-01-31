@@ -2,7 +2,8 @@
 a module contains the fixed structure of the core of our code
 
 """
-
+from monai.data import Dataset,DataLoader as MonaiLoader
+import os
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy,Dice,JaccardIndex
 import numpy as np
@@ -391,6 +392,47 @@ class Engine:
             test_loss /= num_batches
 
         return test_loss,test_metric.item()
+
+
+    def predict(self, data_dir):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+
+        volume_names = os.listdir(data_dir)
+        volume_paths = [
+                os.path.join(data_dir, file_name)
+                for file_name in volume_names
+        ]
+        predict_files = [
+            {"image": image_name}
+            for image_name in volume_paths
+        ]
+        predict_set = Dataset(data=predict_files, transform=self.test_transform)
+        predict_loader = MonaiLoader(
+            predict_set,
+            batch_size=self.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+        prediction_list=[]
+        with torch.no_grad():
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                pred = self.network(volume)
+                pred=(torch.sigmoid(pred)>0.5).float()
+                prediction_list.append(pred)
+            prediction_list=torch.cat(prediction_list,dim=0)
+        return prediction_list
+
 
 
 def set_seed(self):
