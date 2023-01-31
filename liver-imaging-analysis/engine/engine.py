@@ -3,9 +3,8 @@ a module contains the fixed structure of the core of our code
 
 """
 
-from torch.utils.tensorboard import SummaryWriter
 from monai.losses import DiceLoss as monaiDiceLoss
-from monai.visualize import plot_2d_or_3d_image
+from torchmetrics import Accuracy,Dice,JaccardIndex
 import numpy as np
 import random
 import torch
@@ -42,9 +41,13 @@ class Engine:
             **config.training["optimizer_parameters"],
         )
 
-        self.scheduler =self.get_scheduler(
+        self.scheduler = self.get_scheduler(
             scheduler_name=config.training["lr_scheduler"],
             **config.training["scheduler_parameters"],
+        )
+        self.metrics = self.get_metrics(
+            metrics_name=config.training["metrics"],
+            **config.training["metrics_parameters"],
         )
         self.load_data()
 
@@ -65,7 +68,6 @@ class Engine:
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
-
     def get_scheduler(self, scheduler_name, **kwargs):
         """
         internally used to load lr scheduler.
@@ -81,7 +83,6 @@ class Engine:
             "StepLR": torch.optim.lr_scheduler.StepLR,
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
-
 
     def get_network(self, network_name, **kwargs):
         """
@@ -118,6 +119,24 @@ class Engine:
             "bce_dice": losses.BCEDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
+
+    def get_metrics(self, metrics_name, **kwargs):
+        """
+        internally used to load metrics.
+        Parameters
+        ----------
+            metrics_name: str
+                name of metrics to be fetched from dictionary
+                should be chosen from: 'accuracy','dice', 
+            **kwargs: dict
+                parameters of metrics, if exist.
+        """
+        metrics = {
+            "accuracy": Accuracy,
+            "dice": Dice,
+            "jaccard": JaccardIndex,
+        }
+        return metrics[metrics_name](**kwargs)
 
     def get_pretraining_transforms(self):
         """
@@ -192,47 +211,45 @@ class Engine:
 
         dataloader_iterator = iter(self.train_dataloader)
         try:
-          batch = next(dataloader_iterator)
-          print(
-              f"Batch Shape of Training Features:"
-              f" {batch[img_key].shape} {batch[img_key].dtype}"
-          )
-          print(
-              f"Batch Shape of Training Labels:"
-              f" {batch[label_key].shape} {batch[label_key].dtype}"
-          )
+            batch = next(dataloader_iterator)
+            print(
+                f"Batch Shape of Training Features:"
+                f" {batch[img_key].shape} {batch[img_key].dtype}"
+            )
+            print(
+                f"Batch Shape of Training Labels:"
+                f" {batch[label_key].shape} {batch[label_key].dtype}"
+            )
         except StopIteration:
-          print("No Training Set")
-
+            print("No Training Set")
 
         dataloader_iterator = iter(self.val_dataloader)
         try:
-          batch = next(dataloader_iterator)
-          print(
-              f"Batch Shape of Validation Features:"
-              f" {batch[img_key].shape} {batch[img_key].dtype}"
-          )
-          print(
-              f"Batch Shape of Validation Labels:"
-              f" {batch[label_key].shape} {batch[label_key].dtype}"
-          )
+            batch = next(dataloader_iterator)
+            print(
+                f"Batch Shape of Validation Features:"
+                f" {batch[img_key].shape} {batch[img_key].dtype}"
+            )
+            print(
+                f"Batch Shape of Validation Labels:"
+                f" {batch[label_key].shape} {batch[label_key].dtype}"
+            )
         except StopIteration:
-          print("No Validation Set")
-        
+            print("No Validation Set")
+
         dataloader_iterator = iter(self.test_dataloader)
         try:
-          batch = next(dataloader_iterator)
-          print(
-              f"Batch Shape of Testing Features:"
-              f" {batch[img_key].shape} {batch[img_key].dtype}"
-          )
-          print(
-              f"Batch Shape of Testing Labels:"
-              f" {batch[label_key].shape} {batch[label_key].dtype}"
-          )
+            batch = next(dataloader_iterator)
+            print(
+                f"Batch Shape of Testing Features:"
+                f" {batch[img_key].shape} {batch[img_key].dtype}"
+            )
+            print(
+                f"Batch Shape of Testing Labels:"
+                f" {batch[label_key].shape} {batch[label_key].dtype}"
+            )
         except StopIteration:
-          print("No Testing Set")
-
+            print("No Testing Set")
 
     def save_checkpoint(self, path=config.save["potential_checkpoint"]):
         """
@@ -273,7 +290,7 @@ class Engine:
         save_weight=False,
         save_path=config.save["potential_checkpoint"],
         per_batch_callback=None,
-        per_epoch_callback=None
+        per_epoch_callback=None,
     ):
         """
         train the model using the stored training set
@@ -284,18 +301,23 @@ class Engine:
             the number of iterations for fitting. (Default is the value in config)
         evaluate_epochs: int
             the number of epochs to evaluate model after. (Default is 1)
-        visualize_epochs: int
+        batch_callback_epochs: int
             the number of epochs to visualize gifs after, if exists. (Default is None)
         save_weight: bool
             flag to save best weights. (Default is False)
         save_path: str
             directory to save best weights at. (Default is the potential path in config)
+        per_batch_callback: method
+            a function that contains the code to be executed after each batch
+        per_epoch_callback: method
+            a function that contains the code to be executed after each epoch
         """
         best_valid_loss = float("inf")  # initialization with largest possible number
 
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
+
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
@@ -305,6 +327,7 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
+                batch_metric=self.metrics(pred,mask)
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -314,21 +337,33 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         if per_batch_callback is not None:
-                            per_batch_callback(batch_num,batch["image"],batch["label"],(torch.sigmoid(pred) > 0.5).float())
+                            per_batch_callback(
+                                batch_num,
+                                batch["image"],
+                                batch["label"],
+                                (torch.sigmoid(pred) > 0.5).float(), # predicted mask after thresholding
+                            )
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            if (epoch + 1) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
-                valid_loss = self.test(self.test_dataloader)
+            training_metric=self.metrics.compute() # total epoch metric
+
+            if (
+                epoch + 1
+            ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
+                valid_loss,valid_metric = self.test(self.test_dataloader)
                 if save_weight:  # save model if performance improved on validation set
                     if valid_loss <= best_valid_loss:
                         best_valid_loss = valid_loss
                         self.save_checkpoint(save_path)
             else:
                 valid_loss = None
+                valid_metric=None
             if per_epoch_callback is not None:
-                per_epoch_callback(epoch,training_loss,valid_loss)
-                
+                per_epoch_callback(epoch, training_loss, valid_loss,training_metric,valid_metric)
+
+            self.metrics.reset()
+
     def test(self, dataloader):
         """
         calculates loss on input dataset
@@ -340,6 +375,7 @@ class Engine:
         """
         num_batches = len(dataloader)
         test_loss = 0
+        self.metrics.reset()
         with torch.no_grad():
             for batch in dataloader:
                 volume, mask = batch["image"].to(self.device), batch["label"].to(
@@ -347,14 +383,19 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
+                metric=self.metrics(pred,mask)
+            test_metric=self.metrics.compute()
+
             test_loss /= num_batches
-        return test_loss
+
+        return test_loss,test_metric
+
 
 def set_seed(self):
-        """
-        function to set seed for all randomized attributes of the packages and modules
-        """
-        seed = config.seed
-        torch.manual_seed(seed)
-        random.seed(seed)
-        np.random.seed(seed)
+    """
+    function to set seed for all randomized attributes of the packages and modules
+    """
+    seed = config.seed
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)

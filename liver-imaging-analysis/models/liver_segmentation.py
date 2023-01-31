@@ -146,12 +146,20 @@ def per_batch_callback(batch_num,image,label,prediction):
         tag=f"Batch{batch_num}:Prediction",
     )
 
-def per_epoch_callback(epoch,training_loss,valid_loss):
+def per_epoch_callback(epoch,training_loss,valid_loss,training_metric,valid_metric):
     print("\nTraining Loss=", training_loss)
+    print("\nTraining Metric=", training_metric)
+
     summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+    summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+
     if valid_loss is not None:
         print(f"Validation Loss={valid_loss}")
+        print(f"Validation Metric={valid_metric}")
+
         summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+        summary_writer.add_scalar("Validation Metric", valid_metric, epoch)
+
 
 
 def segment_liver(*args):

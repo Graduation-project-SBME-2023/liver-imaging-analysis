@@ -1,3 +1,7 @@
+"""
+a module that contains some supplementary functions used in our modules
+
+"""
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
 from itertools import permutations
@@ -35,12 +39,12 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-    Volume = nib.load(VolumePath).get_fdata()
-    Mask = nib.load(MaskPath).get_fdata()
-    Masklabel = []
-    masksNo = np.unique(Mask)[1:]
+    volume = nib.load(VolumePath).get_fdata()
+    mask = nib.load(MaskPath).get_fdata()
+    mask_label = []
+    masksNo = np.unique(mask)[1:]
     dest = np.stack(
-        (normalize(Volume).astype(np.uint8),) * 3, axis=-1
+        (normalize(volume).astype(np.uint8),) * 3, axis=-1
     )  # stacked array of volume
     numbers = [0, 0.5, 1]
     perm = permutations(numbers)
@@ -49,16 +53,16 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
         masksNo
     ):  # a loop to iterate over each label in the mask and perform weighted add for each
         # label with a unique color for each one
-        Masklabel.append(Mask == label)
-        Masklabel[i] = np.stack((Masklabel[i],) * 3, axis=-1)
-        Masklabel[i] = np.multiply(
-            (Masklabel[i].astype(np.uint8) * 255), colors[i]
+        mask_label.append(mask == label)
+        mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
+        mask_label[i] = np.multiply(
+            (mask_label[i].astype(np.uint8) * 255), colors[i]
         ).astype(np.uint8)
-        dest = cv.addWeighted(dest, alpha, Masklabel[i], alpha, 0.0)
+        dest = cv.addWeighted(dest, alpha, mask_label[i], alpha, 0.0)
     return dest  # return an array of the volume with the mask overlayed on it with different label colors
 
 
-def animate(volume, outputName):
+def animate(volume, output_name):
     fig = plt.figure()
     ims = []
     for i in range(
@@ -69,15 +73,15 @@ def animate(volume, outputName):
         ims.append([im])
 
     ani = animation.ArtistAnimation(fig, ims, interval=200, blit=True, repeat_delay=100)
-    ani.save(outputName, dpi=300, writer=PillowWriter(fps=5))
+    ani.save(output_name, dpi=300, writer=PillowWriter(fps=5))
 
 
 def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-    Masklabel = []
-    masksNo = np.unique(Mask)[1:]
+    mask_label = []
+    masks_number = np.unique(Mask)[1:]
     if mask2 is not None:
         mask_label2 = []
         masks_number2 = np.unique(mask2)[1:0]
@@ -90,15 +94,15 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
     colors = [color for color in perm]
 
     for i, label in enumerate(
-        masksNo
+        masks_number
     ):  # a loop to iterate over each label in the mask and perform weighted add for each
         # label with a unique color for each one
-        Masklabel.append(Mask == label)
-        Masklabel[i] = np.stack((Masklabel[i],) * 3, axis=-1)
-        Masklabel[i] = np.multiply(
-            (Masklabel[i].astype(np.uint8) * 255), colors[i]
+        mask_label.append(Mask == label)
+        mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
+        mask_label[i] = np.multiply(
+            (mask_label[i].astype(np.uint8) * 255), colors[i]
         ).astype(np.uint8)
-        dest = cv.addWeighted(dest, 1, Masklabel[i], alpha, 0.0)
+        dest = cv.addWeighted(dest, 1, mask_label[i], alpha, 0.0)
     if mask2 is not None:
         colors = np.flip(colors)
         for i, label in enumerate(
