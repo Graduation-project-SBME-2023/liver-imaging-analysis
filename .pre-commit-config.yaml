@@ -6,5 +6,66 @@ repos:
     entry: check-added-large-files
     language: python
     hooks: 
-    - id: check-added-large-files
+    -   id: check-added-large-files
+    
+    
+
+
+    -   id: trailing-whitespace
+        name: trim trailing whitespace
+        description: trims trailing whitespace.
+        entry: trailing-whitespace-fixer
+        language: python
+        types: [text]
+        stages: [commit, push, manual]
+
+-   repo: https://github.com/psf/black
+    rev: 22.12.0
+    hooks:
+    -   id: black
+        name: black
+        description: "Black: The uncompromising Python code formatter"
+        entry: black
+        language: python
+
+
+-   repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+    -   id: flake8
+        name: flake8
+        description: '`flake8` is a command-line utility for enforcing style consistency across Python projects.'
+        entry: flake8
+        language: python
+        types: [python]
+        args: ['--max-line-length=130']
+
+
+-   repo: https://github.com/PyCQA/pydocstyle
+    rev: 6.1.1
+    hooks:
+    -   id: pydocstyle
+        name: pydocstyle
+        description: pydocstyle is a static analysis tool for checking compliance with Python docstring conventions.
+        entry: pydocstyle
+        language: python
+        types: [python]
+
+
+
+
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.11.4
+    hooks:
+    -   id: isort
+        name: isort
+        entry: isort
+        require_serial: true
+        language: python
+        types_or: [cython, pyi, python]
+        args: ['--filter-files']
+        minimum_pre_commit_version: '2.9.2'
+    
+    
+    
  
