@@ -8,8 +8,14 @@
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
-    "network_name": "2DUNet",
-    "network_parameters": {"in_channels": 1, "out_channels": 1},
+    "network_name": "monai_2DUNet",
+    "network_parameters": {
+        "in_channels": 1, 
+        "out_channels": 1,
+        "spatial_dims":2, 
+        "channels": [16, 32, 64, 128, 256],
+        "strides": [2, 2, 2, 2]
+    },
     "training": {
         "epochs": 1,
         "batch_size": 8,
