@@ -2,17 +2,17 @@
 a module that contains some supplementary functions used in our modules
 
 """
-from matplotlib import animation, rc
-from matplotlib.animation import PillowWriter
-from itertools import permutations
 import os
+from itertools import permutations
+
 import cv2 as cv
 import matplotlib.pyplot as plt
 import natsort
 import nibabel as nib
 import numpy as np
 import SimpleITK as sitk
-
+from matplotlib import animation, rc
+from matplotlib.animation import PillowWriter
 
 rc("animation", html="html5")
 

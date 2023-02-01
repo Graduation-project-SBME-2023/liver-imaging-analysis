@@ -3,11 +3,11 @@ a module contains the implemented preprocessing classes
 
 """
 import os
-import numpy as np
-from monai.transforms import LoadImage
-import cv2 as cv
-from config import config
 
+import cv2 as cv
+import numpy as np
+from config import config
+from monai.transforms import LoadImage
 
 
 class LoadImageLocally(LoadImage):

@@ -1,7 +1,7 @@
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
-import torch.nn.functional as F
 
 
 def flatten(tensor):
@@ -173,40 +173,3 @@ class WeightedCrossEntropyLoss(nn.Module):
         denominator = flattened.sum(-1)
         class_weights = Variable(nominator / denominator, requires_grad=False)
         return class_weights
-
-
-class PixelWiseCrossEntropyLoss(nn.Module):
-    def __init__(self, class_weights=None, ignore_index=None):
-        super(PixelWiseCrossEntropyLoss, self).__init__()
-        self.register_buffer("class_weights", class_weights)
-        self.ignore_index = ignore_index
-        self.log_softmax = nn.LogSoftmax(dim=1)
-
-    def forward(self, input, target, weights):
-        assert target.size() == weights.size()
-        # normalize the input
-        log_probabilities = self.log_softmax(input)
-        # standard CrossEntropyLoss requires the target to be (NxDxHxW), so we need to expand it to (NxCxDxHxW)
-        target = expand_as_one_hot(
-            target, C=input.size()[1], ignore_index=self.ignore_index
-        )  # Not ready yet for use ( more investigation in future )
-        # expand weights
-        weights = weights.unsqueeze(1)
-        weights = weights.expand_as(input)
-
-        # create default class_weights if None
-        if self.class_weights is None:
-            class_weights = torch.ones(input.size()[1]).float().to(input.device)
-        else:
-            class_weights = self.class_weights
-
-        # resize class_weights to be broadcastable into the weights
-        class_weights = class_weights.view(1, -1, 1, 1, 1)
-
-        # multiply weights tensor by class weights
-        weights = class_weights * weights
-
-        # compute the losses
-        result = -weights * target * log_probabilities
-        # average the losses
-        return result.mean()

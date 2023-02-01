@@ -2,19 +2,21 @@
 a module contains the fixed structure of the core of our code
 
 """
-from monai.data import Dataset,DataLoader as MonaiLoader
 import os
-from monai.losses import DiceLoss as monaiDiceLoss
-from torchmetrics import Accuracy,Dice,JaccardIndex
-import numpy as np
 import random
-import torch
-import torch.optim.lr_scheduler
+
 import dataloader
 import losses
-from utils import progress_bar
 import models
+import numpy as np
+import torch
+import torch.optim.lr_scheduler
 from config import config
+from monai.data import DataLoader as MonaiLoader
+from monai.data import Dataset
+from monai.losses import DiceLoss as monaiDiceLoss
+from torchmetrics import Accuracy, Dice, JaccardIndex
+from utils import progress_bar
 
 
 class Engine:
@@ -83,7 +85,6 @@ class Engine:
         schedulers = {
             "StepLR": torch.optim.lr_scheduler.StepLR,
             "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
-
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
 
@@ -130,7 +131,7 @@ class Engine:
         ----------
             metrics_name: str
                 name of metrics to be fetched from dictionary
-                should be chosen from: 'accuracy','dice', 
+                should be chosen from: 'accuracy','dice',
             **kwargs: dict
                 parameters of metrics, if exist.
         """
@@ -330,7 +331,7 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                batch_metric=self.metrics(pred,mask.int())
+                # batch_metric = self.metrics(pred, mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -344,26 +345,34 @@ class Engine:
                                 batch_num,
                                 batch["image"],
                                 batch["label"],
-                                (torch.sigmoid(pred) > 0.5).float(), # predicted mask after thresholding
+                                (
+                                    torch.sigmoid(pred) > 0.5
+                                ).float(),  # predicted mask after thresholding
                             )
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            training_metric=self.metrics.compute() # total epoch metric
+            training_metric = self.metrics.compute()  # total epoch metric
 
             if (
                 epoch + 1
             ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
-                valid_loss,valid_metric = self.test(self.test_dataloader)
+                valid_loss, valid_metric = self.test(self.test_dataloader)
                 if save_weight:  # save model if performance improved on validation set
                     if valid_loss <= best_valid_loss:
                         best_valid_loss = valid_loss
                         self.save_checkpoint(save_path)
             else:
                 valid_loss = None
-                valid_metric=None
+                valid_metric = None
             if per_epoch_callback is not None:
-                per_epoch_callback(epoch, training_loss, valid_loss,training_metric.item(),valid_metric)
+                per_epoch_callback(
+                    epoch,
+                    training_loss,
+                    valid_loss,
+                    training_metric.item(),
+                    valid_metric,
+                )
 
             self.metrics.reset()
 
@@ -386,13 +395,12 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                metric=self.metrics(pred,mask.int())
-            test_metric=self.metrics.compute()
+                # metric = self.metrics(pred, mask.int())
+            test_metric = self.metrics.compute()
 
             test_loss /= num_batches
 
-        return test_loss,test_metric.item()
-
+        return test_loss, test_metric.item()
 
     def predict(self, data_dir):
         """
@@ -408,14 +416,8 @@ class Engine:
         """
 
         volume_names = os.listdir(data_dir)
-        volume_paths = [
-                os.path.join(data_dir, file_name)
-                for file_name in volume_names
-        ]
-        predict_files = [
-            {"image": image_name}
-            for image_name in volume_paths
-        ]
+        volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
+        predict_files = [{"image": image_name} for image_name in volume_paths]
         predict_set = Dataset(data=predict_files, transform=self.test_transform)
         predict_loader = MonaiLoader(
             predict_set,
@@ -423,16 +425,15 @@ class Engine:
             num_workers=0,
             pin_memory=False,
         )
-        prediction_list=[]
+        prediction_list = []
         with torch.no_grad():
             for batch in predict_loader:
                 volume = batch["image"].to(self.device)
                 pred = self.network(volume)
-                pred=(torch.sigmoid(pred)>0.5).float()
+                pred = (torch.sigmoid(pred) > 0.5).float()
                 prediction_list.append(pred)
-            prediction_list=torch.cat(prediction_list,dim=0)
+            prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
-
 
 
 def set_seed(self):

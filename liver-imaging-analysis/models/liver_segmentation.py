@@ -1,22 +1,23 @@
 from config import config
-from preprocessing import LoadImageLocally
+from engine import Engine
 from monai.transforms import (
-    LoadImageD,
-    ForegroundMaskD,
-    EnsureChannelFirstD,
-    ToTensorD,
     Compose,
+    EnsureChannelFirstD,
+    ForegroundMaskD,
+    LoadImageD,
     NormalizeIntensityD,
     OrientationD,
-    ResizeD,
     RandFlipd,
     RandRotated,
+    ResizeD,
+    ToTensorD,
 )
-from engine import Engine
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
+
+
 class LiverSegmentation(Engine):
     """
 
@@ -24,6 +25,7 @@ class LiverSegmentation(Engine):
      contains the transforms required by the user and the function that is used to start training
 
     """
+
     def get_pretraining_transforms(self, transform_name, keys):
         """
         Function used to define the needed transforms for the training data
@@ -109,9 +111,16 @@ class LiverSegmentation(Engine):
                 [
                     LoadImageD(keys, allow_missing_keys=True),
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
-                    ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
+                    ResizeD(
+                        keys,
+                        resize_size,
+                        mode=("bilinear", "nearest"),
+                        allow_missing_keys=True,
+                    ),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True, allow_missing_keys=True),
+                    ForegroundMaskD(
+                        keys[1], threshold=0.5, invert=True, allow_missing_keys=True
+                    ),
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -123,13 +132,14 @@ class LiverSegmentation(Engine):
         }
         return transforms[transform_name]
 
-def per_batch_callback(batch_num,image,label,prediction):
+
+def per_batch_callback(batch_num, image, label, prediction):
     plot_2d_or_3d_image(
-    data=image,
-    step=0,
-    writer=summary_writer,
-    frame_dim=-1,
-    tag=f"Batch{batch_num}:Volume",
+        data=image,
+        step=0,
+        writer=summary_writer,
+        frame_dim=-1,
+        tag=f"Batch{batch_num}:Volume",
     )
     plot_2d_or_3d_image(
         data=label,
@@ -146,7 +156,8 @@ def per_batch_callback(batch_num,image,label,prediction):
         tag=f"Batch{batch_num}:Prediction",
     )
 
-def per_epoch_callback(epoch,training_loss,valid_loss,training_metric,valid_metric):
+
+def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_metric):
     print("\nTraining Loss=", training_loss)
     print("\nTraining Metric=", training_metric)
 
@@ -161,7 +172,6 @@ def per_epoch_callback(epoch,training_loss,valid_loss,training_metric,valid_metr
         summary_writer.add_scalar("Validation Metric", valid_metric, epoch)
 
 
-
 def segment_liver(*args):
     """
     a function used to start the training of liver segmentation
@@ -171,11 +181,11 @@ def segment_liver(*args):
     model.data_status()
     model.load_checkpoint()
     model.fit(
-      evaluate_epochs=1,
-      batch_callback_epochs=1,
-      save_weight=True,
-      per_batch_callback=per_batch_callback,
-      per_epoch_callback=per_epoch_callback
+        evaluate_epochs=1,
+        batch_callback_epochs=1,
+        save_weight=True,
+        per_batch_callback=per_batch_callback,
+        per_epoch_callback=per_epoch_callback,
     )
     print("final test loss:", model.test(model.test_dataloader))
-    return(model.predict("/content/drive/MyDrive/ToyLiver2DPredict"))
+    return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")

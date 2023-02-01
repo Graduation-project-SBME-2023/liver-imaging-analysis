@@ -1,19 +1,13 @@
 """
 unittesting module
 """
-
-# global
-import unittest
-import numpy as np
-import sys
-import os
-import torch
 import json
+import unittest
 
-# local
 import dataloader
-import losses
 import engine
+import losses
+import torch
 import unet
 
 with open("config/configs.json") as f:

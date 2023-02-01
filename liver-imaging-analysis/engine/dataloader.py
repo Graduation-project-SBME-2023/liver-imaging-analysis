@@ -3,9 +3,12 @@ a module to create a dataloader for our dataset and apply the selected preproces
 
 """
 import os
-from sklearn.model_selection import train_test_split
-from monai.data import Dataset, DataLoader as MonaiLoader
+
 from config import config
+from monai.data import DataLoader as MonaiLoader
+from monai.data import Dataset
+from sklearn.model_selection import train_test_split
+
 
 def slices_paths_reader(volume_text_path, mask_text_path):
     """Read two paths contain txt files and return two lists contain the content of txt files
@@ -140,10 +143,7 @@ class DataLoader:
                 training_mask_path,
                 test_mask_path,
             ) = train_test_split(
-                volume_paths,
-                mask_paths,
-                test_size=test_size,
-                random_state=config.seed
+                volume_paths, mask_paths, test_size=test_size, random_state=config.seed
             )
 
         train_files = [

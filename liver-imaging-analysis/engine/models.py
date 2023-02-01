@@ -1,11 +1,14 @@
-import torch.nn as nn
+"""module contains network architectures """
 
-from buildingblocks import DoubleConv, ExtResNetBlock, create_encoders, \
-    create_decoders
+import torch
+import torch.nn as nn
+import torchvision.transforms.functional as TF
+from buildingblocks import ExtResNetBlock, create_decoders, create_encoders
 
 
 def number_of_features_per_level(init_channel_number, num_levels):
-    return [init_channel_number * 2 ** k for k in range(num_levels)]
+    return [init_channel_number * 2**k for k in range(num_levels)]
+
 
 class Abstract3DUNet(nn.Module):
     """
@@ -235,10 +238,6 @@ class ResidualUNet3D(Abstract3DUNet):
 #         )
 
 
-import torch
-import torch.nn as nn
-import torchvision.transforms.functional as TF
-
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
@@ -254,9 +253,13 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
+
 class UNet2D(nn.Module):
     def __init__(
-            self, in_channels=1, out_channels=1, features=[64, 128, 256, 512],
+        self,
+        in_channels=1,
+        out_channels=1,
+        features=[64, 128, 256, 512],
     ):
         super(UNet2D, self).__init__()
         self.ups = nn.ModuleList()
@@ -272,12 +275,15 @@ class UNet2D(nn.Module):
         for feature in reversed(features):
             self.ups.append(
                 nn.ConvTranspose2d(
-                    feature*2, feature, kernel_size=2, stride=2,
+                    feature * 2,
+                    feature,
+                    kernel_size=2,
+                    stride=2,
                 )
             )
-            self.ups.append(DoubleConv(feature*2, feature))
+            self.ups.append(DoubleConv(feature * 2, feature))
 
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
+        self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
         self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
@@ -293,12 +299,12 @@ class UNet2D(nn.Module):
 
         for idx in range(0, len(self.ups), 2):
             x = self.ups[idx](x)
-            skip_connection = skip_connections[idx//2]
+            skip_connection = skip_connections[idx // 2]
 
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
 
             concat_skip = torch.cat((skip_connection, x), dim=1)
-            x = self.ups[idx+1](concat_skip)
+            x = self.ups[idx + 1](concat_skip)
 
         return self.final_conv(x)
