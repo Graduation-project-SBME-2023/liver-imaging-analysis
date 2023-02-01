@@ -231,3 +231,5 @@ def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_p
 
             nib.save(new_nii_volume, nii_volume_path)
             nib.save(new_nii_mask, nii_mask_path)
+def get_batch_names(batch,key):
+    return batch[f'{key}_meta_dict']['filename_or_obj']
