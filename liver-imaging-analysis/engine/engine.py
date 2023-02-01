@@ -103,6 +103,7 @@ class Engine:
             "3DUNet": models.UNet3D,
             "3DResNet": models.ResidualUNet3D,
             "2DUNet": models.UNet2D,
+            "monai_2DUNet": monai.networks.nets.UNet
         }
         return networks[network_name](**kwargs)
 
@@ -325,7 +326,7 @@ class Engine:
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
-                progress_bar(batch_num, len(self.train_dataloader))
+                progress_bar(batch_num + 1, len(self.train_dataloader))
                 volume, mask = batch["image"].to(self.device), batch["label"].to(
                     self.device
                 )
