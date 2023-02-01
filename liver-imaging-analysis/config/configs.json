@@ -24,8 +24,8 @@
         "optimizer_parameters": {"lr": 0.01},
         "lr_scheduler":"StepLR",
         "scheduler_parameters":{"step_size":3, "gamma":0.5},
-        "loss_name": "dice_loss",
-        "loss_parameters": {},
+        "loss_name": "monai_dice",
+        "loss_parameters": {"sigmoid":"1"},
         "metrics":"dice",
         "metrics_parameters":{}
     },
