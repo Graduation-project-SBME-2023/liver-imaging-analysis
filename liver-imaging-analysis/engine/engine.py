@@ -397,7 +397,7 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                # metric = self.metrics(pred, mask.int())
+                metric = self.metrics(pred, mask.int())
             test_metric = self.metrics.compute()
 
             test_loss /= num_batches
