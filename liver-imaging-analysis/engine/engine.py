@@ -333,7 +333,7 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                # batch_metric = self.metrics(pred, mask.int())
+                batch_metric = self.metrics(pred, mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
