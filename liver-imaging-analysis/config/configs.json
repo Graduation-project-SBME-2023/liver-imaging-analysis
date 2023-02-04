@@ -27,7 +27,8 @@
         "loss_name": "monai_dice",
         "loss_parameters": {"sigmoid":"1"},
         "metrics":"dice",
-        "metrics_parameters":{}
+        "metrics_parameters":{},
+        "shuffle":1
     },
     "transforms": {
         "transformation_size": [256, 256],

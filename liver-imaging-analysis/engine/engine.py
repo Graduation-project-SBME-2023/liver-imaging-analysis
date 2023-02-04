@@ -190,6 +190,7 @@ class Engine:
             test_size=config.training["train_valid_split"],
             keys=self.keys,
             mode=config.dataset["mode"],
+            shuffle=config.training["shuffle"]
         )
         testloader = dataloader.DataLoader(
             dataset_path=config.dataset["testing"],
