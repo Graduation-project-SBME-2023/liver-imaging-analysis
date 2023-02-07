@@ -230,4 +230,4 @@ dependencies:
   - zstd=1.5.2=h8574219_0
   - pip:
     - pyqt5-sip==12.11.0
-prefix: /Users/mn3n3/opt/miniconda3/envs/gProject
+
