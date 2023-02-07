@@ -289,6 +289,22 @@ class Engine:
         print(f"Loss= {self.loss} \n")
         print(f"Optimizer= {self.optimizer} \n")
 
+    def per_batch_callback(self):
+          """
+          A generic callback function to be executed every batch.
+          Supposed to output information desired by user.
+          Should be Implemented in segmentation module.
+          """
+          raise NotImplementedError()
+
+    def per_epoch_callback(self):
+        """
+        A generic callback function to be executed every epoch.
+        Supposed to output information desired by user.
+        Should be Implemented in segmentation module.
+        """
+        raise NotImplementedError()
+
     def fit(
         self,
         epochs=config.training["epochs"],
@@ -296,8 +312,6 @@ class Engine:
         batch_callback_epochs=None,
         save_weight=False,
         save_path=config.save["potential_checkpoint"],
-        per_batch_callback=None,
-        per_epoch_callback=None,
     ):
         """
         train the model using the stored training set
@@ -343,8 +357,7 @@ class Engine:
                 training_loss += loss.item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
-                        if per_batch_callback is not None:
-                            per_batch_callback(
+                        self.per_batch_callback(
                                 batch_num,
                                 batch["image"],
                                 batch["label"],
@@ -368,8 +381,7 @@ class Engine:
             else:
                 valid_loss = None
                 valid_metric = None
-            if per_epoch_callback is not None:
-                per_epoch_callback(
+            self.per_epoch_callback(
                     epoch,
                     training_loss,
                     valid_loss,

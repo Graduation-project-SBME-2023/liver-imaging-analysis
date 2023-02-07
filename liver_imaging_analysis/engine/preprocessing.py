@@ -15,9 +15,6 @@ class LoadImageLocally(LoadImage):
     a class that takes the path of volume with a specific slice and
      saves it localy if not saved then reads it, if saved it reads it only
 
-    Args:
-        keys (list): paths of the images to be loaded.
-
     Return:
         d (list): loaded image
     """

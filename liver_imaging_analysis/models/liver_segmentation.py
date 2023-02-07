@@ -133,43 +133,43 @@ class LiverSegmentation(Engine):
         return transforms[transform_name]
 
 
-def per_batch_callback(batch_num, image, label, prediction):
-    plot_2d_or_3d_image(
-        data=image,
-        step=0,
-        writer=summary_writer,
-        frame_dim=-1,
-        tag=f"Batch{batch_num}:Volume",
-    )
-    plot_2d_or_3d_image(
-        data=label,
-        step=0,
-        writer=summary_writer,
-        frame_dim=-1,
-        tag=f"Batch{batch_num}:Mask",
-    )
-    plot_2d_or_3d_image(
-        data=prediction,
-        step=0,
-        writer=summary_writer,
-        frame_dim=-1,
-        tag=f"Batch{batch_num}:Prediction",
-    )
+    def per_batch_callback(batch_num, image, label, prediction):
+        plot_2d_or_3d_image(
+            data=image,
+            step=0,
+            writer=summary_writer,
+            frame_dim=-1,
+            tag=f"Batch{batch_num}:Volume",
+        )
+        plot_2d_or_3d_image(
+            data=label,
+            step=0,
+            writer=summary_writer,
+            frame_dim=-1,
+            tag=f"Batch{batch_num}:Mask",
+        )
+        plot_2d_or_3d_image(
+            data=prediction,
+            step=0,
+            writer=summary_writer,
+            frame_dim=-1,
+            tag=f"Batch{batch_num}:Prediction",
+        )
 
 
-def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_metric):
-    print("\nTraining Loss=", training_loss)
-    print("\nTraining Metric=", training_metric)
+    def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_metric):
+        print("\nTraining Loss=", training_loss)
+        print("\nTraining Metric=", training_metric)
 
-    summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
-    summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
+        summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
 
-    if valid_loss is not None:
-        print(f"Validation Loss={valid_loss}")
-        print(f"Validation Metric={valid_metric}")
+        if valid_loss is not None:
+            print(f"Validation Loss={valid_loss}")
+            print(f"Validation Metric={valid_metric}")
 
-        summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
-        summary_writer.add_scalar("Validation Metric", valid_metric, epoch)
+            summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
+            summary_writer.add_scalar("Validation Metric", valid_metric, epoch)
 
 
 def segment_liver(*args):
@@ -184,8 +184,6 @@ def segment_liver(*args):
         evaluate_epochs=1,
         batch_callback_epochs=1,
         save_weight=True,
-        per_batch_callback=per_batch_callback,
-        per_epoch_callback=per_epoch_callback,
     )
     print("final test loss:", model.test(model.test_dataloader))
     return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")
