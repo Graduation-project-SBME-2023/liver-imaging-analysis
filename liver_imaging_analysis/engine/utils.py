@@ -20,10 +20,18 @@ rc("animation", html="html5")
 def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
 """
     A method to generate the volume and the mask overlay
-    Args:   Volume Path: the directory that includes the volume nii file
-            Mask Path: the directory that includes the segmented mask nii file
-            alpha: the opacity of the displayed mask. default=0.2
-    Return: The Stacked 4 channels array of the nifti input
+    Parameters
+    ----------
+    Volume Path: str 
+        the directory that includes the volume nii file
+    Mask Path: str
+        the directory that includes the segmented mask nii file
+    alpha: float
+        the opacity of the displayed mask. default=0.2
+    Returns
+    -------
+    tensor
+        The Stacked 4 channels array of the nifti input
 """
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
@@ -54,8 +62,12 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
 def animate(volume, output_name):
 """
     A method to save the animated gif from the overlay array
-    Args:   volume: expects a 4d array of the volume/mask overlay
-            output_name: the name of the gif file to be saved
+    Parameters
+    ----------
+    volume: tensor
+        expects a 4d array of the volume/mask overlay
+    output_name: str
+        the name of the gif file to be saved
 """
     fig = plt.figure()
     ims = []
@@ -73,11 +85,20 @@ def animate(volume, output_name):
 def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
 """
     A method to generate the volume and the mask overlay from arrays
-    Args:   Volume: the volume array
-            Mask: the mask array
-            mask2: optional additional mask to be overlayed. default is None
-            alpha: the opacity of the displayed mask. default=0.2
-    Return: The Stacked 4 channels array of the nifti input
+    Parameters
+    ----------
+    Volume: tensor
+        the volume array
+    Mask: tensor
+        the mask array
+    mask2: tensor
+        optional additional mask to be overlayed. default is None
+    alpha: float
+        the opacity of the displayed mask. default=0.2
+    Returns
+    ----------
+    tensor
+        The Stacked 4 channels array of the nifti input
 """
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
@@ -124,8 +145,12 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
 def progress_bar(progress, total):
 """
     A method to visualize the training progress by a progress bar
-    Args:   progress: the current batch
-            total: the total number of batches
+    Parameters
+    ----------
+    progress: float
+        the current batch
+    total: float
+        the total number of batches
 """
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
@@ -134,11 +159,17 @@ def progress_bar(progress, total):
 
 def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
 """
-A method to generate 2d .png slices from 3d .nii volumes
-Args: volume_nii_path: the directory of the 3d volumes
-      mask_nii_path: the directory of the 3d masks
-      volume_save_path: the save directory of the 2d volume slices
-      mask_save_path: the save directory of the 2d mask slices
+    A method to generate 2d .png slices from 3d .nii volumes
+    Parameters
+    ----------
+    volume_nii_path: str
+        the directory of the 3d volumes
+    mask_nii_path: str
+        the directory of the 3d masks
+    volume_save_path: str
+        the save directory of the 2d volume slices
+    mask_save_path: str
+        the save directory of the 2d mask slices
 """
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
@@ -188,11 +219,17 @@ Args: volume_nii_path: the directory of the 3d volumes
 
 def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
 """
-A method to generate 2d .nii slices from 3d .nii volumes
-Args: volume_nii_path: the directory of the 3d volumes
-      mask_nii_path: the directory of the 3d masks
-      volume_save_path: the save directory of the 2d volume slices
-      mask_save_path: the save directory of the 2d mask slices
+    A method to generate 2d .nii slices from 3d .nii volumes
+    Parameters
+    ----------
+    volume_nii_path: str
+        the directory of the 3d volumes
+    mask_nii_path: str
+        the directory of the 3d masks
+    volume_save_path: str
+        the save directory of the 2d volume slices
+    mask_save_path: str
+        the save directory of the 2d mask slices
 """
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
@@ -246,8 +283,12 @@ Args: volume_nii_path: the directory of the 3d volumes
             
 def get_batch_names(batch,key):
 """
-A method to get the filenames of the current batch
-Args: batch: the current batch dict
-      key: the key of the batch dict
+    A method to get the filenames of the current batch
+    Parameters
+    ----------
+    batch: tensor
+        the current batch dict
+    key: str
+        the key of the batch dict
 """
     return batch[f'{key}_meta_dict']['filename_or_obj']
