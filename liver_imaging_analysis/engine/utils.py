@@ -1,6 +1,5 @@
 """
-a module that contains some supplementary functions used in our modules
-
+a module that contains supplementary methods used at the beginning/ending of the pipeline
 """
 import os
 from itertools import permutations
@@ -17,25 +16,15 @@ from matplotlib.animation import PillowWriter
 rc("animation", html="html5")
 
 
-"""
-    A method to display the original CT volume and the segmented mask and its labels
-    with different color and opacity on it and saves the overlay into a gif file
-    Methods:
-        gray_to_colored: changes the input nfti from 3 channels gray scale ( L , W , N)
-         to 4 channels RGB ( L , W , N , 3) by stacking the volume array
-          and perform weighted add to put the segmented mask over the volume in one array
-            Args:   Volume Path: the directory that includes the volume nii file
-                    Mask Path: the directory that includes the segmented mask nii file
-                    alpha: the opacity of the displayed mask
-            Return: The Stacked 4 channels array of the nfti input
-        normalize: normalize the input value to be in range 0:255
-        animate: create the animated overlay and saves it as GIF
-            Args: volume: the required array input to be animated
-                  volumename: the name of the output gif file to be saved
-"""
-
 
 def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
+"""
+    A method to generate the volume and the mask overlay
+    Args:   Volume Path: the directory that includes the volume nii file
+            Mask Path: the directory that includes the segmented mask nii file
+            alpha: the opacity of the displayed mask. default=0.2
+    Return: The Stacked 4 channels array of the nifti input
+"""
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
@@ -63,6 +52,11 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
 
 
 def animate(volume, output_name):
+"""
+    A method to save the animated gif from the overlay array
+    Args:   volume: expects a 4d array of the volume/mask overlay
+            output_name: the name of the gif file to be saved
+"""
     fig = plt.figure()
     ims = []
     for i in range(
@@ -77,6 +71,14 @@ def animate(volume, output_name):
 
 
 def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
+"""
+    A method to generate the volume and the mask overlay from arrays
+    Args:   Volume: the volume array
+            Mask: the mask array
+            mask2: optional additional mask to be overlayed. default is None
+            alpha: the opacity of the displayed mask. default=0.2
+    Return: The Stacked 4 channels array of the nifti input
+"""
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
@@ -120,17 +122,24 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
 
 
 def progress_bar(progress, total):
+"""
+    A method to visualize the training progress by a progress bar
+    Args:   progress: the current batch
+            total: the total number of batches
+"""
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
 def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
-
-    """
-    generates slices(with png extensions) from volumes (with nii extensions)
-    """
-
+"""
+A method to generate 2d .png slices from 3d .nii volumes
+Args: volume_nii_path: the directory of the 3d volumes
+      mask_nii_path: the directory of the 3d masks
+      volume_save_path: the save directory of the 2d volume slices
+      mask_save_path: the save directory of the 2d mask slices
+"""
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
     )  # sort the directory of files
@@ -178,10 +187,13 @@ def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
 
 
 def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
-
-    """
-    generates slices (with nii extensions) from volumes (with nii extensions)
-    """
+"""
+A method to generate 2d .nii slices from 3d .nii volumes
+Args: volume_nii_path: the directory of the 3d volumes
+      mask_nii_path: the directory of the 3d masks
+      volume_save_path: the save directory of the 2d volume slices
+      mask_save_path: the save directory of the 2d mask slices
+"""
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
     )  # sort the directory of files
@@ -231,5 +243,11 @@ def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_p
 
             nib.save(new_nii_volume, nii_volume_path)
             nib.save(new_nii_mask, nii_mask_path)
+            
 def get_batch_names(batch,key):
+"""
+A method to get the filenames of the current batch
+Args: batch: the current batch dict
+      key: the key of the batch dict
+"""
     return batch[f'{key}_meta_dict']['filename_or_obj']
