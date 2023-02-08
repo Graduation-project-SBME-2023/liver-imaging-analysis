@@ -133,7 +133,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name]
 
 
-    def per_batch_callback(batch_num, image, label, prediction):
+    def per_batch_callback(self, batch_num, image, label, prediction):
         plot_2d_or_3d_image(
             data=image,
             step=0,
@@ -157,7 +157,7 @@ class LiverSegmentation(Engine):
         )
 
 
-    def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_metric):
+    def per_epoch_callback(self, epoch, training_loss, valid_loss, training_metric, valid_metric):
         print("\nTraining Loss=", training_loss)
         print("\nTraining Metric=", training_metric)
 
