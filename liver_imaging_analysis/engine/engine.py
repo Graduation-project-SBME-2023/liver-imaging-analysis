@@ -295,7 +295,7 @@ class Engine:
           Supposed to output information desired by user.
           Should be Implemented in segmentation module.
           """
-          raise NotImplementedError()
+          pass
 
     def per_epoch_callback(self):
         """
@@ -303,7 +303,7 @@ class Engine:
         Supposed to output information desired by user.
         Should be Implemented in segmentation module.
         """
-        raise NotImplementedError()
+        pass
 
     def fit(
         self,
