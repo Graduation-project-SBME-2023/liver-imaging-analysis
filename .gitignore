@@ -1,0 +1,19 @@
+__pycache__
+.vs
+.ipynb_checkpoints
+.DS_Store
+liver-imaging-analysis/engine/.vs/
+tests/__pycache__/
+liver-imaging-analysis/engine/.ipynb_checkpoints/
+liver-imaging-analysis/engine/TestDataset/
+liver-imaging-analysis/engine/model_dicts
+liver-imaging-analysis/engine/model_checkpoint.pth.tar
+liver-imaging-analysis/engine/Best_epoch
+liver-imaging-analysis/engine/First_epoch
+liver-imaging-analysis/engine/runs/
+model_checkpoint.zip
+final epoch2
+runs
+potential_checkpoint
+model_checkpoint
+tensorboard
