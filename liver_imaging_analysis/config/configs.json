@@ -35,7 +35,8 @@
         "img_key": "image",
         "label_key": "label",
         "train_transform": "2DUnet_transform",
-        "test_transform": "2DUnet_transform"
+        "test_transform": "2DUnet_transform",
+        "post_transform": "2DUnet_transform"
     },
     "save": {
         "volume_png_path": "/content/Temp2D/volume/",

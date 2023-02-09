@@ -13,8 +13,7 @@ import torch
 import torch.optim.lr_scheduler
 from config import config
 import monai
-from monai.data import DataLoader as MonaiLoader
-from monai.data import Dataset
+from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
 from utils import progress_bar
@@ -160,6 +159,15 @@ class Engine:
         """
         raise NotImplementedError()
 
+    def get_postprocessing_transforms(self):
+        """
+        Should be Implemented by user in liver_segmentation module.
+        Transforms to be applied on predcted data before evaluation.
+        Expected to return a monai Compose object with desired transforms.
+        """
+        
+        raise NotImplementedError()
+
     def load_data(
         self,
     ):
@@ -178,6 +186,10 @@ class Engine:
         )
         self.test_transform = self.get_pretesting_transforms(
             config.transforms["test_transform"], self.keys
+        )
+        self.postprocessing_transforms=self.get_postprocessing_transforms(
+             config.transforms["post_transform"]
+
         )
 
         trainloader = dataloader.DataLoader(
@@ -409,6 +421,8 @@ class Engine:
                     self.device
                 )
                 pred = self.network(volume)
+                pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
+                pred=torch.stack(pred)
                 test_loss += self.loss(pred, mask).item()
                 metric = self.metrics(pred, mask.int())
             test_metric = self.metrics.compute()

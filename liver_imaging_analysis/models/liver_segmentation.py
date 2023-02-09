@@ -11,6 +11,11 @@ from monai.transforms import (
     RandRotated,
     ResizeD,
     ToTensorD,
+    Activations,
+    AsDiscrete,
+    KeepLargestConnectedComponent,
+    RemoveSmallObjects,
+    FillHoles,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -131,6 +136,22 @@ class LiverSegmentation(Engine):
             ),
         }
         return transforms[transform_name]
+
+    def get_postprocessing_transforms(self,transform_name):
+        transforms= {
+
+        '2DUnet_transform': Compose(
+            [
+                Activations(sigmoid=True),
+                AsDiscrete(threshold=0.5),
+                RemoveSmallObjects(min_size=30),
+                FillHoles(),
+                KeepLargestConnectedComponent(),
+                
+            ]
+        )
+        } 
+        return transforms[transform_name] 
 
 
     def per_batch_callback(self, batch_num, image, label, prediction):
