@@ -4,7 +4,7 @@ a module to create a dataloader for our dataset and apply the selected preproces
 """
 import os
 
-from config import config
+from engine.config import config
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from sklearn.model_selection import train_test_split
@@ -86,7 +86,7 @@ class DataLoader:
          keys: dict
               Dictionary of the corresponding items to be loaded.
               set by default to ("image","label")
-        mode: string
+         mode: string
               a string defines whether we will work with 2D images or 3D volumes
          shuffle: bool
               If, True will shuffle the loaded images and masks before returning them
@@ -168,12 +168,16 @@ class DataLoader:
             that can be called using their specified keys.
             An iterable object over the training data
         """
+        shuffle=False
+        if len(self.train_ds)!=0:
+          shuffle=self.shuffle
+        print("shuffe:",shuffle)
         train_loader = MonaiLoader(
             self.train_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            shuffle=self.shuffle,
+            shuffle=shuffle,
         )
         return train_loader
 
@@ -186,11 +190,16 @@ class DataLoader:
         Dictionary containing the testing volumes and masks
         that can be called using their specified keys.
         """
+        shuffle=False
+        if len(self.test_ds)!=0:
+          shuffle=self.shuffle
+        print("shuffe:",shuffle)
         test_loader = MonaiLoader(
             self.test_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            shuffle=shuffle,
         )
 
         return test_loader

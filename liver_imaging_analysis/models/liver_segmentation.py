@@ -1,5 +1,5 @@
-from config import config
-from engine import Engine
+from engine.config import config
+from engine.engine import Engine, set_seed
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -11,11 +11,17 @@ from monai.transforms import (
     RandRotated,
     ResizeD,
     ToTensorD,
+    RandSpatialCropd,
+    RandAdjustContrastd,
+    RandZoomd,
+    CropForegroundd
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
+from monai.metrics import DiceMetric
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
+dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
 
 class LiverSegmentation(Engine):
@@ -68,8 +74,12 @@ class LiverSegmentation(Engine):
                     LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
+                    RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
+                    RandFlipd(keys, prob=0.5, spatial_axis=1),
+                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.5),
+                    RandAdjustContrastd(keys[0], prob=0.25),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True),
+                    ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
                     ToTensorD(keys),
                 ]
             ),
@@ -120,7 +130,7 @@ class LiverSegmentation(Engine):
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
                     ForegroundMaskD(
                         keys[1], threshold=0.5, invert=True, allow_missing_keys=True
-                    ),
+                    ),#remove for lesion segmentation
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -134,32 +144,33 @@ class LiverSegmentation(Engine):
 
 
     def per_batch_callback(self, batch_num, image, label, prediction):
+        dice_score=dice_metric(prediction.int(),label.int())[0].item()
         plot_2d_or_3d_image(
             data=image,
             step=0,
             writer=summary_writer,
             frame_dim=-1,
-            tag=f"Batch{batch_num}:Volume",
+            tag=f"Batch{batch_num}:Volume:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
             data=label,
             step=0,
             writer=summary_writer,
             frame_dim=-1,
-            tag=f"Batch{batch_num}:Mask",
+            tag=f"Batch{batch_num}:Mask:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
             data=prediction,
             step=0,
             writer=summary_writer,
             frame_dim=-1,
-            tag=f"Batch{batch_num}:Prediction",
+            tag=f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
 
 
     def per_epoch_callback(self, epoch, training_loss, valid_loss, training_metric, valid_metric):
         print("\nTraining Loss=", training_loss)
-        print("\nTraining Metric=", training_metric)
+        print("Training Metric=", training_metric)
 
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
@@ -168,8 +179,8 @@ class LiverSegmentation(Engine):
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
 
-            summary_writer.add_scalar("Validation Loss", valid_loss, epoch)
-            summary_writer.add_scalar("Validation Metric", valid_metric, epoch)
+            summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
+            summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
 
 def segment_liver(*args):
@@ -177,13 +188,16 @@ def segment_liver(*args):
     a function used to start the training of liver segmentation
 
     """
+    set_seed()
     model = LiverSegmentation()
     model.data_status()
-    model.load_checkpoint()
+    # model.load_checkpoint(config.save["potential_checkpoint"])
+    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
     model.fit(
         evaluate_epochs=1,
-        batch_callback_epochs=1,
+        batch_callback_epochs=100,
         save_weight=True,
     )
-    print("final test loss:", model.test(model.test_dataloader))
-    return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")
+    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
+    print("final test loss:", model.test(model.test_dataloader, callback=False))
+    return model

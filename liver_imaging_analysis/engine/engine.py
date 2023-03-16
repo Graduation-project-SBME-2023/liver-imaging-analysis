@@ -4,22 +4,32 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
-
-import dataloader
-import losses
-import models
+import gc 
+from engine import dataloader
+from engine import losses
+from engine import models
 import numpy as np
 import torch
 import torch.optim.lr_scheduler
-from config import config
+from engine.config import config
 import monai
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
-from utils import progress_bar
-
-
+from engine.utils import progress_bar
+from monai.metrics import DiceMetric
+#################for 3d liver lesion prediction################################
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirst,
+    NormalizeIntensity,
+    Orientation,
+    Resize,
+    ToTensor,
+)
+resize_size = config.transforms["transformation_size"]
+#############################################################
 class Engine:
     """
     Class that implements the basic PyTorch methods for deep learning tasks
@@ -52,7 +62,7 @@ class Engine:
         self.metrics = self.get_metrics(
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
-        ).to(self.device)
+        )
         self.load_data()
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -139,7 +149,7 @@ class Engine:
         """
         metrics = {
             "accuracy": Accuracy,
-            "dice": Dice,
+            "dice": DiceMetric,
             "jaccard": JaccardIndex,
         }
         return metrics[metrics_name](**kwargs)
@@ -202,6 +212,7 @@ class Engine:
             test_size=1,  # testing set should all be set as evaluation (no training)
             keys=self.keys,
             mode=config.dataset["mode"],
+            shuffle=config.training["shuffle"]
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -218,6 +229,7 @@ class Engine:
 
         dataloader_iterator = iter(self.train_dataloader)
         try:
+            print("Number of Training Batches:", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Training Features:"
@@ -232,6 +244,7 @@ class Engine:
 
         dataloader_iterator = iter(self.val_dataloader)
         try:
+            print("Number of Validation Batches:", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Validation Features:"
@@ -246,6 +259,7 @@ class Engine:
 
         dataloader_iterator = iter(self.test_dataloader)
         try:
+            print("Number of Testing Batches:", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Testing Features:"
@@ -267,7 +281,13 @@ class Engine:
         path: str
             The path where the checkpoint will be saved at
         """
-        torch.save(self.network.state_dict(), path)
+        # torch.save(self.network.state_dict(), path)
+        checkpoint = {
+            'state_dict': self.network.state_dict(),
+            'optimizer': self.optimizer.state_dict()
+            }
+        torch.save(checkpoint, path)
+
 
     def load_checkpoint(self, path=config.save["model_checkpoint"]):
         """
@@ -278,9 +298,13 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        self.network.load_state_dict(
-            torch.load(path, map_location=torch.device(self.device))
-        )
+        # self.network.load_state_dict(
+        #     torch.load(path, map_location=torch.device(self.device))
+        # )
+
+        checkpoint = torch.load(path)
+        self.network.load_state_dict(checkpoint['state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
 
     def compile_status(self):
         """
@@ -336,9 +360,11 @@ class Engine:
         best_valid_loss = float("inf")  # initialization with largest possible number
 
         for epoch in range(epochs):
+            gc.collect()
+            torch.cuda.empty_cache() #free gpu
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
-
+            training_metric=0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # batch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
@@ -348,28 +374,31 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                batch_metric = self.metrics(pred, mask.int())
+                #batch_metric = 
+                self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                self.scheduler.step()
                 training_loss += loss.item()
+                # training_metric += batch_metric.mean().item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
                                 batch_num,
-                                batch["image"],
-                                batch["label"],
-                                (
-                                    torch.sigmoid(pred) > 0.5
-                                ).float(),  # predicted mask after thresholding
+                                volume,
+                                mask,
+                                (torch.sigmoid(pred) > 0.5).float(),  # predicted mask after thresholding
                             )
+            self.scheduler.step()
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            training_metric = self.metrics.compute()  # total epoch metric
-
+            # training_metric = training_metric/ len(self.train_dataloader)  # total epoch metric
+            # aggregate the final mean dice result
+            training_metric = self.metrics.aggregate().item() # total epoch metric
+            # reset the status for next computation round
+            self.metrics.reset()
             if (
                 epoch + 1
             ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
@@ -385,13 +414,11 @@ class Engine:
                     epoch,
                     training_loss,
                     valid_loss,
-                    training_metric.item(),
+                    training_metric,
                     valid_metric,
                 )
 
-            self.metrics.reset()
-
-    def test(self, dataloader):
+    def test(self, dataloader, callback=False):
         """
         calculates loss on input dataset
 
@@ -402,20 +429,25 @@ class Engine:
         """
         num_batches = len(dataloader)
         test_loss = 0
-        self.metrics.reset()
+        test_metric=0
+        self.network.eval()
         with torch.no_grad():
-            for batch in dataloader:
+            for batch_num,batch in enumerate(dataloader):
                 volume, mask = batch["image"].to(self.device), batch["label"].to(
                     self.device
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                metric = self.metrics(pred, mask.int())
-            test_metric = self.metrics.compute()
-
+                #test_metric += 
+                self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int()).mean().item()
+                if callback:
+                  self.per_batch_callback(batch_num,volume,mask,(torch.sigmoid(pred) > 0.5).float())
             test_loss /= num_batches
-
-        return test_loss, test_metric.item()
+            # aggregate the final mean dice result
+            test_metric = self.metrics.aggregate().item() # total epoch metric
+            # reset the status for next computation round
+            self.metrics.reset()
+        return test_loss, test_metric
 
     def predict(self, data_dir):
         """
@@ -448,12 +480,82 @@ class Engine:
                 pred = (torch.sigmoid(pred) > 0.5).float()
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
+
         return prediction_list
 
 
-def set_seed(self):
+
+
+    def predict_with_lesions(self, volume_path):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        import natsort
+        import SimpleITK
+        import cv2
+        import shutil
+        import monai
+        temp_path="/content/temp/"
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        volume_names = natsort.natsorted(os.listdir(temp_path))
+        volume_paths = [os.path.join(temp_path, file_name) for file_name in volume_names]
+        predict_files = [{"image": image_name} for image_name in volume_paths]
+        predict_set = Dataset(data=predict_files, transform=self.test_transform)
+        predict_loader = MonaiLoader(
+            predict_set,
+            batch_size=self.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+        liver_prediction = []
+        lesion_prediction = []
+                
+        network_lesions=monai.networks.nets.UNet(in_channels= 1, out_channels=1,spatial_dims=2, channels= [64, 128, 256, 512],strides= [2, 2, 2],num_res_units=4, bias=0,norm="batch").to(self.device)
+        network_lesions.load_state_dict(torch.load("/content/drive/MyDrive/liver-imaging-analysis/engine/Final Weights/Lesion Segmentation_ 4Residuals_0.24loss_0.81Dice", map_location=torch.device(self.device)))
+        
+        with torch.no_grad():
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                pred = self.network(volume)
+                pred = (torch.sigmoid(pred) > 0.5).int()
+                liver_prediction.append(pred)
+                suppressed_volume=np.where(pred==1,volume,volume.min())
+                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                pred2= network_lesions(suppressed_volume)
+                pred2 = (torch.sigmoid(pred2) > 0.5).int()
+                lesion_prediction.append(pred2)
+            liver_prediction = torch.cat(liver_prediction, dim=0)
+            lesion_prediction = torch.cat(lesion_prediction, dim=0)
+        largestconnected=monai.transforms.KeepLargestConnectedComponent()
+        lesion_prediction=lesion_prediction.permute(1,2,3,0)
+        liver_prediction=liver_prediction.permute(1,2,3,0)
+        liver_prediction=largestconnected(liver_prediction)
+        lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
+        liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+        shutil.rmtree(temp_path)
+        return liver_lesion_prediction[0]
+
+
+def set_seed():
     """
-    function to set seed for all randomized attributes of the packages and modules
+    function to set seed for all randomized attributes of the packages and modules before engine initialization 
     """
     seed = config.seed
     torch.manual_seed(seed)
