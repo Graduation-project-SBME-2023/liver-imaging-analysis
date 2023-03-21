@@ -17,7 +17,9 @@ from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
-from utils import progress_bar
+import utils
+import visualization
+import nibabel as nib
 
 
 class Engine:
@@ -449,6 +451,13 @@ class Engine:
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
+    def utils_use(self):
+        volume=nib.load("D:/GP/volume-0.nii").get_fdata()
+
+        mask=nib.load("D:/GP/segmentation-0.nii").get_fdata()
+        # idx=utils.calculate_largest_tumor(volume,mask)
+        # idx=None
+        visualization.visualize_tumor(volume,mask,None,'zoom')
 
 
 def set_seed(self):
@@ -459,3 +468,5 @@ def set_seed(self):
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
+
+
