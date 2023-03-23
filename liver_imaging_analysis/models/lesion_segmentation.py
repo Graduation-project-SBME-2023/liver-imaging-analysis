@@ -19,31 +19,36 @@ from monai.transforms import (
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
+import os
+from monai.data import DataLoader as MonaiLoader
+from monai.data import Dataset
+import torch
+import numpy as np
+from monai.transforms import ToTensor
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
 
-class LiverSegmentation(Engine):
+class LesionSegmentation(Engine):
     """
 
     a class that must be used when you want to run the liver segmentation engine,
      contains the transforms required by the user and the function that is used to start training
 
     """
-
-
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
         config.training['batch_size']=8
-        # config.network_parameters['dropout']= 0
+        config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= 0
-        config.save['liver_checkpoint']= 'Liver Segmentation4Res_0.06loss_0.92Score'
+        config.network_parameters['num_res_units']=  0
+        config.network_parameters['norm']= "INSTANCE"
+        config.network_parameters['bias']= 1
+        config.save['lesion_checkpoint']= 'lesion_cp'
         super().__init__()
+
     
     def get_pretraining_transforms(self, transform_name, keys):
         """
@@ -92,7 +97,7 @@ class LiverSegmentation(Engine):
                     RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.5),
                     RandAdjustContrastd(keys[0], prob=0.25),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
+                    # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
                     ToTensorD(keys),
                 ]
             ),
@@ -141,9 +146,9 @@ class LiverSegmentation(Engine):
                         allow_missing_keys=True,
                     ),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(
-                        keys[1], threshold=0.5, invert=True, allow_missing_keys=True
-                    ),#remove for lesion segmentation
+                    # ForegroundMaskD(
+                    #     keys[1], threshold=0.5, invert=True, allow_missing_keys=True
+                    # ),#remove for lesion segmentation
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -195,27 +200,61 @@ class LiverSegmentation(Engine):
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
+    def predict(self, data_dir, liver_mask):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        self.network.eval()
+        with torch.no_grad():
+            volume_names = os.listdir(data_dir)
+            volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
+            predict_files = [{"image": image_name} for image_name in volume_paths]
+            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            predict_loader = MonaiLoader(
+                predict_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            prediction_list = []
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                suppressed_volume=np.where(liver_mask==1,volume,volume.min())
+                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                pred = self.network(volume)
+                pred = (torch.sigmoid(pred) > 0.5).float()
+                prediction_list.append(pred)
+            prediction_list = torch.cat(prediction_list, dim=0)
+
+        return prediction_list
+    
     # def load_checkpoint(self, path=config.save["model_checkpoint"]):
-    #     import torch
     #     self.network.load_state_dict(
     #         torch.load(path, map_location=torch.device(self.device))
     #     )
 
-def segment_liver(*args):
+def segment_lesion(*args):
     """
-    a function used to start the training of liver segmentation
+    a function used to segment the liver lesions using the liver and the lesion models
 
     """
+    from models.liver_segmentation import LiverSegmentation
+
     set_seed()
-    model = LiverSegmentation()
-    model.data_status()
-    # model.load_checkpoint(config.save["potential_checkpoint"])
-    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
-    model.fit(
-        evaluate_epochs=1,
-        batch_callback_epochs=100,
-        save_weight=True,
-    )
-    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
-    print("final test loss:", model.test(model.test_dataloader, callback=False))
-    return model
+    liver_model = LiverSegmentation()
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    lesion_model = LesionSegmentation()
+    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
+    liver_prediction=liver_model.predict(config.dataset['prediction'])
+    lesion_prediction= lesion_model.predict(config.dataset['prediction'],liver_prediction)
+    lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
+    liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+    return liver_lesion_prediction

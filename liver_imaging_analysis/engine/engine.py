@@ -461,19 +461,19 @@ class Engine:
         tensor
             tensor of the predicted labels
         """
-
-        volume_names = os.listdir(data_dir)
-        volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
-        predict_files = [{"image": image_name} for image_name in volume_paths]
-        predict_set = Dataset(data=predict_files, transform=self.test_transform)
-        predict_loader = MonaiLoader(
-            predict_set,
-            batch_size=self.batch_size,
-            num_workers=0,
-            pin_memory=False,
-        )
-        prediction_list = []
+        self.network.eval()
         with torch.no_grad():
+            volume_names = os.listdir(data_dir)
+            volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
+            predict_files = [{"image": image_name} for image_name in volume_paths]
+            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            predict_loader = MonaiLoader(
+                predict_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            prediction_list = []
             for batch in predict_loader:
                 volume = batch["image"].to(self.device)
                 pred = self.network(volume)
