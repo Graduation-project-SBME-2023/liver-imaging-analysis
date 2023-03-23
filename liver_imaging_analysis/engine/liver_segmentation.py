@@ -179,7 +179,7 @@ def segment_liver(*args):
     """
     model = LiverSegmentation()
     # model.data_status()
-    model.utils_use()
+    model.visualization_mood("D:/GP/volume-0.nii","D:/GP/segmentation-0.nii","zoom")
     # model.load_checkpoint()
     # model.fit(
     #     evaluate_epochs=1,

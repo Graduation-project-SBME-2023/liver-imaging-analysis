@@ -155,11 +155,7 @@ def progress_bar(progress, total):
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
-def get_colors():
-    numbers = [1, 0.5, 0]
-    perm = permutations(numbers)
-    colors = [color for color in perm]
-    return colors
+
     
 def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
     """
@@ -297,27 +293,33 @@ def get_batch_names(batch,key):
     """
     return batch[f'{key}_meta_dict']['filename_or_obj']
 
+def get_colors():
+    numbers = [1, 0.5, 0]
+    perm = permutations(numbers)
+    colors = [color for color in perm]
+    return colors
+
 def find_pix_dim(volume):
+    # "D:/GP/volume-0.nii"
     volume=nib.load("D:/GP/volume-0.nii") # FIXED LATER
     dim = volume.header["dim"] # example [1,512,512,63,1]
-    pix_dim = volume.header["pixdim"] # example [1,2,1.5,3,1]
+    pixdim = volume.header["pixdim"] # example [1,2,1.5,3,1]
 
     max_indx = np.argmax(dim)
-    pixdimX = pix_dim[max_indx]
+    pixdimX = pixdim[max_indx]
 
     dim = np.delete(dim, max_indx)
-    pix_dim = np.delete(pix_dim, max_indx)
+    pixdim = np.delete(pixdim, max_indx)
 
     max_indy = np.argmax(dim)
-    pixdimY = pix_dim[max_indy]
+    pixdimY = pixdim[max_indy]
 
     dim = np.delete(dim, max_indy)
-    pix_dim = np.delete(pix_dim, max_indy)
+    pixdim = np.delete(pixdim, max_indy)
 
     max_indZ= np.argmax(dim)
-    pixdimZ = pix_dim[max_indZ]
+    pixdimZ = pixdim[max_indZ]
 
-    print(pixdimX,pixdimY,pixdimZ)
     return [pixdimX, pixdimY,pixdimZ] # example [2, 1.5, 3]
 
 def calculate_largest_tumor(volume,mask):

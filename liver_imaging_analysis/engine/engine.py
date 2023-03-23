@@ -20,7 +20,7 @@ from torchmetrics import Accuracy, Dice, JaccardIndex
 import utils
 import visualization
 import nibabel as nib
-
+from monai.transforms import AsDiscrete
 
 class Engine:
     """
@@ -451,13 +451,16 @@ class Engine:
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
-    def utils_use(self):
-        volume=nib.load("D:/GP/volume-0.nii").get_fdata()
+    
+    def visualization_mood(self,volume_path,mask_path,mode):
+        volume=nib.load(volume_path).get_fdata()
 
-        mask=nib.load("D:/GP/segmentation-0.nii").get_fdata()
-        # idx=utils.calculate_largest_tumor(volume,mask)
+        mask=nib.load(mask_path).get_fdata()
+        mask= AsDiscrete(threshold=1.5)(mask) # FIXED LATER
+
+        idx=utils.calculate_largest_tumor(volume,mask)
         # idx=None
-        visualization.visualize_tumor(volume,mask,None,'zoom')
+        visualization.visualize_tumor(volume,mask,None,mode)
 
 
 def set_seed(self):

@@ -7,11 +7,11 @@ import numpy as np
 from torch import subtract
 import SimpleITK as sitk
 
+first_tumor=False
 
 def visualize_tumor(volume,mask,idx,mode):
-    first_tumor=True # FIXED LATER ( global variable )
+    # first_tumor=True # FIXED LATER ( global variable )
 
-    mask= AsDiscrete(threshold=1.5)(mask) # FIXED LATER
 
     fig, ax = plt.subplots()
     ax.axes.get_yaxis().set_visible(False)
@@ -20,24 +20,24 @@ def visualize_tumor(volume,mask,idx,mode):
 
         if(idx is not None):
 
-            ax.imshow(volume[:,:,idx], interpolation=None, cmap=plt.cm.Greys_r)
+            ax.imshow(volume[:,:,idx], interpolation=None, cmap='gray')
 
-            major_axis(volume[:,:,idx],mask[:,:,idx],ax) # FIXED LATER ( NOT WORKING WITH MORE THAN ONE TUMOR IN SLICE )
+            major_axis_slice(volume[:,:,idx],mask[:,:,idx],ax) 
 
             contours = find_contours(mask[:,:,idx],0)
             for contour in contours:
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c='r')
         else:
-            plot_axis_call(volume,mask)
+            major_axis_volume(volume,mask)
         
     if mode=='box':
         if (idx is not None):
 
-            ax.imshow(volume[:,:,idx], interpolation=None, cmap=plt.cm.Greys_r)
+            ax.imshow(volume[:,:,idx], interpolation=None, cmap='gray')
 
             plot_bbox_image(mask[:,:,idx],crop_margin=0)
         else:
-            plot_bbox_image_call(volume,mask,crop_margin=0)
+            plot_bbox_image_volume(volume,mask,crop_margin=0)
 
     
     
@@ -49,13 +49,14 @@ def visualize_tumor(volume,mask,idx,mode):
             plot_tumor(volume[:,:,idx],mask[:,:,idx]) # FIXED LATER ( FAILS WHEN MORE THAN 1 TUMOR )
 
         else:
-            plot_tumor_call(volume,mask)
+            plot_tumor_volume(volume,mask)
     fig.show()  
 
 
-def plot_axis_call(volume,mask):
+def major_axis_volume(volume,mask):
 
-    first_tumor=True # FIXED LATER
+    global first_tumor
+    first_tumor=True
 
 
     while(np.unique(mask).any()==1):
@@ -77,10 +78,22 @@ def plot_axis_call(volume,mask):
         mask=subtract(mask,largest_tumor[0])
         first_tumor=False # fixed LATER
 
+def major_axis_slice(volume,mask,ax):
+    ax.imshow(volume,cmap='gray')
+    global first_tumor
+    first_tumor=True
+
+    while(np.unique(mask).any()==1):
+        temp_mask=mask.clone()
+        temp_mask=EnsureChannelFirst()(temp_mask)
+        largest_tumor=KeepLargestConnectedComponent()(temp_mask)
+        major_axis(volume,largest_tumor[0],ax)
+        mask=subtract(mask,largest_tumor[0])
+        first_tumor=False
+
 
 def major_axis(volume,mask,ax):
     img = sitk.GetImageFromArray(mask.astype(int))
-    first_tumor=True
 
     # generate label 
     filter_label = sitk.LabelShapeStatisticsImageFilter()
@@ -217,7 +230,7 @@ def plot_bbox_image(mask, crop_margin=0):
         plt.show()
         return dimensions
 
-def plot_bbox_image_call(image, mask, crop_margin=0):
+def plot_bbox_image_volume(image, mask, crop_margin=0):
     i=0
     while(np.unique(mask).any()==1):
         temp_mask=mask.clone()
@@ -310,7 +323,9 @@ def plot_tumor(images, masks):
         
     plt.subplots_adjust(wspace=0.02)
     plt.show()
-def plot_tumor_call(volume,mask):
+    
+def plot_tumor_volume(volume,mask):
+    global first_tumor
     first_tumor=True
     while(np.unique(mask).any()==1):
         
@@ -320,3 +335,4 @@ def plot_tumor_call(volume,mask):
         idx=calculate_largest_tumor(volume,largest_tumor[0])
         plot_tumor(volume[:,:,idx],largest_tumor[0][:,:,idx])
         mask=subtract(mask,largest_tumor[0])
+        first_tumor=False
