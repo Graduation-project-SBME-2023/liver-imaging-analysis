@@ -35,14 +35,14 @@ class LiverSegmentation(Engine):
 
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
-        config.training['batch_size']=8
-        # config.network_parameters['dropout']= 0
+        config.training['batch_size']=1
+        config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters['strides']=  [2, 2, 2]
         config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= 0
-        config.save['liver_checkpoint']= 'Liver Segmentation4Res_0.06loss_0.92Score'
+        config.network_parameters['norm']= "INSTANCE"
+        config.network_parameters['bias']= 1
+        config.save['liver_checkpoint']= 'liver_cp'
         super().__init__()
     
     def get_pretraining_transforms(self, transform_name, keys):

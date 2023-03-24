@@ -25,6 +25,7 @@ from monai.data import Dataset
 import torch
 import numpy as np
 from monai.transforms import ToTensor
+from models.liver_segmentation import LiverSegmentation
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -39,7 +40,7 @@ class LesionSegmentation(Engine):
     """
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
-        config.training['batch_size']=8
+        config.training['batch_size']=1
         config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters['strides']=  [2, 2, 2]
@@ -202,11 +203,14 @@ class LesionSegmentation(Engine):
 
     def predict(self, data_dir, liver_mask):
         """
-        predict the label of the given input
+        predicts the liver & lesions mask given the liver mask
         Parameters
         ----------
-        volume_path: str
+        data_dir: str
             path of the input directory. expects nifti or png files.
+        liver_mask: tensor
+            the liver mask predicted by the liver model
+        
         Returns
         -------
         tensor
@@ -246,7 +250,6 @@ def segment_lesion(*args):
     a function used to segment the liver lesions using the liver and the lesion models
 
     """
-    from models.liver_segmentation import LiverSegmentation
 
     set_seed()
     liver_model = LiverSegmentation()
