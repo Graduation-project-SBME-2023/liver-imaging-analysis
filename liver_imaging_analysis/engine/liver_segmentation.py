@@ -178,13 +178,17 @@ def segment_liver(*args):
 
     """
     model = LiverSegmentation()
-    # model.data_status()
-    model.visualization_mood("D:/GP/volume-0.nii","D:/GP/segmentation-0.nii","zoom")
+
+    model.data_status()
     # model.load_checkpoint()
-    # model.fit(
-    #     evaluate_epochs=1,
-    #     batch_callback_epochs=1,
-    #     save_weight=True,
-    # )
+    model.fit(
+        evaluate_epochs=1,
+        batch_callback_epochs=1,
+        save_weight=True,
+    )
     # print("final test loss:", model.test(model.test_dataloader))
     # return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")
+
+def visualize_tumors(*args):
+    model = LiverSegmentation()
+    model.visualization_mood("D:/GP/volume-0.nii","D:/GP/segmentation-0.nii","zoom")

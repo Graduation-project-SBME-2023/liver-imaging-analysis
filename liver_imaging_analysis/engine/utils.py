@@ -12,26 +12,27 @@ import nibabel as nib
 import numpy as np
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
-rc("animation", html="html5")
 
+rc("animation", html="html5")
 
 
 def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
     """
-        A method to generate the volume and the mask overlay
-        Parameters
-        ----------
-        Volume Path: str 
-            the directory that includes the volume nii file
-        Mask Path: str
-            the directory that includes the segmented mask nii file
-        alpha: float
-            the opacity of the displayed mask. default=0.2
-        Returns
-        -------
-        tensor
-            The Stacked 4 channels array of the nifti input
+    A method to generate the volume and the mask overlay
+    Parameters
+    ----------
+    Volume Path: str
+        the directory that includes the volume nii file
+    Mask Path: str
+        the directory that includes the segmented mask nii file
+    alpha: float
+        the opacity of the displayed mask. default=0.2
+    Returns
+    -------
+    tensor
+        The Stacked 4 channels array of the nifti input
     """
+
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
@@ -60,13 +61,13 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
 
 def animate(volume, output_name):
     """
-        A method to save the animated gif from the overlay array
-        Parameters
-        ----------
-        volume: tensor
-            expects a 4d array of the volume/mask overlay
-        output_name: str
-            the name of the gif file to be saved
+    A method to save the animated gif from the overlay array
+    Parameters
+    ----------
+    volume: tensor
+        expects a 4d array of the volume/mask overlay
+    output_name: str
+        the name of the gif file to be saved
     """
     fig = plt.figure()
     ims = []
@@ -83,22 +84,23 @@ def animate(volume, output_name):
 
 def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
     """
-        A method to generate the volume and the mask overlay from arrays
-        Parameters
-        ----------
-        Volume: tensor
-            the volume array
-        Mask: tensor
-            the mask array
-        mask2: tensor
-            optional additional mask to be overlayed. default is None
-        alpha: float
-            the opacity of the displayed mask. default=0.2
-        Returns
-        ----------
-        tensor
-            The Stacked 4 channels array of the nifti input
+    A method to generate the volume and the mask overlay from arrays
+    Parameters
+    ----------
+    Volume: tensor
+        the volume array
+    Mask: tensor
+        the mask array
+    mask2: tensor
+        optional additional mask to be overlayed. default is None
+    alpha: float
+        the opacity of the displayed mask. default=0.2
+    Returns
+    ----------
+    tensor
+        The Stacked 4 channels array of the nifti input
     """
+
     def normalize(arr):
         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
@@ -143,33 +145,32 @@ def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
 
 def progress_bar(progress, total):
     """
-        A method to visualize the training progress by a progress bar
-        Parameters
-        ----------
-        progress: float
-            the current batch
-        total: float
-            the total number of batches
+    A method to visualize the training progress by a progress bar
+    Parameters
+    ----------
+    progress: float
+        the current batch
+    total: float
+        the total number of batches
     """
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
-    
 def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
     """
-        A method to generate 2d .png slices from 3d .nii volumes
-        Parameters
-        ----------
-        volume_nii_path: str
-            the directory of the 3d volumes
-        mask_nii_path: str
-            the directory of the 3d masks
-        volume_save_path: str
-            the save directory of the 2d volume slices
-        mask_save_path: str
-            the save directory of the 2d mask slices
+    A method to generate 2d .png slices from 3d .nii volumes
+    Parameters
+    ----------
+    volume_nii_path: str
+        the directory of the 3d volumes
+    mask_nii_path: str
+        the directory of the 3d masks
+    volume_save_path: str
+        the save directory of the 2d volume slices
+    mask_save_path: str
+        the save directory of the 2d mask slices
     """
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
@@ -219,17 +220,17 @@ def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
 
 def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
     """
-        A method to generate 2d .nii slices from 3d .nii volumes
-        Parameters
-        ----------
-        volume_nii_path: str
-            the directory of the 3d volumes
-        mask_nii_path: str
-            the directory of the 3d masks
-        volume_save_path: str
-            the save directory of the 2d volume slices
-        mask_save_path: str
-            the save directory of the 2d mask slices
+    A method to generate 2d .nii slices from 3d .nii volumes
+    Parameters
+    ----------
+    volume_nii_path: str
+        the directory of the 3d volumes
+    mask_nii_path: str
+        the directory of the 3d masks
+    volume_save_path: str
+        the save directory of the 2d volume slices
+    mask_save_path: str
+        the save directory of the 2d mask slices
     """
     volume_folders = natsort.natsorted(
         os.listdir(volume_nii_path)
@@ -280,30 +281,53 @@ def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_p
 
             nib.save(new_nii_volume, nii_volume_path)
             nib.save(new_nii_mask, nii_mask_path)
-            
-def get_batch_names(batch,key):
+
+
+def get_batch_names(batch, key):
     """
-        A method to get the filenames of the current batch
-        Parameters
-        ----------
-        batch: tensor
-            the current batch dict
-        key: str
-            the key of the batch dict
+    A method to get the filenames of the current batch
+    Parameters
+    ----------
+    batch: tensor
+        the current batch dict
+    key: str
+        the key of the batch dict
     """
-    return batch[f'{key}_meta_dict']['filename_or_obj']
+    return batch[f"{key}_meta_dict"]["filename_or_obj"]
+
 
 def get_colors():
+    """
+    calculate a list with unique colors
+
+    Returns
+    -------
+    colors: list
+        list with all possible permutations of rgb values
+    """
     numbers = [1, 0.5, 0]
     perm = permutations(numbers)
     colors = [color for color in perm]
     return colors
 
+
 def find_pix_dim(volume):
+    """
+    calculate the pixel dimensions in mm in the 3 axes
+
+    Parameters
+    ----------
+    path: str
+        path of the input directory. expects nifti file.
+    Returns
+    -------
+    list
+        list if mm dimensions of 3 axes (L,W,N)
+    """
     # "D:/GP/volume-0.nii"
-    volume=nib.load("D:/GP/volume-0.nii") # FIXED LATER
-    dim = volume.header["dim"] # example [1,512,512,63,1]
-    pixdim = volume.header["pixdim"] # example [1,2,1.5,3,1]
+    volume = nib.load("D:/GP/volume-0.nii")  # FIXED LATER
+    dim = volume.header["dim"]  # example [1,512,512,63,1]
+    pixdim = volume.header["pixdim"]  # example [1,2,1.5,3,1]
 
     max_indx = np.argmax(dim)
     pixdimX = pixdim[max_indx]
@@ -317,28 +341,38 @@ def find_pix_dim(volume):
     dim = np.delete(dim, max_indy)
     pixdim = np.delete(pixdim, max_indy)
 
-    max_indZ= np.argmax(dim)
+    max_indZ = np.argmax(dim)
     pixdimZ = pixdim[max_indZ]
 
-    return [pixdimX, pixdimY,pixdimZ] # example [2, 1.5, 3]
+    return [pixdimX, pixdimY, pixdimZ]  # example [2, 1.5, 3]
 
-def calculate_largest_tumor(volume,mask):
 
-    max_volume=-1
-    idx=-1
-    x,y,z=find_pix_dim(volume)
+def calculate_largest_tumor(volume, mask):
+    """
+    get the slice with largest tumor volume
+    ----------
+    volume: np array
+        the volume to calculate on.
+    mask: np array
+        the tumors mask (0: background, 1: tumor)
+    Returns
+    -------
+    idx: int
+        index of the slice with largest volume
+    """
+    max_volume = -1
+    idx = -1
+    x, y, z = find_pix_dim(volume)
 
-    largest_tumor=KeepLargestConnectedComponent()(mask)
+    largest_tumor = KeepLargestConnectedComponent()(mask)
     for i in range(largest_tumor.shape[-1]):
-        slice=largest_tumor[:,:,i]
-        if(slice.any()==1):
-            count=np.unique(slice,return_counts=True)[1][1]
-            if(count>max_volume):
-                max_volume=count
-                idx=i
-    max_volume=max_volume*x*y*z
-    print("Largest Volume = ",max_volume," In Slice ",idx)
+        slice = largest_tumor[:, :, i]
+        if slice.any() == 1:
+            count = np.unique(slice, return_counts=True)[1][1]
+            if count > max_volume:
+                max_volume = count
+                idx = i
+    max_volume = max_volume * x * y * z
+    print("Largest Volume = ", max_volume, " In Slice ", idx)
 
     return idx
-
-

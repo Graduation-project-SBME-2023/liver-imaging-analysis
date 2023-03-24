@@ -453,6 +453,16 @@ class Engine:
         return prediction_list
     
     def visualization_mood(self,volume_path,mask_path,mode):
+        """
+        choose the visualization mood of tumor
+        ----------
+        volume_path: str
+            path of the input nfti volume.
+        mask_path: str
+            path of the nfti mask.
+        mode: str
+            the visualization mood.
+        """
         volume=nib.load(volume_path).get_fdata()
 
         mask=nib.load(mask_path).get_fdata()
