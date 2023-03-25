@@ -26,6 +26,9 @@ import torch
 import numpy as np
 from monai.transforms import ToTensor
 from models.liver_segmentation import LiverSegmentation
+import SimpleITK
+import cv2
+import shutil
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -201,6 +204,7 @@ class LesionSegmentation(Engine):
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
+
     def predict(self, data_dir, liver_mask):
         """
         predicts the liver & lesions mask given the liver mask
@@ -229,16 +233,56 @@ class LesionSegmentation(Engine):
                 pin_memory=False,
             )
             prediction_list = []
-            for batch in predict_loader:
+            for batch,liver_mask_batch in zip(predict_loader,liver_mask):
                 volume = batch["image"].to(self.device)
-                suppressed_volume=np.where(liver_mask==1,volume,volume.min())
+                #isolate the liver and suppress other organs
+                suppressed_volume=np.where(liver_mask_batch==1,volume,volume.min())
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                #predict lesions in isolated liver
                 pred = self.network(volume)
                 pred = (torch.sigmoid(pred) > 0.5).float()
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
 
         return prediction_list
+    
+    def predict_2dto3d(self, volume_path,liver_mask,temp_path="temp/"):
+        """
+        predicts the label of a 3D volume using a 2D network
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects a 3D nifti file.
+        temp_path: str
+            a temporary path to save 3d volume as 2d png slices. default is "temp/"
+            automatically deleted before returning the prediction
+
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels with shape (1,channel,length,width,depth) 
+        """
+        #read volume
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        #create temporary folder to store 2d png files 
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        #write volume slices as 2d png files 
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        #predict slices individually then reconstruct 3d prediction
+        prediction=self.predict(temp_path,liver_mask)
+        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
+        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        #delete temporary folder
+        shutil.rmtree(temp_path)
+        return prediction
+    
     
     # def load_checkpoint(self, path=config.save["model_checkpoint"]):
     #     self.network.load_state_dict(
@@ -257,7 +301,24 @@ def segment_lesion(*args):
     lesion_model = LesionSegmentation()
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
     liver_prediction=liver_model.predict(config.dataset['prediction'])
-    lesion_prediction= lesion_model.predict(config.dataset['prediction'],liver_prediction)
+    lesion_prediction= lesion_model.predict(config.dataset['prediction'],liver_mask=liver_prediction)
+    lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
+    liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+    return liver_lesion_prediction
+
+
+def segment_lesion_3d(*args):
+    """
+    a function used to segment the liver lesions of a 3d volume using the liver and the lesion models
+
+    """
+    set_seed()
+    liver_model = LiverSegmentation()
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    lesion_model = LesionSegmentation()
+    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
+    liver_prediction=liver_model.predict_2dto3d(volume_path="volume-61.nii")
+    lesion_prediction= lesion_model.predict_2dto3d(volume_path="volume-61.nii",liver_mask=liver_prediction[0].permute(3,0,1,2))
     lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
     liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
