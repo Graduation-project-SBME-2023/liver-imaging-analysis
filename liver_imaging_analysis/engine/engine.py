@@ -526,3 +526,4 @@ def set_seed():
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
+    monai.utils.set_determinism(seed=seed)

@@ -14,7 +14,9 @@ from monai.transforms import (
     RandSpatialCropd,
     RandAdjustContrastd,
     RandZoomd,
-    CropForegroundd
+    CropForegroundd,
+    ScaleIntensityRanged,
+    Spacingd
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -43,14 +45,22 @@ class LesionSegmentation(Engine):
     """
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
-        config.training['batch_size']=1
-        config.network_parameters['dropout']= 0
+        config.dataset['training']="/content/Temp2D/Train/"
+        config.dataset['testing']="/content/Temp2D/Test/"
+        config.training['batch_size']=16
+        config.training['optimizer_parameters']={"lr": 0.01}
+        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":1}
+        config.network_parameters['dropout']= 0.25
         config.network_parameters['channels']= [64, 128, 256, 512]
+        config.network_parameters["out_channels"]= 1
         config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  0
+        config.network_parameters['num_res_units']=  4
         config.network_parameters['norm']= "INSTANCE"
         config.network_parameters['bias']= 1
         config.save['lesion_checkpoint']= 'lesion_cp'
+        config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
+        config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
+
         super().__init__()
 
     
@@ -93,15 +103,30 @@ class LesionSegmentation(Engine):
             ),
             "2DUnet_transform": Compose(
                 [
+                    #Transformations
                     LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
-                    RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
-                    RandFlipd(keys, prob=0.5, spatial_axis=1),
-                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.5),
-                    RandAdjustContrastd(keys[0], prob=0.25),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    # NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    ScaleIntensityRanged(
+                        keys=keys[0],
+                        a_min=-57,
+                        a_max=164,
+                        b_min=0.0,
+                        b_max=1.0,
+                        clip=True,
+                    ),
+                    # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
                     # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
+
+
+                    #Augmentations
+                    # RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
+                    RandFlipd(keys, prob=0.5, spatial_axis=1),
+                    RandFlipd(keys, prob=0.5, spatial_axis=0),
+                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.25),
+                    # RandAdjustContrastd(keys[0], prob=0.25),
+
                     ToTensorD(keys),
                 ]
             ),
@@ -141,18 +166,21 @@ class LesionSegmentation(Engine):
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageD(keys, allow_missing_keys=True),
+                    #Transformations
+                    LoadImageD(keys),
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
-                    ResizeD(
-                        keys,
-                        resize_size,
-                        mode=("bilinear", "nearest"),
-                        allow_missing_keys=True,
+                    ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
+                    # NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    ScaleIntensityRanged(
+                        keys=keys[0],
+                        a_min=-57,
+                        a_max=164,
+                        b_min=0.0,
+                        b_max=1.0,
+                        clip=True,
                     ),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    # ForegroundMaskD(
-                    #     keys[1], threshold=0.5, invert=True, allow_missing_keys=True
-                    # ),#remove for lesion segmentation
+                    # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest"), allow_missing_keys=True),
+                    # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -322,3 +350,21 @@ def segment_lesion_3d(*args):
     lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
     liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
+
+
+
+def train_lesion(*args):
+    """
+    a function used to start the training of liver segmentation
+
+    """
+    set_seed()
+    model = LesionSegmentation()
+    model.data_status()
+    # model.load_checkpoint(config.save["potential_checkpoint"])
+    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
+    model.fit(
+        evaluate_epochs=1,
+        batch_callback_epochs=100,
+        save_weight=True,
+    )
