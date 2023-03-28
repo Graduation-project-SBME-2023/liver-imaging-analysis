@@ -5,8 +5,12 @@
         "training": "D:/GP/volume0/",
         "testing": "D:/GP/volume0/",
         "unittest": "/content/Temp2D/Test/"
+
     },
-    
+    "visualization":{
+        "volume":"D:/GP/volume-0.nii",
+        "mask":"D:/GP/segmentation-0.nii"
+    },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
     "network_name": "monai_2DUNet",

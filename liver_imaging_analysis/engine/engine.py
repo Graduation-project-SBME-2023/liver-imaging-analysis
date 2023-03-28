@@ -452,7 +452,7 @@ class Engine:
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
     
-    def visualization_mood(self,volume_path,mask_path,mode):
+    def visualization_mood(self,mode):
         """
         choose the visualization mood of tumor
         ----------
@@ -463,14 +463,14 @@ class Engine:
         mode: str
             the visualization mood.
         """
-        volume=nib.load(volume_path).get_fdata()
+        volume=nib.load(config.visualization["volume"]).get_fdata()
 
-        mask=nib.load(mask_path).get_fdata()
+        mask=nib.load(config.visualization["mask"]).get_fdata()
         mask= AsDiscrete(threshold=1.5)(mask) # FIXED LATER
 
         idx=utils.calculate_largest_tumor(volume,mask)
         # idx=None
-        visualization.visualize_tumor(volume,mask,None,mode)
+        visualization.visualize_tumor(volume,mask,idx,mode)
 
 
 def set_seed(self):

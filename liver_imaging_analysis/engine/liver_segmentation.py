@@ -191,4 +191,4 @@ def segment_liver(*args):
 
 def visualize_tumors(*args):
     model = LiverSegmentation()
-    model.visualization_mood("D:/GP/volume-0.nii","D:/GP/segmentation-0.nii","zoom")
+    model.visualization_mood("zoom")

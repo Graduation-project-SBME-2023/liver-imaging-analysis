@@ -311,7 +311,7 @@ def get_colors():
     return colors
 
 
-def find_pix_dim(volume):
+def find_pix_dim(path):
     """
     calculate the pixel dimensions in mm in the 3 axes
 
@@ -325,7 +325,7 @@ def find_pix_dim(volume):
         list if mm dimensions of 3 axes (L,W,N)
     """
     # "D:/GP/volume-0.nii"
-    volume = nib.load("D:/GP/volume-0.nii")  # FIXED LATER
+    volume = nib.load(path)  # FIXED LATER
     dim = volume.header["dim"]  # example [1,512,512,63,1]
     pixdim = volume.header["pixdim"]  # example [1,2,1.5,3,1]
 
