@@ -35,7 +35,7 @@ class LiverSegmentation(Engine):
 
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
-        config.training['batch_size']=1
+        config.training['batch_size']=8
         config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters['strides']=  [2, 2, 2]

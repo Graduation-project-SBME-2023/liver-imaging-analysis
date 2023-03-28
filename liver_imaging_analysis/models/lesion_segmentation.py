@@ -31,6 +31,7 @@ from models.liver_segmentation import LiverSegmentation
 import SimpleITK
 import cv2
 import shutil
+import natsort
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -45,12 +46,12 @@ class LesionSegmentation(Engine):
     """
     def __init__(self):
         config.dataset['prediction']="prediction_volume"
-        config.dataset['training']="/content/Temp2D/Train/"
-        config.dataset['testing']="/content/Temp2D/Test/"
-        config.training['batch_size']=16
+        config.dataset['training']="Temp2D/Train/"
+        config.dataset['testing']="Temp2D/Test/"
+        config.training['batch_size']=8
         config.training['optimizer_parameters']={"lr": 0.01}
         config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":1}
-        config.network_parameters['dropout']= 0.25
+        config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters["out_channels"]= 1
         config.network_parameters['strides']=  [2, 2, 2]
@@ -107,15 +108,15 @@ class LesionSegmentation(Engine):
                     LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
-                    # NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ScaleIntensityRanged(
-                        keys=keys[0],
-                        a_min=-57,
-                        a_max=164,
-                        b_min=0.0,
-                        b_max=1.0,
-                        clip=True,
-                    ),
+                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    # ScaleIntensityRanged(
+                    #     keys=keys[0],
+                    #     a_min=-57,
+                    #     a_max=164,
+                    #     b_min=0.0,
+                    #     b_max=1.0,
+                    #     clip=True,
+                    # ),
                     # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
                     # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
 
@@ -167,18 +168,18 @@ class LesionSegmentation(Engine):
             "2DUnet_transform": Compose(
                 [
                     #Transformations
-                    LoadImageD(keys),
+                    LoadImageD(keys,allow_missing_keys=True),
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
-                    # NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ScaleIntensityRanged(
-                        keys=keys[0],
-                        a_min=-57,
-                        a_max=164,
-                        b_min=0.0,
-                        b_max=1.0,
-                        clip=True,
-                    ),
+                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    # ScaleIntensityRanged(
+                    #     keys=keys[0],
+                    #     a_min=-57,
+                    #     a_max=164,
+                    #     b_min=0.0,
+                    #     b_max=1.0,
+                    #     clip=True,
+                    # ),
                     # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest"), allow_missing_keys=True),
                     # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
                     ToTensorD(keys, allow_missing_keys=True),
@@ -250,7 +251,7 @@ class LesionSegmentation(Engine):
         """
         self.network.eval()
         with torch.no_grad():
-            volume_names = os.listdir(data_dir)
+            volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
             predict_files = [{"image": image_name} for image_name in volume_paths]
             predict_set = Dataset(data=predict_files, transform=self.test_transform)
@@ -260,14 +261,23 @@ class LesionSegmentation(Engine):
                 num_workers=0,
                 pin_memory=False,
             )
+
+            liver_set = Dataset(data=liver_mask)
+            liver_loader = MonaiLoader(
+                liver_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+
             prediction_list = []
-            for batch,liver_mask_batch in zip(predict_loader,liver_mask):
+            for batch,liver_mask_batch in zip(predict_loader,liver_loader):
                 volume = batch["image"].to(self.device)
                 #isolate the liver and suppress other organs
                 suppressed_volume=np.where(liver_mask_batch==1,volume,volume.min())
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
-                pred = self.network(volume)
+                pred = self.network(suppressed_volume)
                 pred = (torch.sigmoid(pred) > 0.5).float()
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
@@ -299,7 +309,7 @@ class LesionSegmentation(Engine):
           os.mkdir(temp_path)
         #write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number, :, :]
+            volume_silce = img_volume_array[slice_number,:, :]
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
@@ -345,8 +355,8 @@ def segment_lesion_3d(*args):
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation()
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction=liver_model.predict_2dto3d(volume_path="volume-61.nii")
-    lesion_prediction= lesion_model.predict_2dto3d(volume_path="volume-61.nii",liver_mask=liver_prediction[0].permute(3,0,1,2))
+    liver_prediction=liver_model.predict_2dto3d(volume_path=args[0])
+    lesion_prediction= lesion_model.predict_2dto3d(volume_path=args[0],liver_mask=liver_prediction[0].permute(3,0,1,2))
     lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
     liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
