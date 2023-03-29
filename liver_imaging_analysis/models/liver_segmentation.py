@@ -195,13 +195,34 @@ class LiverSegmentation(Engine):
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
-    # def load_checkpoint(self, path=config.save["model_checkpoint"]):
-    #     import torch
-    #     self.network.load_state_dict(
-    #         torch.load(path, map_location=torch.device(self.device))
-    #     )
+
 
 def segment_liver(*args):
+    """
+    a function used to segment the liver of 2D images using a 2D liver model
+
+    """
+
+    set_seed()
+    liver_model = LiverSegmentation()
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    liver_prediction=liver_model.predict(config.dataset['prediction'])
+    return liver_prediction
+
+
+def segment_liver_3d(*args):
+    """
+    a function used to segment the liver of a 3d volume using a 2D liver model
+
+    """
+    set_seed()
+    liver_model = LiverSegmentation()
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    liver_prediction=liver_model.predict_2dto3d(volume_path=args[0])
+    return liver_prediction
+
+
+def train_liver(*args):
     """
     a function used to start the training of liver segmentation
 
@@ -218,4 +239,3 @@ def segment_liver(*args):
     )
     model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
     print("final test loss:", model.test(model.test_dataloader, callback=False))
-    return model

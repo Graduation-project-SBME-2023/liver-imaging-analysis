@@ -39,7 +39,6 @@ class Engine:
             loss_name=config.training["loss_name"],
             **config.training["loss_parameters"],
         )
-
         self.network = self.get_network(
             network_name=config.network_name, **config.network_parameters
         ).to(self.device)
@@ -59,6 +58,7 @@ class Engine:
         )
         self.load_data()
 
+
     def get_optimizer(self, optimizer_name, **kwargs):
         """
         internally used to load optimizer.
@@ -76,6 +76,7 @@ class Engine:
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
+
     def get_scheduler(self, scheduler_name, **kwargs):
         """
         internally used to load lr scheduler.
@@ -92,6 +93,7 @@ class Engine:
             "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
+
 
     def get_network(self, network_name, **kwargs):
         """
@@ -112,6 +114,7 @@ class Engine:
         }
         return networks[network_name](**kwargs)
 
+
     def get_loss(self, loss_name, **kwargs):
         """
         internally used to load loss function.
@@ -129,6 +132,7 @@ class Engine:
             "bce_dice": losses.BCEDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
+
 
     def get_metrics(self, metrics_name, **kwargs):
         """
@@ -148,6 +152,7 @@ class Engine:
         }
         return metrics[metrics_name](**kwargs)
 
+
     def get_pretraining_transforms(self):
         """
         Should be Implemented by user in liver_segmentation module.
@@ -156,6 +161,7 @@ class Engine:
         """
         raise NotImplementedError()
 
+
     def get_pretesting_transforms(self):
         """
         Should be Implemented by user in liver_segmentation module.
@@ -163,6 +169,7 @@ class Engine:
         Expected to return a monai Compose object with desired transforms.
         """
         raise NotImplementedError()
+
 
     def load_data(
         self,
@@ -211,6 +218,7 @@ class Engine:
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
+
 
     def data_status(self):
         """
@@ -266,6 +274,7 @@ class Engine:
         except StopIteration:
             print("No Testing Set")
 
+
     def save_checkpoint(self, path=config.save["potential_checkpoint"]):
         """
         Saves current checkpoint to a specific path. (Default is the model path in config)
@@ -275,10 +284,10 @@ class Engine:
         path: str
             The path where the checkpoint will be saved at
         """
-        # torch.save(self.network.state_dict(), path)
         checkpoint = {
             'state_dict': self.network.state_dict(),
-            'optimizer': self.optimizer.state_dict()
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict(),
             }
         torch.save(checkpoint, path)
 
@@ -292,13 +301,11 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        # self.network.load_state_dict(
-        #     torch.load(path, map_location=torch.device(self.device))
-        # )
-
         checkpoint = torch.load(path)
         self.network.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.scheduler.load_state_dict(checkpoint['scheduler'])
+
 
     def compile_status(self):
         """
@@ -306,6 +313,7 @@ class Engine:
         """
         print(f"Loss= {self.loss} \n")
         print(f"Optimizer= {self.optimizer} \n")
+
 
     def per_batch_callback(self):
           """
@@ -315,6 +323,7 @@ class Engine:
           """
           pass
 
+
     def per_epoch_callback(self):
         """
         A generic callback function to be executed every epoch.
@@ -322,6 +331,7 @@ class Engine:
         Should be Implemented in segmentation module.
         """
         pass
+
 
     def fit(
         self,
@@ -368,14 +378,12 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                #batch_metric = 
                 self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 training_loss += loss.item()
-                # training_metric += batch_metric.mean().item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
@@ -388,7 +396,6 @@ class Engine:
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            # training_metric = training_metric/ len(self.train_dataloader)  # total epoch metric
             # aggregate the final mean dice result
             training_metric = self.metrics.aggregate().item() # total epoch metric
             # reset the status for next computation round
@@ -432,7 +439,6 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                #test_metric += 
                 self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int()).mean().item()
                 if callback:
                   self.per_batch_callback(batch_num,volume,mask,(torch.sigmoid(pred) > 0.5).float())

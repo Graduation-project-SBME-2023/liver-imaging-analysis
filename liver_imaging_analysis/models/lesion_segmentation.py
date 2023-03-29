@@ -45,18 +45,18 @@ class LesionSegmentation(Engine):
 
     """
     def __init__(self):
-        config.dataset['prediction']="prediction_volume"
+        config.dataset['prediction']="test cases/prediction_volume"
         config.dataset['training']="Temp2D/Train/"
         config.dataset['testing']="Temp2D/Test/"
         config.training['batch_size']=8
         config.training['optimizer_parameters']={"lr": 0.01}
         config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":1}
         config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
+        config.network_parameters['channels']= [16, 32, 64, 128]
         config.network_parameters["out_channels"]= 1
         config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
+        config.network_parameters['num_res_units']=  2
+        config.network_parameters['norm']= "BATCH"
         config.network_parameters['bias']= 1
         config.save['lesion_checkpoint']= 'lesion_cp'
         config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
@@ -108,25 +108,20 @@ class LesionSegmentation(Engine):
                     LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    # ScaleIntensityRanged(
-                    #     keys=keys[0],
-                    #     a_min=-57,
-                    #     a_max=164,
-                    #     b_min=0.0,
-                    #     b_max=1.0,
-                    #     clip=True,
-                    # ),
-                    # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-                    # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
-
-
+                    ScaleIntensityRanged(
+                        keys=keys[0],
+                        a_min=0,
+                        a_max=164,
+                        b_min=0.0,
+                        b_max=1.0,
+                        clip=True,
+                    ),
                     #Augmentations
-                    # RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
+                    RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
                     RandFlipd(keys, prob=0.5, spatial_axis=1),
                     RandFlipd(keys, prob=0.5, spatial_axis=0),
-                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.25),
-                    # RandAdjustContrastd(keys[0], prob=0.25),
+                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.5),
+                    RandAdjustContrastd(keys[0], prob=0.5),
 
                     ToTensorD(keys),
                 ]
@@ -168,20 +163,17 @@ class LesionSegmentation(Engine):
             "2DUnet_transform": Compose(
                 [
                     #Transformations
-                    LoadImageD(keys,allow_missing_keys=True),
+                    LoadImageD(keys, allow_missing_keys=True),
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    # ScaleIntensityRanged(
-                    #     keys=keys[0],
-                    #     a_min=-57,
-                    #     a_max=164,
-                    #     b_min=0.0,
-                    #     b_max=1.0,
-                    #     clip=True,
-                    # ),
-                    # Spacingd(keys=keys, pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest"), allow_missing_keys=True),
-                    # ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
+                    ScaleIntensityRanged(
+                        keys=keys[0],
+                        a_min=0,
+                        a_max=164,
+                        b_min=0.0,
+                        b_max=1.0,
+                        clip=True,
+                    ),
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -321,11 +313,6 @@ class LesionSegmentation(Engine):
         shutil.rmtree(temp_path)
         return prediction
     
-    
-    # def load_checkpoint(self, path=config.save["model_checkpoint"]):
-    #     self.network.load_state_dict(
-    #         torch.load(path, map_location=torch.device(self.device))
-    #     )
 
 def segment_lesion(*args):
     """
@@ -378,3 +365,5 @@ def train_lesion(*args):
         batch_callback_epochs=100,
         save_weight=True,
     )
+    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
+    print("final test loss:", model.test(model.test_dataloader, callback=False))

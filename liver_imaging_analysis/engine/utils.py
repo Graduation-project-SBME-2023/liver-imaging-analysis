@@ -159,19 +159,19 @@ def progress_bar(progress, total):
 
 
 def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
-    # """
-    #     A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
-    #     Parameters
-    #     ----------
-    #     volumes_path: str
-    #         the directory of the 3d volumes
-    #     masks_path: str
-    #         the directory of the 3d masks
-    #     new_volumes_path: str
-    #         the save directory of the cropped liver volume
-    #     new_masks_path: str
-    #         the save directory of the cropped lesions mask
-    # """
+    """
+        A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
+        Parameters
+        ----------
+        volumes_path: str
+            the directory of the 3d volumes
+        masks_path: str
+            the directory of the 3d masks
+        new_volumes_path: str
+            the save directory of the cropped liver volume
+        new_masks_path: str
+            the save directory of the cropped lesions mask
+    """
     volume_files = natsort.natsorted(
         os.listdir(volumes_path)
     )  # sort the directory of files
