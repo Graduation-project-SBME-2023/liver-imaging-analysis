@@ -19,17 +19,11 @@ from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
 from engine.utils import progress_bar
 from monai.metrics import DiceMetric
-#################for 3d liver lesion prediction################################
-from monai.transforms import (
-    Compose,
-    EnsureChannelFirst,
-    NormalizeIntensity,
-    Orientation,
-    Resize,
-    ToTensor,
-)
-resize_size = config.transforms["transformation_size"]
-#############################################################
+import natsort
+import SimpleITK
+import cv2
+import shutil
+
 class Engine:
     """
     Class that implements the basic PyTorch methods for deep learning tasks
@@ -45,7 +39,6 @@ class Engine:
             loss_name=config.training["loss_name"],
             **config.training["loss_parameters"],
         )
-
         self.network = self.get_network(
             network_name=config.network_name, **config.network_parameters
         ).to(self.device)
@@ -65,6 +58,7 @@ class Engine:
         )
         self.load_data()
 
+
     def get_optimizer(self, optimizer_name, **kwargs):
         """
         internally used to load optimizer.
@@ -82,6 +76,7 @@ class Engine:
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
+
     def get_scheduler(self, scheduler_name, **kwargs):
         """
         internally used to load lr scheduler.
@@ -98,6 +93,7 @@ class Engine:
             "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
+
 
     def get_network(self, network_name, **kwargs):
         """
@@ -118,6 +114,7 @@ class Engine:
         }
         return networks[network_name](**kwargs)
 
+
     def get_loss(self, loss_name, **kwargs):
         """
         internally used to load loss function.
@@ -135,6 +132,7 @@ class Engine:
             "bce_dice": losses.BCEDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
+
 
     def get_metrics(self, metrics_name, **kwargs):
         """
@@ -154,6 +152,7 @@ class Engine:
         }
         return metrics[metrics_name](**kwargs)
 
+
     def get_pretraining_transforms(self):
         """
         Should be Implemented by user in liver_segmentation module.
@@ -162,6 +161,7 @@ class Engine:
         """
         raise NotImplementedError()
 
+
     def get_pretesting_transforms(self):
         """
         Should be Implemented by user in liver_segmentation module.
@@ -169,6 +169,7 @@ class Engine:
         Expected to return a monai Compose object with desired transforms.
         """
         raise NotImplementedError()
+
 
     def load_data(
         self,
@@ -217,6 +218,7 @@ class Engine:
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
+
 
     def data_status(self):
         """
@@ -272,6 +274,7 @@ class Engine:
         except StopIteration:
             print("No Testing Set")
 
+
     def save_checkpoint(self, path=config.save["potential_checkpoint"]):
         """
         Saves current checkpoint to a specific path. (Default is the model path in config)
@@ -281,10 +284,10 @@ class Engine:
         path: str
             The path where the checkpoint will be saved at
         """
-        # torch.save(self.network.state_dict(), path)
         checkpoint = {
             'state_dict': self.network.state_dict(),
-            'optimizer': self.optimizer.state_dict()
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict(),
             }
         torch.save(checkpoint, path)
 
@@ -298,13 +301,11 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        # self.network.load_state_dict(
-        #     torch.load(path, map_location=torch.device(self.device))
-        # )
-
         checkpoint = torch.load(path)
         self.network.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.scheduler.load_state_dict(checkpoint['scheduler'])
+
 
     def compile_status(self):
         """
@@ -312,6 +313,7 @@ class Engine:
         """
         print(f"Loss= {self.loss} \n")
         print(f"Optimizer= {self.optimizer} \n")
+
 
     def per_batch_callback(self):
           """
@@ -321,6 +323,7 @@ class Engine:
           """
           pass
 
+
     def per_epoch_callback(self):
         """
         A generic callback function to be executed every epoch.
@@ -328,6 +331,7 @@ class Engine:
         Should be Implemented in segmentation module.
         """
         pass
+
 
     def fit(
         self,
@@ -374,14 +378,12 @@ class Engine:
                 )
                 pred = self.network(volume)
                 loss = self.loss(pred, mask)
-                #batch_metric = 
                 self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 training_loss += loss.item()
-                # training_metric += batch_metric.mean().item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
@@ -394,7 +396,6 @@ class Engine:
             training_loss = training_loss / len(
                 self.train_dataloader
             )  # normalize loss over batch size
-            # training_metric = training_metric/ len(self.train_dataloader)  # total epoch metric
             # aggregate the final mean dice result
             training_metric = self.metrics.aggregate().item() # total epoch metric
             # reset the status for next computation round
@@ -403,10 +404,9 @@ class Engine:
                 epoch + 1
             ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-                if save_weight:  # save model if performance improved on validation set
-                    if valid_loss <= best_valid_loss:
-                        best_valid_loss = valid_loss
-                        self.save_checkpoint(save_path)
+                if save_weight and (valid_loss <= best_valid_loss):  # save model if performance improved on validation set
+                    best_valid_loss = valid_loss
+                    self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
@@ -418,7 +418,7 @@ class Engine:
                     valid_metric,
                 )
 
-    def test(self, dataloader, callback=False):
+    def test(self, dataloader= None, callback=False):
         """
         calculates loss on input dataset
 
@@ -426,7 +426,11 @@ class Engine:
         ----------
         dataloader: dict
                 the dataset to evaluate on
+        callback: bool
+                whether to call the perbatch callback or not
         """
+        if dataloader is None: #test on test set by default
+            dataloader = self.test_dataloader
         num_batches = len(dataloader)
         test_loss = 0
         test_metric=0
@@ -438,7 +442,6 @@ class Engine:
                 )
                 pred = self.network(volume)
                 test_loss += self.loss(pred, mask).item()
-                #test_metric += 
                 self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int()).mean().item()
                 if callback:
                   self.per_batch_callback(batch_num,volume,mask,(torch.sigmoid(pred) > 0.5).float())
@@ -448,6 +451,7 @@ class Engine:
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
+
 
     def predict(self, data_dir):
         """
@@ -463,7 +467,7 @@ class Engine:
         """
         self.network.eval()
         with torch.no_grad():
-            volume_names = os.listdir(data_dir)
+            volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
             predict_files = [{"image": image_name} for image_name in volume_paths]
             predict_set = Dataset(data=predict_files, transform=self.test_transform)
@@ -485,72 +489,42 @@ class Engine:
 
 
 
-
-    def predict_with_lesions(self, volume_path):
+    def predict_2dto3d(self, volume_path,temp_path="temp/"):
         """
-        predict the label of the given input
+        predicts the label of a 3D volume using a 2D network
         Parameters
         ----------
         volume_path: str
-            path of the input directory. expects nifti or png files.
+            path of the input file. expects a 3D nifti file.
+        temp_path: str
+            a temporary path to save 3d volume as 2d png slices. default is "temp/"
+            automatically deleted before returning the prediction
+
         Returns
         -------
         tensor
-            tensor of the predicted labels
+            tensor of the predicted labels with shape (1,channel,length,width,depth) 
         """
-        import natsort
-        import SimpleITK
-        import cv2
-        import shutil
-        import monai
-        temp_path="/content/temp/"
+        #read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
         number_of_slices = img_volume_array.shape[0]
+        #create temporary folder to store 2d png files 
         if os.path.exists(temp_path) == False:
           os.mkdir(temp_path)
+        #write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
             volume_silce = img_volume_array[slice_number, :, :]
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
-        volume_names = natsort.natsorted(os.listdir(temp_path))
-        volume_paths = [os.path.join(temp_path, file_name) for file_name in volume_names]
-        predict_files = [{"image": image_name} for image_name in volume_paths]
-        predict_set = Dataset(data=predict_files, transform=self.test_transform)
-        predict_loader = MonaiLoader(
-            predict_set,
-            batch_size=self.batch_size,
-            num_workers=0,
-            pin_memory=False,
-        )
-        liver_prediction = []
-        lesion_prediction = []
-                
-        network_lesions=monai.networks.nets.UNet(in_channels= 1, out_channels=1,spatial_dims=2, channels= [64, 128, 256, 512],strides= [2, 2, 2],num_res_units=4, bias=0,norm="batch").to(self.device)
-        network_lesions.load_state_dict(torch.load("/content/drive/MyDrive/liver-imaging-analysis/engine/Final Weights/Lesion Segmentation_ 4Residuals_0.24loss_0.81Dice", map_location=torch.device(self.device)))
-        
-        with torch.no_grad():
-            for batch in predict_loader:
-                volume = batch["image"].to(self.device)
-                pred = self.network(volume)
-                pred = (torch.sigmoid(pred) > 0.5).int()
-                liver_prediction.append(pred)
-                suppressed_volume=np.where(pred==1,volume,volume.min())
-                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
-                pred2= network_lesions(suppressed_volume)
-                pred2 = (torch.sigmoid(pred2) > 0.5).int()
-                lesion_prediction.append(pred2)
-            liver_prediction = torch.cat(liver_prediction, dim=0)
-            lesion_prediction = torch.cat(lesion_prediction, dim=0)
-        largestconnected=monai.transforms.KeepLargestConnectedComponent()
-        lesion_prediction=lesion_prediction.permute(1,2,3,0)
-        liver_prediction=liver_prediction.permute(1,2,3,0)
-        liver_prediction=largestconnected(liver_prediction)
-        lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
-        liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+        #predict slices individually then reconstruct 3d prediction
+        prediction=self.predict(temp_path)
+        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
+        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        #delete temporary folder
         shutil.rmtree(temp_path)
-        return liver_lesion_prediction[0]
+        return prediction
 
 
 def set_seed():
@@ -561,3 +535,4 @@ def set_seed():
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
+    monai.utils.set_determinism(seed=seed)

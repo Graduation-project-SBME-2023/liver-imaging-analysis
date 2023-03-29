@@ -158,79 +158,20 @@ def progress_bar(progress, total):
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
-def nonliver_suppression(volumes_path,masks_path,new_volumes_path,new_masks_path):
-    # """
-    #     A method to generate liver volumes and lesion masks
-    #     Parameters
-    #     ----------
-    #     volumes_path: str
-    #         the directory of the 3d volumes
-    #     masks_path: str
-    #         the directory of the 3d masks
-    #     new_volumes_path: str
-    #         the save directory of the liver volume
-    #     new_masks_path: str
-    #         the save directory of the lesions mask
-    # """
-    volume_folders = natsort.natsorted(
-        os.listdir(volumes_path)
-    )  # sort the directory of files
-    mask_folders = natsort.natsorted(os.listdir(masks_path))
-
-    for i in range(len(volume_folders)):
-        volume_path = os.path.join(volumes_path, volume_folders[i])
-        mask_path = os.path.join(masks_path, mask_folders[i])
-        volume=nib.load(volume_path)
-        mask=nib.load(mask_path)
-        new_volume=nib.Nifti1Image(
-            np.where(
-            (mask.get_fdata().astype(int)>0.5).astype(int)==1,
-            volume.get_fdata().astype(int),
-            volume.get_fdata().astype(int).min()),#replace all nonliver voxels with background intensity
-            affine=volume.affine,
-            header=volume.header
-            )
-        new_mask=nib.Nifti1Image(
-            (mask.get_fdata().astype(int)>1.5).astype(int),#new mask contains lesions only
-            affine=mask.affine,
-            header=mask.header
-            )
-
-        volume_file_name = os.path.splitext(volume_folders[i])[
-            0
-        ]  # delete extension from filename
-        mask_file_name = os.path.splitext(mask_folders[i])[
-            0
-        ]  # delete extension from filename
-
-        # nameConvention =  "defaultNameWithoutExtention_sliceNum.nii.gz"
-        nii_volume_path = (
-            os.path.join(new_volumes_path, volume_file_name)
-            + ".nii"
-        )
-        nii_mask_path = (
-            os.path.join(new_masks_path, mask_file_name)
-            + ".nii"
-            )
-
-        new_volume.to_filename(nii_volume_path)  # Save as NiBabel file
-        new_mask.to_filename(nii_mask_path)  # Save as NiBabel file
-        print(i)
-
-def liver_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
-    # """
-    #     A method to crop liver volumes and lesion masks in z direction
-    #     Parameters
-    #     ----------
-    #     volumes_path: str
-    #         the directory of the 3d volumes
-    #     masks_path: str
-    #         the directory of the 3d masks
-    #     new_volumes_path: str
-    #         the save directory of the cropped liver volume
-    #     new_masks_path: str
-    #         the save directory of the cropped lesions mask
-    # """
+def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
+    """
+        A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
+        Parameters
+        ----------
+        volumes_path: str
+            the directory of the 3d volumes
+        masks_path: str
+            the directory of the 3d masks
+        new_volumes_path: str
+            the save directory of the cropped liver volume
+        new_masks_path: str
+            the save directory of the cropped lesions mask
+    """
     volume_files = natsort.natsorted(
         os.listdir(volumes_path)
     )  # sort the directory of files
@@ -244,26 +185,32 @@ def liver_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
         mask_array=mask.get_fdata() 
         min_slice=0
         max_slice=0
-        for j in range (volume_array.shape[2]):
-          if(len(np.unique(volume_array[:,:,j]))!=1):
+        for j in range (mask_array.shape[2]):
+          if(len(np.unique(mask_array[:,:,j]))!=1):
             min_slice=j
             break
-        for k in range (volume_array.shape[2]-1,-1,-1):
-          if(len(np.unique(volume_array[:,:,k]))!=1):
+        for k in range (mask_array.shape[2]-1,-1,-1):
+          if(len(np.unique(mask_array[:,:,k]))!=1):
             max_slice=k
             break
         volume_array=volume_array[:,:,min_slice:max_slice+1]
         mask_array=mask_array[:,:,min_slice:max_slice+1]
+
         new_volume=nib.Nifti1Image(
-            volume_array,
+            np.where(
+            (mask_array.astype(int)>0.5).astype(int)==1,
+            volume_array.astype(int),
+            volume_array.astype(int).min()),#replace all nonliver voxels with background intensity
             affine=volume.affine,
             header=volume.header
             )
         new_mask=nib.Nifti1Image(
-            mask_array,
+            (mask_array.astype(int)>1.5).astype(int),#new mask contains lesions only
             affine=mask.affine,
             header=mask.header
             )
+
+
         nii_volume_path = (os.path.join(new_volumes_path, volume_files[i]))
         nii_mask_path = (os.path.join(new_masks_path, mask_files[i]))
         new_volume.to_filename(nii_volume_path)  # Save as NiBabel file
@@ -328,60 +275,6 @@ def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
             cv.imwrite(volume_png_path, volume_silce)
             cv.imwrite(mask_png_path, mask_silce)
 
-
-def nii2png_tumor(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
-    """
-        A method to generate 2d .png slices from 3d .nii volumes for slices with tumors only
-        Parameters
-        ----------
-        volume_nii_path: str
-            the directory of the 3d volumes
-        mask_nii_path: str
-            the directory of the 3d masks
-        volume_save_path: str
-            the save directory of the 2d volume slices
-        mask_save_path: str
-            the save directory of the 2d mask slices
-    """
-    volume_folders = natsort.natsorted(
-        os.listdir(volume_nii_path)
-    )  # sort the directory of files
-    mask_folders = natsort.natsorted(os.listdir(mask_nii_path))
-
-    for i in range(len(volume_folders)):
-        volume_path = os.path.join(volume_nii_path, volume_folders[i])
-        mask_path = os.path.join(mask_nii_path, mask_folders[i])
-        img_volume = sitk.ReadImage(volume_path)
-        img_mask = sitk.ReadImage(mask_path)
-        img_volume_array = sitk.GetArrayFromImage(img_volume)
-        img_mask_array = sitk.GetArrayFromImage(img_mask)
-        number_of_slices = img_volume_array.shape[0]
-        for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number, :, :]
-            mask_silce = img_mask_array[slice_number, :, :]
-            slice_counts=np.unique(mask_silce,return_counts=True)[1]
-            random_integers= randint(0,number_of_slices,15) #pick 15 random slices per volume
-            if(len(slice_counts)==3 or (slice_number in random_integers)):
-              volume_file_name = os.path.splitext(volume_folders[i])[
-                  0
-              ]  # delete extension from filename
-              mask_file_name = os.path.splitext(mask_folders[i])[
-                  0
-              ]  # delete extension from filename
-
-              # name =  "defaultNameWithoutExtention_sliceNum.png"
-              volume_png_path = (
-                  os.path.join(
-                      volume_save_path, volume_file_name + "_" + str(slice_number)
-                  )
-                  + ".png"
-              )
-              mask_png_path = (
-                  os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))
-                  + ".png"
-              )
-              cv.imwrite(volume_png_path, volume_silce)
-              cv.imwrite(mask_png_path, mask_silce)
 
 
 def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
