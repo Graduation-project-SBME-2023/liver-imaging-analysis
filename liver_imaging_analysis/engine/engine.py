@@ -404,10 +404,9 @@ class Engine:
                 epoch + 1
             ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-                if save_weight:  # save model if performance improved on validation set
-                    if valid_loss <= best_valid_loss:
-                        best_valid_loss = valid_loss
-                        self.save_checkpoint(save_path)
+                if save_weight and (valid_loss <= best_valid_loss):  # save model if performance improved on validation set
+                    best_valid_loss = valid_loss
+                    self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
@@ -419,7 +418,7 @@ class Engine:
                     valid_metric,
                 )
 
-    def test(self, dataloader, callback=False):
+    def test(self, dataloader= None, callback=False):
         """
         calculates loss on input dataset
 
@@ -427,7 +426,11 @@ class Engine:
         ----------
         dataloader: dict
                 the dataset to evaluate on
+        callback: bool
+                whether to call the perbatch callback or not
         """
+        if dataloader is None: #test on test set by default
+            dataloader = self.test_dataloader
         num_batches = len(dataloader)
         test_loss = 0
         test_metric=0
@@ -492,7 +495,7 @@ class Engine:
         Parameters
         ----------
         volume_path: str
-            path of the input directory. expects a 3D nifti file.
+            path of the input file. expects a 3D nifti file.
         temp_path: str
             a temporary path to save 3d volume as 2d png slices. default is "temp/"
             automatically deleted before returning the prediction
