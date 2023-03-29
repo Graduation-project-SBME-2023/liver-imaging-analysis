@@ -143,6 +143,9 @@ class SagittalSegmentation2D(Engine):
 
 
 def per_batch_callback(batch_num, image, label, prediction):
+    '''
+    A function which is called after every batch to plot the results in tensorboard
+    '''
     score = dice(prediction.bool(),label.bool())[0] #first slice as default in plot_2d_or_3d_image
     plot_2d_or_3d_image(
         data=image,
@@ -168,6 +171,9 @@ def per_batch_callback(batch_num, image, label, prediction):
 
 
 def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_metric):
+    '''
+    A function which is called every epoch to write the results in tensorboard
+    '''
     print("\nTraining Loss=", training_loss)
     print("Training Metric=", training_metric)
 
@@ -185,13 +191,13 @@ def per_epoch_callback(epoch, training_loss, valid_loss, training_metric, valid_
 def segment_liver(*args):
     """
     a function used to start the training of liver segmentation
-
     """
+    
     model = SagittalSegmentation2D()
     model.set_seed()
     model.data_status()
     model.load_checkpoint(config.save["potential_checkpoint"])
-    print("Initial Test Loss, Test Metric=", model.test(model.test_dataloader,epoch=1, per_batch_callback=per_batch_callback))
+    print("Initial Test Loss, Test Metric=", model.test(model.test_dataloader,per_batch_callback=per_batch_callback))
     model.fit(
         evaluate_epochs=1,
         batch_callback_epochs=per_batch_callback,
