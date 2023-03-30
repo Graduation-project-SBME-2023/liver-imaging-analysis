@@ -52,9 +52,9 @@ class LesionSegmentation(Engine):
         config.training['optimizer_parameters']={"lr": 0.01}
         config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":1}
         config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [16, 32, 64, 128]
+        config.network_parameters['channels']= [16, 32, 64, 128, 256, 512]
         config.network_parameters["out_channels"]= 1
-        config.network_parameters['strides']=  [2, 2, 2]
+        config.network_parameters['strides']=  [2, 2, 2, 2, 2]
         config.network_parameters['num_res_units']=  2
         config.network_parameters['norm']= "BATCH"
         config.network_parameters['bias']= 1
