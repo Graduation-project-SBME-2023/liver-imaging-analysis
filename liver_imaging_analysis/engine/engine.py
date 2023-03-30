@@ -13,8 +13,7 @@ import torch
 import torch.optim.lr_scheduler
 from engine.config import config
 import monai
-from monai.data import DataLoader as MonaiLoader
-from monai.data import Dataset
+from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
 from engine.utils import progress_bar
@@ -33,8 +32,9 @@ class Engine:
     def __init__(self):
 
         self.device = config.device
+        self.keys = (config.transforms["img_key"], config.transforms["label_key"])
+        self.batch_size = config.training["batch_size"]
         print("Used Device: ", self.device)
-
         self.loss = self.get_loss(
             loss_name=config.training["loss_name"],
             **config.training["loss_parameters"],
@@ -56,7 +56,15 @@ class Engine:
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
         )
-        self.load_data()
+        self.train_transform = self.get_pretraining_transforms(
+            config.transforms["train_transform"], self.keys
+        )
+        self.test_transform = self.get_pretesting_transforms(
+            config.transforms["test_transform"], self.keys
+        )
+        self.postprocessing_transforms=self.get_postprocessing_transforms(
+             config.transforms["post_transform"]
+        )
 
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -155,7 +163,7 @@ class Engine:
 
     def get_pretraining_transforms(self):
         """
-        Should be Implemented by user in liver_segmentation module.
+        Should be Implemented by user in task module.
         Transforms to be applied on training set before training.
         Expected to return a monai Compose object with desired transforms.
         """
@@ -164,11 +172,20 @@ class Engine:
 
     def get_pretesting_transforms(self):
         """
-        Should be Implemented by user in liver_segmentation module.
+        Should be Implemented by user in task module.
         Transforms to be applied on testing set before evaluation.
         Expected to return a monai Compose object with desired transforms.
         """
         raise NotImplementedError()
+
+
+    def get_postprocessing_transforms(self):
+        """
+        Should be Implemented by user in task module.
+        Transforms to be applied on predicted data to correct prediction.
+        Expected to return a monai Compose object with desired transforms.
+        """
+        pass
 
 
     def load_data(
@@ -182,14 +199,6 @@ class Engine:
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
-        self.keys = (config.transforms["img_key"], config.transforms["label_key"])
-        self.batch_size = config.training["batch_size"]
-        self.train_transform = self.get_pretraining_transforms(
-            config.transforms["train_transform"], self.keys
-        )
-        self.test_transform = self.get_pretesting_transforms(
-            config.transforms["test_transform"], self.keys
-        )
 
         trainloader = dataloader.DataLoader(
             dataset_path=config.dataset["training"],
@@ -319,7 +328,7 @@ class Engine:
           """
           A generic callback function to be executed every batch.
           Supposed to output information desired by user.
-          Should be Implemented in segmentation module.
+          Should be Implemented in task module.
           """
           pass
 
@@ -328,7 +337,7 @@ class Engine:
         """
         A generic callback function to be executed every epoch.
         Supposed to output information desired by user.
-        Should be Implemented in segmentation module.
+        Should be Implemented in task module.
         """
         pass
 
@@ -441,6 +450,8 @@ class Engine:
                     self.device
                 )
                 pred = self.network(volume)
+                pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
+                pred=torch.stack(pred)
                 test_loss += self.loss(pred, mask).item()
                 self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int()).mean().item()
                 if callback:
@@ -522,6 +533,9 @@ class Engine:
         prediction=self.predict(temp_path)
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
         prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        #Apply post processing transforms
+        prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
+        prediction=torch.stack(prediction)
         #delete temporary folder
         shutil.rmtree(temp_path)
         return prediction
