@@ -380,7 +380,7 @@ class Engine:
             training_loss = 0
             training_metric=0
             self.network.train()
-            progress_bar(0, len(self.train_dataloader))  # batch progress bar
+            progress_bar(0, len(self.train_dataloader))  # epoch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 volume, mask = batch["image"].to(self.device), batch["label"].to(
