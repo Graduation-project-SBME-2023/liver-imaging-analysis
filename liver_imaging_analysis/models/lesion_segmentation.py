@@ -15,15 +15,19 @@ from monai.transforms import (
     RandAdjustContrastd,
     RandZoomd,
     CropForegroundd,
+    Activations,
+    AsDiscrete,
+    KeepLargestConnectedComponent,
+    RemoveSmallObjects,
+    FillHoles,
     ScaleIntensityRanged,
-    Spacingd
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
 import os
 from monai.data import DataLoader as MonaiLoader
-from monai.data import Dataset
+from monai.data import Dataset,decollate_batch
 import torch
 import numpy as np
 from monai.transforms import ToTensor
@@ -61,7 +65,7 @@ class LesionSegmentation(Engine):
         config.save['lesion_checkpoint']= 'lesion_cp'
         config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
         config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
-
+        config.transforms['mode']= "3D"
         super().__init__()
 
     
@@ -186,6 +190,30 @@ class LesionSegmentation(Engine):
         return transforms[transform_name]
 
 
+    def get_postprocessing_transforms(self,transform_name):
+        """
+        Function used to define the needed post processing transforms for prediction correction
+
+        Args:
+             transform_name(string): name of the required set of transforms
+        Return:
+            transforms(compose): return the compose of transforms selected
+
+        """
+        transforms= {
+
+        '2DUnet_transform': Compose(
+            [
+                Activations(sigmoid=True),
+                AsDiscrete(threshold=0.5),
+                RemoveSmallObjects(min_size=10),
+                FillHoles(),
+            ]
+        )
+        } 
+        return transforms[transform_name] 
+    
+
     def per_batch_callback(self, batch_num, image, label, prediction):
         dice_score=dice_metric(prediction.int(),label.int())[0].item()
         plot_2d_or_3d_image(
@@ -214,10 +242,8 @@ class LesionSegmentation(Engine):
     def per_epoch_callback(self, epoch, training_loss, valid_loss, training_metric, valid_metric):
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
-
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
-
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
@@ -270,10 +296,12 @@ class LesionSegmentation(Engine):
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
                 pred = self.network(suppressed_volume)
-                pred = (torch.sigmoid(pred) > 0.5).float()
+                #Apply post processing transforms on 2D prediction
+                if (config.transforms['mode']=="2D"):
+                    pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
+                    pred=torch.stack(pred)        
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
-
         return prediction_list
     
     def predict_2dto3d(self, volume_path,liver_mask,temp_path="temp/"):
@@ -309,6 +337,10 @@ class LesionSegmentation(Engine):
         prediction=self.predict(temp_path,liver_mask)
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
         prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        #Apply post processing transforms on 3D prediction
+        if (config.transforms['mode']=="3D"):
+            prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
+            prediction=torch.stack(prediction)
         #delete temporary folder
         shutil.rmtree(temp_path)
         return prediction

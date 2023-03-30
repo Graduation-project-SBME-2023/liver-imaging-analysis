@@ -20,6 +20,7 @@ from monai.transforms import (
     KeepLargestConnectedComponent,
     RemoveSmallObjects,
     FillHoles,
+    ScaleIntensityRanged,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -48,6 +49,7 @@ class LiverSegmentation(Engine):
         config.network_parameters['norm']= "INSTANCE"
         config.network_parameters['bias']= 1
         config.save['liver_checkpoint']= 'liver_cp'
+        config.transforms['mode']= "3D"
         super().__init__()
     
     def get_pretraining_transforms(self, transform_name, keys):

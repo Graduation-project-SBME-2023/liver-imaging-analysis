@@ -22,6 +22,7 @@ import natsort
 import SimpleITK
 import cv2
 import shutil
+from monai.transforms import Compose
 
 class Engine:
     """
@@ -161,7 +162,7 @@ class Engine:
         return metrics[metrics_name](**kwargs)
 
 
-    def get_pretraining_transforms(self):
+    def get_pretraining_transforms(self, *args, **kwargs):
         """
         Should be Implemented by user in task module.
         Transforms to be applied on training set before training.
@@ -170,7 +171,7 @@ class Engine:
         raise NotImplementedError()
 
 
-    def get_pretesting_transforms(self):
+    def get_pretesting_transforms(self, *args, **kwargs):
         """
         Should be Implemented by user in task module.
         Transforms to be applied on testing set before evaluation.
@@ -179,13 +180,13 @@ class Engine:
         raise NotImplementedError()
 
 
-    def get_postprocessing_transforms(self):
+    def get_postprocessing_transforms(self, *args, **kwargs):
         """
         Should be Implemented by user in task module.
         Transforms to be applied on predicted data to correct prediction.
         Expected to return a monai Compose object with desired transforms.
         """
-        pass
+        return Compose([])
 
 
     def load_data(
@@ -324,7 +325,7 @@ class Engine:
         print(f"Optimizer= {self.optimizer} \n")
 
 
-    def per_batch_callback(self):
+    def per_batch_callback(self, *args, **kwargs):
           """
           A generic callback function to be executed every batch.
           Supposed to output information desired by user.
@@ -333,7 +334,7 @@ class Engine:
           pass
 
 
-    def per_epoch_callback(self):
+    def per_epoch_callback(self, *args, **kwargs):
         """
         A generic callback function to be executed every epoch.
         Supposed to output information desired by user.
@@ -450,12 +451,13 @@ class Engine:
                     self.device
                 )
                 pred = self.network(volume)
+                test_loss += self.loss(pred, mask).item()
+                #Apply post processing transforms on 2D prediction
                 pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
                 pred=torch.stack(pred)
-                test_loss += self.loss(pred, mask).item()
-                self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int()).mean().item()
+                self.metrics(pred.int(), mask.int()).mean().item()
                 if callback:
-                  self.per_batch_callback(batch_num,volume,mask,(torch.sigmoid(pred) > 0.5).float())
+                  self.per_batch_callback(batch_num,volume,mask,pred.float())
             test_loss /= num_batches
             # aggregate the final mean dice result
             test_metric = self.metrics.aggregate().item() # total epoch metric
@@ -492,7 +494,10 @@ class Engine:
             for batch in predict_loader:
                 volume = batch["image"].to(self.device)
                 pred = self.network(volume)
-                pred = (torch.sigmoid(pred) > 0.5).float()
+                #Apply post processing transforms on 2D prediction
+                if (config.transforms['mode']=="2D"):
+                    pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
+                    pred=torch.stack(pred)        
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
 
@@ -529,13 +534,14 @@ class Engine:
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
-        #predict slices individually then reconstruct 3d prediction
+        #predict slices individually then reconstruct 3D prediction
         prediction=self.predict(temp_path)
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
         prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
-        #Apply post processing transforms
-        prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
-        prediction=torch.stack(prediction)
+        #Apply post processing transforms on 3D prediction
+        if (config.transforms['mode']=="3D"):
+            prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
+            prediction=torch.stack(prediction)
         #delete temporary folder
         shutil.rmtree(temp_path)
         return prediction
