@@ -49,19 +49,19 @@ class LesionSegmentation(Engine):
 
     """
     def __init__(self):
-        config.dataset['prediction']="test cases/prediction_volume"
+        config.dataset['prediction']="test cases/sample_image"
         config.dataset['training']="Temp2D/Train/"
         config.dataset['testing']="Temp2D/Test/"
         config.training['batch_size']=8
         config.training['optimizer_parameters']={"lr": 0.01}
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":1}
+        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
         config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [16, 32, 64, 128, 256, 512]
+        config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
         config.network_parameters["out_channels"]= 1
         config.network_parameters['strides']=  [2, 2, 2, 2, 2]
-        config.network_parameters['num_res_units']=  2
+        config.network_parameters['num_res_units']=  4
         config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= 1
+        config.network_parameters['bias']= 0
         config.save['lesion_checkpoint']= 'lesion_cp'
         config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
         config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
@@ -206,7 +206,7 @@ class LesionSegmentation(Engine):
             [
                 Activations(sigmoid=True),
                 AsDiscrete(threshold=0.5),
-                RemoveSmallObjects(min_size=10),
+                RemoveSmallObjects(min_size=5),
                 FillHoles(),
             ]
         )

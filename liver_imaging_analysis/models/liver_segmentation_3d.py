@@ -25,10 +25,15 @@ from monai.transforms import (
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
+from monai.inferers import sliding_window_inference
+from monai.data import DataLoader as MonaiLoader
+from monai.data import Dataset,decollate_batch
+import torch
+import natsort
+import os
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
-
 
 class LiverSegmentation(Engine):
     """
@@ -37,20 +42,21 @@ class LiverSegmentation(Engine):
      contains the transforms required by the user and the function that is used to start training
 
     """
-
-
     def __init__(self):
-        config.dataset['prediction']="test cases/sample_image"
-        config.training['batch_size']=8
+        config.dataset['prediction']="test cases/sample_volume"
+        config.training['batch_size']=1
         config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
         config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
+        config.network_parameters['spatial_dims']= 3
         config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
-        config.network_parameters['bias']= 1
-        config.save['liver_checkpoint']= 'liver_cp'
+        config.network_parameters['num_res_units']=  6
+        config.network_parameters['norm']= "BATCH"
+        config.network_parameters['bias']= False
+        config.save['liver_checkpoint']= 'liver_cp_sliding_window'
         config.transforms['mode']= "3D"
+        config.transforms['test_transform']= "3DUnet_transform"
+        config.transforms['post_transform']= "3DUnet_transform"
         super().__init__()
     
     def get_pretraining_transforms(self, transform_name, keys):
@@ -75,16 +81,6 @@ class LiverSegmentation(Engine):
                     LoadImageD(keys),
                     EnsureChannelFirstD(keys),
                     OrientationD(keys, axcodes="LAS"),  # preferred by radiologists
-                    ResizeD(keys, resize_size, mode=("trilinear", "nearest")),
-                    RandFlipd(keys, prob=0.5, spatial_axis=1),
-                    RandRotated(
-                        keys,
-                        range_x=0.1,
-                        range_y=0.1,
-                        range_z=0.1,
-                        prob=0.5,
-                        keep_size=True,
-                    ),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
                     ForegroundMaskD(keys[1], threshold=0.5, invert=True),
                     ToTensorD(keys),
@@ -129,13 +125,12 @@ class LiverSegmentation(Engine):
         transforms = {
             "3DUnet_transform": Compose(
                 [
-                    LoadImageD(keys),
-                    EnsureChannelFirstD(keys),
-                    OrientationD(keys, axcodes="LAS"),  # preferred by radiologists
-                    ResizeD(keys, resize_size, mode=("trilinear", "nearest")),
+                    LoadImageD(keys, allow_missing_keys=True),
+                    EnsureChannelFirstD(keys, allow_missing_keys=True),
+                    # OrientationD(keys, axcodes="LAS", allow_missing_keys=True),  # preferred by radiologists
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True),
-                    ToTensorD(keys),
+                    ForegroundMaskD(keys[1], threshold=0.5, invert=True, allow_missing_keys=True),
+                    ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
             "2DUnet_transform": Compose(
@@ -176,7 +171,7 @@ class LiverSegmentation(Engine):
         """
         transforms= {
 
-        '2DUnet_transform': Compose(
+        '3DUnet_transform': Compose(
             [
                 Activations(sigmoid=True),
                 AsDiscrete(threshold=0.5),
@@ -226,48 +221,74 @@ class LiverSegmentation(Engine):
 
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            
+
+    def load_checkpoint(self, path=config.save["model_checkpoint"]):
+        """
+        Loads checkpoint from a specific path
+
+        Parameters
+        ----------
+        path: str
+            The path of the checkpoint. (Default is the model path in config)
+        """
+        # self.network.load_state_dict(
+        #     torch.load(path, map_location=torch.device(self.device))
+        # )
+
+        checkpoint = torch.load(path)
+        self.network.load_state_dict(checkpoint['state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+
+    def predict(self, data_dir):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        self.network.eval()
+        with torch.no_grad():
+            volume_names = natsort.natsorted(os.listdir(data_dir))
+            volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
+            predict_files = [{"image": image_name} for image_name in volume_paths]
+            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            predict_loader = MonaiLoader(
+                predict_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            prediction_list = []
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                #predict by sliding window
+                pred = sliding_window_inference(volume, (96,96,64), 4, self.network)
+                #Apply post processing transforms on 3D prediction
+                if (config.transforms['mode']=="3D"):
+                    pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
+                    pred=torch.stack(pred)        
+                prediction_list.append(pred)
+            prediction_list = torch.cat(prediction_list, dim=0)
+
+        return prediction_list
+
 
 
 
 def segment_liver(*args):
     """
-    a function used to segment the liver of 2D images using a 2D liver model
+    a function used to segment the liver of 3d images by sliding window network
 
     """
-
     set_seed()
     liver_model = LiverSegmentation()
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     liver_prediction=liver_model.predict(config.dataset['prediction'])
     return liver_prediction
-
-
-def segment_liver_3d(*args):
-    """
-    a function used to segment the liver of a 3d volume using a 2D liver model
-
-    """
-    set_seed()
-    liver_model = LiverSegmentation()
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict_2dto3d(volume_path=args[0])
-    return liver_prediction
-
-
-def train_liver(*args):
-    """
-    a function used to start the training of liver segmentation
-
-    """
-    set_seed()
-    model = LiverSegmentation()
-    model.data_status()
-    # model.load_checkpoint(config.save["potential_checkpoint"])
-    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
-    model.fit(
-        evaluate_epochs=1,
-        batch_callback_epochs=100,
-        save_weight=True,
-    )
-    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
-    print("final test loss:", model.test(model.test_dataloader, callback=False))
