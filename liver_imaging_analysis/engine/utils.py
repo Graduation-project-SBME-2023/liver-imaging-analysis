@@ -16,7 +16,9 @@ from matplotlib.animation import PillowWriter
 from config import config
 
 from monai.transforms import AsDiscrete
+
 rc("animation", html="html5")
+
 
 def progress_bar(progress, total):
     """
@@ -31,7 +33,8 @@ def progress_bar(progress, total):
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
-    
+
+
 def get_batch_names(batch, key):
     """
     A method to get the filenames of the current batch
@@ -45,8 +48,10 @@ def get_batch_names(batch, key):
     return batch[f"{key}_meta_dict"]["filename_or_obj"]
 
 
-class Overlay():
-
+class Overlay:
+    """
+    a class used to visualize the mask overlayed on the volume and saves output as GIF.
+    """
     def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
         """
         A method to generate the volume and the mask overlay
@@ -89,7 +94,6 @@ class Overlay():
             dest = cv.addWeighted(dest, alpha, mask_label[i], alpha, 0.0)
         return dest  # return an array of the volume with the mask overlayed on it with different label colors
 
-
     def animate(volume, output_name):
         """
         A method to save the animated gif from the overlay array
@@ -109,9 +113,10 @@ class Overlay():
             im = plt.imshow(volume[:, :, i], animated=True)
             ims.append([im])
 
-        ani = animation.ArtistAnimation(fig, ims, interval=200, blit=True, repeat_delay=100)
+        ani = animation.ArtistAnimation(
+            fig, ims, interval=200, blit=True, repeat_delay=100
+        )
         ani.save(output_name, dpi=300, writer=PillowWriter(fps=5))
-
 
     def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
         """
@@ -174,9 +179,10 @@ class Overlay():
         return dest  # return an array of the volume with the mask overlayed on it with different label colors
 
 
-
-class VolumeSlicing():
-
+class VolumeSlicing:
+    """
+    a class used to call different functions to divide 3D Nfti files to 2D images, Nfti files .
+    """
     def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
         """
         A method to generate 2d .png slices from 3d .nii volumes
@@ -229,15 +235,18 @@ class VolumeSlicing():
                     + ".png"
                 )
                 mask_png_path = (
-                    os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))
+                    os.path.join(
+                        mask_save_path, mask_file_name + "_" + str(slice_number)
+                    )
                     + ".png"
                 )
 
                 cv.imwrite(volume_png_path, volume_silce)
                 cv.imwrite(mask_png_path, mask_silce)
 
-
-    def nii3d_To_nii2d(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
+    def nii3d_To_nii2d(
+        volume_nii_path, mask_nii_path, volume_save_path, mask_save_path
+    ):
         """
         A method to generate 2d .nii slices from 3d .nii volumes
         Parameters
@@ -289,7 +298,9 @@ class VolumeSlicing():
                     + ".nii.gz"
                 )
                 nii_mask_path = (
-                    os.path.join(mask_save_path, mask_file_name + "_" + str(slice_number))
+                    os.path.join(
+                        mask_save_path, mask_file_name + "_" + str(slice_number)
+                    )
                     + ".nii.gz"
                 )
 
@@ -302,36 +313,44 @@ class VolumeSlicing():
                 nib.save(new_nii_mask, nii_mask_path)
 
 
-
-
 class Visualization:
-
-    def visualization_mood(self,mode):
+    """
+    a class used to call different visualization functions on tumors, volume and mask paths should be added
+    to config['visualization], the mask should be labeled 0 for background, 1 for tumor.
+    """
+    
+    def visualization_mood(self, mode='box',idx=None):
         """
-        choose the visualization mood of tumor and load volume,mask and preprocess them
+        choose the visualization mood of tumor and load volume,mask and preprocess them. 
         ----------
 
         mode: str
-            the visualization mood.
+            the visualization mood. available moods are:-
+            'box': draw a bounding box arround tumor,
+            'contour': draw a contour around tumor and draw the longest,shortest diameters.
+            'zoom': draw bounding box, zoom, and draw longest,shortest diameters on tumors.
+        idx: int
+            if not None, it represents the index of a specific slice in the volume to execute
+            code on. if None, the code will be executed for all slices and all tumors
         """
+        # idx = self.calculate_largest_tumor(mask)
+        # idx = None
 
-        volume=nib.load(config.visualization["volume"]).get_fdata()
-        volume=ScaleIntensityRange(
-                        a_min=-135,
-                        a_max=215,
-                        b_min=0.0,
-                        b_max=1.0,
-                        clip=True,
-                    )(volume)
-        mask=nib.load(config.visualization["mask"]).get_fdata()
-        mask= AsDiscrete(threshold=1.5)(mask) # FIXED LATER
-        from visualization import visualize_tumor # to avoid cyclic importing
+        volume = nib.load(config.visualization["volume"]).get_fdata()
+        volume = ScaleIntensityRange(
+            a_min=-135,
+            a_max=215,
+            b_min=0.0,
+            b_max=1.0,
+            clip=True,
+        )(volume)
+        mask = nib.load(config.visualization["mask"]).get_fdata()
+        mask = AsDiscrete(threshold=1.5)(mask)  # FIXED LATER 
 
-        idx=self.calculate_largest_tumor(mask)
-        idx=None
-        visualize_tumor(volume,mask,idx,mode)
+        from visualization import visualize_tumor  # to avoid cyclic importing
+        visualize_tumor(volume, mask, idx, mode)
 
-    def calculate_largest_tumor(self,mask):
+    def calculate_largest_tumor(self, mask):
         """
         get the slice with largest tumor volume
         ----------
@@ -345,8 +364,8 @@ class Visualization:
         """
         max_volume = -1
         idx = -1
-        x, y, z = self.find_pix_dim(path=config.visualization['volume'])
-        clone=mask.clone()
+        x, y, z = self.find_pix_dim(path=config.visualization["volume"])
+        clone = mask.clone()
         largest_tumor = KeepLargestConnectedComponent()(clone)
         for i in range(largest_tumor.shape[-1]):
             slice = largest_tumor[:, :, i]
@@ -360,7 +379,7 @@ class Visualization:
 
         return idx
 
-    def get_colors(self,numbers = [1, 0.5, 0]):
+    def get_colors(self, numbers=[1, 0.5, 0]):
         """
         calculate a list with unique colors
         Parameters
@@ -372,12 +391,12 @@ class Visualization:
         colors: list
             list with all possible permutations of rgb values
         """
-        
+
         perm = permutations(numbers)
         colors = [color for color in perm]
         return colors
 
-    def find_pix_dim(self,path="D:/GP/segmentation-0.nii"):
+    def find_pix_dim(self, path=config.visualization['volume']):
         """
         calculate the pixel dimensions in mm in the 3 axes
 
@@ -390,11 +409,13 @@ class Visualization:
         list
             list if mm dimensions of 3 axes (L,W,N)
         """
-        volume = nib.load(path)  
-        pix_dim = volume.header['pixdim'][1:4]
-        pix_dimx=pix_dim[0]
-        pix_dimy=pix_dim[1]
-        pix_dimz=pix_dim[2]
+        volume = nib.load(path)
+        pix_dim = volume.header["pixdim"][1:4]
+        pix_dimx = pix_dim[0]
+        pix_dimy = pix_dim[1]
+        pix_dimz = pix_dim[2]
 
         return [pix_dimx, pix_dimy, pix_dimz]
-visualization=Visualization()
+
+
+visualization = Visualization()

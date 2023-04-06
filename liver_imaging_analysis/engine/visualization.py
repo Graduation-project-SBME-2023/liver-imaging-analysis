@@ -39,7 +39,7 @@ def visualize_tumor(volume, mask, idx, mode):
 
         if idx is not None:
 
-            major_axis_recursive(volume[:,:,idx], mask[:,:,idx],mode='slice')
+            major_axis_recursive(volume[:, :, idx], mask[:, :, idx], mode="slice")
 
         else:
             major_axis_recursive(volume, mask)
@@ -66,7 +66,7 @@ def visualize_tumor(volume, mask, idx, mode):
     fig.show()
 
 
-def major_axis_recursive(volume, mask,mode='volume'):
+def major_axis_recursive(volume, mask, mode="volume"):
     """
     in order to call major_axis independently for each tumor in volume,
     remove all tumors in volume/slice except the largest one and call major_axis function for it,
@@ -93,7 +93,7 @@ def major_axis_recursive(volume, mask,mode='volume'):
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
-        if mode=='volume':
+        if mode == "volume":
             idx = visualization.calculate_largest_tumor(largest_tumor[0])
 
             major_axis(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
@@ -104,7 +104,7 @@ def major_axis_recursive(volume, mask,mode='volume'):
             plt.show()
             fig, ax = plt.subplots()
 
-        elif mode=='slice':
+        elif mode == "slice":
             major_axis(volume, largest_tumor[0], ax)
 
             contours = find_contours(mask, 0)
@@ -114,7 +114,6 @@ def major_axis_recursive(volume, mask,mode='volume'):
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
     plt.show()
-
 
 
 def major_axis(volume_slice, mask_slice, ax):
@@ -171,7 +170,11 @@ def major_axis(volume_slice, mask_slice, ax):
     dmin_2 = distances_pc2.min()
 
     # the total diameter is the difference in these distances
-    x, y, z = visualization.find_pix_dim() # may Be optimized later ( redundant calculation )
+    (
+        x,
+        y,
+        z,
+    ) = visualization.find_pix_dim()  # may Be optimized later ( redundant calculation )
     print("Distance along major axis:", (dmax_1 - dmin_1) * x)
     print("Distance along minor axis:", (dmax_2 - dmin_2) * y)
 
@@ -274,7 +277,6 @@ def get_bounding_box(mask_slice, crop_margin=0):
             xmin = col + crop_margin
             break
 
-
     for col in range(mask_slice.shape[1] - 1, -1, -1):
         if mask_slice[:, col].max() != 0:
             xmax = col + crop_margin
@@ -282,7 +284,7 @@ def get_bounding_box(mask_slice, crop_margin=0):
     return xmin, ymin, xmax, ymax
 
 
-def plot_bbox_image(mask_slice, crop_margin=0,j=-1):
+def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
     """
     plot bounding box around tumors in a specific slice
 
@@ -310,13 +312,13 @@ def plot_bbox_image(mask_slice, crop_margin=0,j=-1):
 
     colors = visualization.get_colors()
     print("Tumors Number = ", len(dimensions))
-    x_dim, y_dim, z_dim = visualization.find_pix_dim() # again same calculation
+    x_dim, y_dim, z_dim = visualization.find_pix_dim()  # again same calculation
     for i in range(len(dimensions)):
 
-        if(j!=-1):
-            n=j
+        if j != -1:
+            n = j
         else:
-            n=i
+            n = i
         xmin, ymin, xmax, ymax, pixels = dimensions[i]
 
         plt.plot([xmin, xmax], [ymin, ymin], color=colors[i], label=f"Lesion {n+1}")
@@ -327,7 +329,6 @@ def plot_bbox_image(mask_slice, crop_margin=0,j=-1):
         print(
             f"Lesion {n+1} Length = {(xmax-xmin)*x_dim}, Width = {(ymax-ymin) * y_dim }, Tumor Volume = {pixels*x_dim*y_dim*z_dim}"
         )
-
 
     plt.show()
 
@@ -350,7 +351,7 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         idx = visualization.calculate_largest_tumor(largest_tumor[0])
         plt.imshow(volume[:, :, idx], cmap="gray")
-        plot_bbox_image(largest_tumor[0][:, :, idx], crop_margin,i)
+        plot_bbox_image(largest_tumor[0][:, :, idx], crop_margin, i)
         i = i + 1
 
         mask = subtract(mask, largest_tumor[0])
@@ -431,8 +432,6 @@ def plot_tumor(volume_slice, mask_slice):
     ax[1].imshow(croped_image, cmap="gray")
 
     major_axis(croped_image, croped_masks, ax[2])
-
-
 
     for axis in ["top", "bottom", "left", "right"]:
         ax[1].spines[axis].set_color("red")
