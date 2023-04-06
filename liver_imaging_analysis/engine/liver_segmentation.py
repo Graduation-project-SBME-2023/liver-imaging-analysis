@@ -189,6 +189,3 @@ def segment_liver(*args):
     # print("final test loss:", model.test(model.test_dataloader))
     # return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")
 
-def visualize_tumors(*args):
-    model = LiverSegmentation()
-    model.visualization_mood("zoom")

@@ -17,10 +17,9 @@ from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
-import utils
-import visualization
+
 import nibabel as nib
-from monai.transforms import AsDiscrete
+
 
 class Engine:
     """
@@ -452,25 +451,7 @@ class Engine:
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
     
-    def visualization_mood(self,mode):
-        """
-        choose the visualization mood of tumor
-        ----------
-        volume_path: str
-            path of the input nfti volume.
-        mask_path: str
-            path of the nfti mask.
-        mode: str
-            the visualization mood.
-        """
-        volume=nib.load(config.visualization["volume"]).get_fdata()
 
-        mask=nib.load(config.visualization["mask"]).get_fdata()
-        mask= AsDiscrete(threshold=1.5)(mask) # FIXED LATER
-
-        idx=utils.calculate_largest_tumor(volume,mask)
-        # idx=None
-        visualization.visualize_tumor(volume,mask,idx,mode)
 
 
 def set_seed(self):

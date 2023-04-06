@@ -6,7 +6,7 @@ from skimage.measure import find_contours
 import cv2 as cv
 import matplotlib.pyplot as plt
 from monai.transforms import KeepLargestConnectedComponent, EnsureChannelFirst
-from utils import find_pix_dim, get_colors, calculate_largest_tumor
+from utils import visualization
 import numpy as np
 from torch import subtract
 import SimpleITK as sitk
@@ -16,7 +16,7 @@ first_tumor = False  # to add plot titles for first tumor only not on every plot
 
 def visualize_tumor(volume, mask, idx, mode):
     """
-    choose visualization mood and whether we will calculate tumor for whole volume or specific slice
+    initiate the visualization for the chose mood, and whether we will calculate tumor for whole volume or specific slice
 
     Parameters
     ----------
@@ -39,15 +39,10 @@ def visualize_tumor(volume, mask, idx, mode):
 
         if idx is not None:
 
-            ax.imshow(volume[:, :, idx], interpolation=None, cmap="gray")
+            major_axis_recursive(volume[:,:,idx], mask[:,:,idx],mode='slice')
 
-            major_axis_slice(volume[:, :, idx], mask[:, :, idx], ax)
-
-            contours = find_contours(mask[:, :, idx], 0)
-            for contour in contours:
-                ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
         else:
-            major_axis_volume(volume, mask)
+            major_axis_recursive(volume, mask)
 
     if mode == "box":
         if idx is not None:
@@ -71,10 +66,11 @@ def visualize_tumor(volume, mask, idx, mode):
     fig.show()
 
 
-def major_axis_volume(volume, mask):
+def major_axis_recursive(volume, mask,mode='volume'):
     """
-    remove all tumors in volume except the largest one and call major_axis function for it, then removes it and repeat.
-    in order to call major_axis independently for each tumor in volume
+    in order to call major_axis independently for each tumor in volume,
+    remove all tumors in volume/slice except the largest one and call major_axis function for it,
+    then removes it and repeat.
 
     Parameters
     ----------
@@ -82,57 +78,43 @@ def major_axis_volume(volume, mask):
             the nfti volume data
     mask: nparray
             the nfti tumor mask data ( 0: background , 1: tumor)
+    mode: string
+            whether the input is 3D volume or 2D slice, if 3D volume the code is performed for each
+            tumor in the volume and plotted individually in slice with largest volume,
+            if slice the code is performed on all tumors in a specific slice
     """
 
     global first_tumor
     first_tumor = True
+    fig, ax = plt.subplots()
 
     while np.unique(mask).any() == 1:
-        fig, ax = plt.subplots()
 
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
-        idx = calculate_largest_tumor(volume, largest_tumor[0])
+        if mode=='volume':
+            idx = visualization.calculate_largest_tumor(largest_tumor[0])
 
-        major_axis(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
+            major_axis(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
 
-        contours = find_contours(largest_tumor[0][:, :, idx], 0)
-        ax.imshow(volume[:, :, idx], cmap="gray")
-        for contour in contours:
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
-        plt.show()
+            contours = find_contours(largest_tumor[0][:, :, idx], 0)
+            for contour in contours:
+                ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
+            plt.show()
+            fig, ax = plt.subplots()
+
+        elif mode=='slice':
+            major_axis(volume, largest_tumor[0], ax)
+
+            contours = find_contours(mask, 0)
+            for contour in contours:
+                ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
 
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
+    plt.show()
 
-
-def major_axis_slice(volume_slice, mask_slice, ax):
-    """
-    remove all tumors in specific slice except the largest one and call major_axis function for it, then removes it and repeat.
-    in order to call major_axis independently for each tumor in slice
-
-    Parameters
-    ----------
-    volume_slice: np array
-            a specific slice from patient volume
-    mask_slice: nparray
-            a specific slice from patient tumor mask ( 0: background , 1: tumor)
-    ax: matplotlip axis
-            the axis to plot the axes on to make all axes on same axis
-
-    """
-    ax.imshow(volume_slice, cmap="gray")
-    global first_tumor
-    first_tumor = True
-
-    while np.unique(mask_slice).any() == 1:
-        temp_mask = mask_slice.clone()
-        temp_mask = EnsureChannelFirst()(temp_mask)
-        largest_tumor = KeepLargestConnectedComponent()(temp_mask)
-        major_axis(volume_slice, largest_tumor[0], ax)
-        mask_slice = subtract(mask_slice, largest_tumor[0])
-        first_tumor = False
 
 
 def major_axis(volume_slice, mask_slice, ax):
@@ -189,7 +171,7 @@ def major_axis(volume_slice, mask_slice, ax):
     dmin_2 = distances_pc2.min()
 
     # the total diameter is the difference in these distances
-    x, y, z = find_pix_dim(volume_slice)
+    x, y, z = visualization.find_pix_dim() # may Be optimized later ( redundant calculation )
     print("Distance along major axis:", (dmax_1 - dmin_1) * x)
     print("Distance along minor axis:", (dmax_2 - dmin_2) * y)
 
@@ -277,6 +259,7 @@ def get_bounding_box(mask_slice, crop_margin=0):
     xmin, ymin, xmax, ymax = 0, 0, 0, 0
 
     for row in range(mask_slice.shape[0]):
+
         if mask_slice[row, :].max() != 0:
             ymin = row + crop_margin
             break
@@ -296,7 +279,6 @@ def get_bounding_box(mask_slice, crop_margin=0):
         if mask_slice[:, col].max() != 0:
             xmax = col + crop_margin
             break
-
     return xmin, ymin, xmax, ymax
 
 
@@ -326,9 +308,9 @@ def plot_bbox_image(mask_slice, crop_margin=0,j=-1):
 
         mask_slice = subtract(mask_slice, largest_tumor[0])
 
-    colors = get_colors()
+    colors = visualization.get_colors()
     print("Tumors Number = ", len(dimensions))
-    x_dim, y_dim, z_dim = find_pix_dim(mask_slice)
+    x_dim, y_dim, z_dim = visualization.find_pix_dim() # again same calculation
     for i in range(len(dimensions)):
 
         if(j!=-1):
@@ -366,7 +348,7 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
-        idx = calculate_largest_tumor(volume, largest_tumor[0])
+        idx = visualization.calculate_largest_tumor(largest_tumor[0])
         plt.imshow(volume[:, :, idx], cmap="gray")
         plot_bbox_image(largest_tumor[0][:, :, idx], crop_margin,i)
         i = i + 1
@@ -450,10 +432,7 @@ def plot_tumor(volume_slice, mask_slice):
 
     major_axis(croped_image, croped_masks, ax[2])
 
-    croped_masks = crop_to_bbox(mask, bbox, crop_margin=0)
-    croped_masks = cv.resize(
-        croped_masks, dsize=(512, 512), interpolation=cv.INTER_CUBIC
-    )
+
 
     for axis in ["top", "bottom", "left", "right"]:
         ax[1].spines[axis].set_color("red")
@@ -462,10 +441,10 @@ def plot_tumor(volume_slice, mask_slice):
         ax[1].spines[axis].set_linewidth(1)
         ax[2].spines[axis].set_linewidth(1)
 
-        ax[1].axes.get_yaxis().set_visible(False)
-        ax[1].axes.get_xaxis().set_visible(False)
-        ax[2].axes.get_yaxis().set_visible(False)
-        ax[2].axes.get_xaxis().set_visible(False)
+    ax[1].axes.get_yaxis().set_visible(False)
+    ax[1].axes.get_xaxis().set_visible(False)
+    ax[2].axes.get_yaxis().set_visible(False)
+    ax[2].axes.get_xaxis().set_visible(False)
 
     plt.subplots_adjust(wspace=0.02)
     plt.show()
@@ -490,7 +469,7 @@ def plot_tumor_volume(volume, mask):
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
-        idx = calculate_largest_tumor(volume, largest_tumor[0])
+        idx = visualization.calculate_largest_tumor(largest_tumor[0])
         plot_tumor(volume[:, :, idx], largest_tumor[0][:, :, idx])
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
