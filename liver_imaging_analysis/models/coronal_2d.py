@@ -2,7 +2,6 @@ from config import config
 from engine import Engine
 import SimpleITK
 import cv2
-import torch
 import shutil
 import os
 from monai.metrics import DiceMetric
@@ -24,7 +23,7 @@ from torch.utils.tensorboard import SummaryWriter
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice=DiceMetric(ignore_empty=False)
 
-class SagittalSegmentation2D(Engine):
+class CoronalSegmentation2D(Engine):
     """
 
     A class that must be used when you want to run the liver segmentation engine,
@@ -33,17 +32,15 @@ class SagittalSegmentation2D(Engine):
     """
     def __init__(self):
         config.device="mps"  # for macOS
-        config.network_parameters['dropout']= 0
-        config.network_parameters['num_res_units']=  2
-        config.network_parameters['norm']= "batch"
-        config.network_parameters['bias']= 0
-        config.training['batch_size']=16
-        config.training['optimizer_parameters']['lr']=.001
-        config.training['scheduler_parameters']['step_size']=10
-        config.training['scheduler_parameters']['verbose']=0
-        config.training['scheduler_parameters']['gamma']=0
+        config.network_parameters['dropout']= 0.4
+        config.network_parameters['num_res_units']=  4
+        config.network_parameters['norm']= "INSTANCE"
+        config.network_parameters['bias']= 1
+        config.training['batch_size']=12
+        config.training['optimizer_parameters']['lr']=.01
+        
         super().__init__()
-    
+
     def get_pretraining_transforms(self, transform_name, keys):
         """
         Function used to define the needed transforms for the training data
@@ -132,6 +129,7 @@ class SagittalSegmentation2D(Engine):
                     LoadImageD(keys, allow_missing_keys=True),
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True),
+                    
                     # RandFlipd(keys, prob=0.5, spatial_axis=1, allow_missing_keys=True),
                     # RandRotated(keys,range_x=1.5, range_y=0, range_z=0, prob=0.5, allow_missing_keys=True),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True, allow_missing_keys=True),
@@ -146,7 +144,6 @@ class SagittalSegmentation2D(Engine):
             ),
         }
         return transforms[transform_name]
-    
     def predict_2dto3d(self, volume_path,temp_path="temp/"):
         """
         predicts the label of a 3D volume using a 2D network
@@ -166,20 +163,20 @@ class SagittalSegmentation2D(Engine):
         #read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
-        number_of_slices = img_volume_array.shape[2]
+        number_of_slices = img_volume_array.shape[1]
         #create temporary folder to store 2d png files 
         if os.path.exists(temp_path) == False:
           os.mkdir(temp_path)
         #write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[: , :, slice_number]
+            volume_silce = img_volume_array[:, slice_number , :]
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
         #predict slices individually then reconstruct 3d prediction
         prediction=self.predict(temp_path)
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
-        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        prediction=prediction.permute(1,0, 2,3).unsqueeze(dim=0) 
         #delete temporary folder
         shutil.rmtree(temp_path)
         return prediction

@@ -5,24 +5,26 @@ a module contains the fixed structure of the core of our code
 import os
 import random
 import gc 
-from engine import dataloader
-from engine import losses
-from engine import models
+import dataloader
+import losses
+import models
 import numpy as np
 import torch
 import torch.optim.lr_scheduler
-from engine.config import config
+from config import config
+
 import monai
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
-from engine.utils import progress_bar
+from utils import progress_bar
 from monai.metrics import DiceMetric
 import natsort
 import SimpleITK
 import cv2
 import shutil
+from monai.transforms import Resize
 
 class Engine:
     """
@@ -56,7 +58,16 @@ class Engine:
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
         )
-        self.load_data()
+        self.keys = (config.transforms["img_key"], config.transforms["label_key"])
+        self.train_transform = self.get_pretraining_transforms(
+            config.transforms["train_transform"], self.keys
+        )
+        self.test_transform = self.get_pretesting_transforms(
+            config.transforms["test_transform"], self.keys
+        )
+        self.batch_size = config.training["batch_size"]
+
+        # self.load_data()
 
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -301,10 +312,10 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path,map_location=torch.device(self.device))
         self.network.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.scheduler.load_state_dict(checkpoint['scheduler']) 
 
 
     def compile_status(self):
@@ -482,6 +493,11 @@ class Engine:
                 volume = batch["image"].to(self.device)
                 pred = self.network(volume)
                 pred = (torch.sigmoid(pred) > 0.5).float()
+                # resized_tensor = torch.zeros(16 , 1 , 512 , 75)
+                # for i in range (pred.shape[0]):
+                #     resized_tensor[i] = Resize([512,75], mode="bilinear")(pred[i])
+                #     print(np.unique(resized_tensor[i]))
+                    
                 prediction_list.append(pred)
             prediction_list = torch.cat(prediction_list, dim=0)
 

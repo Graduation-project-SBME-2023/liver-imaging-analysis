@@ -352,3 +352,51 @@ def get_batch_names(batch,key):
             the key of the batch dict
     """
     return batch[f'{key}_meta_dict']['filename_or_obj']
+
+
+
+def nii2png_XYZ(plane,volume_nii_path, volume_save_path):
+
+    """
+    generates slices(with png extensions) for each view from volume (with nii extensions)
+    plane : xy for axial slices and so on
+    """
+    if os.path.exists(volume_save_path) == False:
+        os.mkdir(volume_save_path)
+    img_volume = sitk.ReadImage(volume_nii_path)
+    img_volume_array = sitk.GetArrayFromImage(img_volume)
+    original_image_shape = img_volume_array.shape
+
+    if plane == "xy":
+        number_of_slices = img_volume_array.shape[0]
+    if plane == "xz":
+        number_of_slices = img_volume_array.shape[1]
+    if plane == "yz":
+        number_of_slices = img_volume_array.shape[2]
+
+
+    for slice_number in range(number_of_slices):
+        if plane == "xy":
+            volume_silce = img_volume_array[slice_number, :, :]
+            
+        if plane == "xz":
+            volume_silce = img_volume_array[:,slice_number, :]
+            
+        if plane == "yz":
+            volume_silce = img_volume_array[:, :, slice_number]
+            
+        volume_file_name = os.path.basename(volume_nii_path)
+        volume_file_name = os.path.splitext(volume_file_name)[0]  # delete extension from filename
+        
+        # name =  "defaultNameWithoutExtention_sliceNum.png"
+
+        volume_png_path = (
+            os.path.join(
+                volume_save_path, volume_file_name + "_" + str(slice_number)
+            )
+            + ".png"
+        )
+        
+        cv.imwrite(volume_png_path, volume_silce)
+           
+    return original_image_shape  
