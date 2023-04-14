@@ -412,8 +412,8 @@ class Engine:
             # every evaluate_epochs, test model on test set
             if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-                if save_weight:
-                    self.save_checkpoint(save_path)
+            if save_weight:
+                self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
