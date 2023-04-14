@@ -55,7 +55,7 @@ class SpleenSegmentation:
             norm="BATCH",
         )
         self.network.load_state_dict(
-            torch.load("D:/GP/Spleen/models/model.pt", map_location=torch.device("cpu"))
+            torch.load("D:/GP/Spleen/models/model.pt")
         )  # remove 'cpu' and path
         self.get_data("D:/GP/volumes/volume/")
 
@@ -136,7 +136,7 @@ class SpleenSegmentation:
                         meta_key_postfix="meta_dict",
                         nearest_interp=False,
                         to_tensor=True,
-                        device="cpu",
+                        device="cuda",
                     ),
                     Activationsd(keys="pred", softmax=True),
                     AsDiscreted(keys="pred", argmax=True, to_onehot=2),
@@ -163,7 +163,7 @@ class SpleenSegmentation:
 
         post_transforms = self.get_postprocessing_transforms()
         self.network.eval()
-        device = "cpu"
+        device = "cuda"
         batches = []
         with torch.no_grad():
             for batch in self.test_loader:

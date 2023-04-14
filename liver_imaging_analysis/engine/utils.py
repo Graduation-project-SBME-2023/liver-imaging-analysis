@@ -16,6 +16,23 @@ import cv2
 rc("animation", html="html5")
 
 def concatenate_masks(mask1,mask2,volume):
+    """
+        a function to merge two masks and use them to supress all other regions of the volume
+        except the concatenated ROI
+
+        Parameters
+        ----------
+        mask1: np array
+            array contains first mask data
+        mask2: np array
+            array contains second mask data
+        volume: np array
+            array contains the original volume data
+        Return
+        ----------
+        vol: array
+            the volume with specified ROI values only
+    """
     assert mask1.shape == mask2.shape == volume.shape, "Input shapes do not match"
 
     # Use logical OR to concatenate the masks and threshold the result to obtain a binary mask
@@ -29,13 +46,36 @@ def concatenate_masks(mask1,mask2,volume):
     return vol
 
 def mask_average(volume,mask):
+    """
+        a function to find the average value of a specific ROI in volume
+        Parameters
+        ----------
+        volume: np array
+            array contains the volume data
+        mask: np array
+            array contains the mask data ( ROI )
+        Return
+        ----------
+        average: float
+            the average value of the ROI
+    """
     masked=np.multiply(volume,mask)
     masked=masked[masked!=0]
     average=masked.mean()
     return average
 
 def transform_to_hu(path):
-
+    """
+        a function to transform the input nfti to its Hounsfield values
+        Parameters
+        ----------
+        path: string
+            the path of the input nfti file
+        Return
+        ----------
+        HU_data: numpy array
+            the array contains the data of input volume calibrated to Hounsfield 
+    """
 
     nifti_img = nib.load(path)
 
