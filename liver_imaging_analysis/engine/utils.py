@@ -12,10 +12,23 @@ import numpy as np
 import SimpleITK as sitk
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
-
+import cv2
 rc("animation", html="html5")
 
-def find_average(volume,mask):
+def concatenate_masks(mask1,mask2,volume):
+    assert mask1.shape == mask2.shape == volume.shape, "Input shapes do not match"
+
+    # Use logical OR to concatenate the masks and threshold the result to obtain a binary mask
+    conc = np.logical_or(mask1, mask2).astype(np.uint8)
+    # Multiply the binary mask with the original volume to obtain the segmented parts
+
+    vol=np.where(
+            conc==1,
+            volume,
+            volume.min()),#replace all nonliver voxels with background intensity    print(np.unique(vol))
+    return vol
+
+def mask_average(volume,mask):
     masked=np.multiply(volume,mask)
     masked=masked[masked!=0]
     average=masked.mean()
