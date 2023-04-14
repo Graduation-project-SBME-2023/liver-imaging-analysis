@@ -40,16 +40,17 @@
         "transformation_size": [512, 512],
         "img_key": "image",
         "label_key": "label",
+        "pred_key": "pred",
         "train_transform": "2DUnet_transform",
         "test_transform": "2DUnet_transform",
         "post_transform": "2DUnet_transform",
         "mode": "2D"
     },
     "save": {
-        "volume_png_path": "/content/Temp2D/volume/",
-        "mask_png_path": "/content/Temp2D/mask/",
-        "model_checkpoint": "model_checkpoint",
-        "potential_checkpoint": "potential_checkpoint",
+        "volume_png_path": "Temp2D/volume/",
+        "mask_png_path": "Temp2D/mask/",
+        "model_checkpoint": "checkpoints/model_checkpoint",
+        "potential_checkpoint": "checkpoints/potential_checkpoint",
         "tensorboard": "runs/"
     },
     "seed": 0

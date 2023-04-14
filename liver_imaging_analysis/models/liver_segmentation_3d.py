@@ -1,5 +1,5 @@
-from engine.config import config
-from engine.engine import Engine, set_seed
+from liver_imaging_analysis.engine.config import config
+from liver_imaging_analysis.engine.engine import Engine, set_seed
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -15,11 +15,11 @@ from monai.transforms import (
     RandAdjustContrastd,
     RandZoomd,
     CropForegroundd,
-    Activations,
-    AsDiscrete,
-    KeepLargestConnectedComponent,
-    RemoveSmallObjects,
-    FillHoles,
+    ActivationsD,
+    AsDiscreteD,
+    KeepLargestConnectedComponentD,
+    RemoveSmallObjectsD,
+    FillHolesD,
     ScaleIntensityRanged,
 )
 from monai.visualize import plot_2d_or_3d_image
@@ -159,7 +159,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name]
 
 
-    def get_postprocessing_transforms(self,transform_name):
+    def get_postprocessing_transforms(self,transform_name, keys):
         """
         Function used to define the needed post processing transforms for prediction correction
 
@@ -173,10 +173,10 @@ class LiverSegmentation(Engine):
 
         '3DUnet_transform': Compose(
             [
-                Activations(sigmoid=True),
-                AsDiscrete(threshold=0.5),
-                FillHoles(),
-                KeepLargestConnectedComponent(),   
+                ActivationsD(keys=keys[2], sigmoid=True),
+                AsDiscreteD(keys=keys[2], threshold=0.5),
+                FillHolesD(keys=keys[2]),
+                KeepLargestConnectedComponentD(keys=keys[2]),   
             ]
         )
         } 

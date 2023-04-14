@@ -4,25 +4,25 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
-import gc 
-from engine import dataloader
-from engine import losses
-from engine import models
+from liver_imaging_analysis.engine import dataloader
+from liver_imaging_analysis.engine import losses
+from liver_imaging_analysis.engine import models
 import numpy as np
 import torch
 import torch.optim.lr_scheduler
-from engine.config import config
+from liver_imaging_analysis.engine.config import config
 import monai
 from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
-from engine.utils import progress_bar
+from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric
 import natsort
 import SimpleITK
 import cv2
 import shutil
 from monai.transforms import Compose
+from monai.handlers.utils import from_engine
 
 class Engine:
     """
@@ -33,7 +33,6 @@ class Engine:
     def __init__(self):
 
         self.device = config.device
-        self.keys = (config.transforms["img_key"], config.transforms["label_key"])
         self.batch_size = config.training["batch_size"]
         self.loss = self.get_loss(
             loss_name=config.training["loss_name"],
@@ -56,14 +55,16 @@ class Engine:
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
         )
+        keys = (config.transforms["img_key"], config.transforms["label_key"])
         self.train_transform = self.get_pretraining_transforms(
-            config.transforms["train_transform"], self.keys
+            config.transforms["train_transform"], keys
         )
         self.test_transform = self.get_pretesting_transforms(
-            config.transforms["test_transform"], self.keys
+            config.transforms["test_transform"], keys
         )
+        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.postprocessing_transforms=self.get_postprocessing_transforms(
-             config.transforms["post_transform"]
+             config.transforms["post_transform"], keys
         )
 
 
@@ -199,7 +200,7 @@ class Engine:
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
-
+        keys = (config.transforms["img_key"], config.transforms["label_key"])
         trainloader = dataloader.DataLoader(
             dataset_path=config.dataset["training"],
             batch_size=config.training["batch_size"],
@@ -208,7 +209,7 @@ class Engine:
             num_workers=0,
             pin_memory=False,
             test_size=config.training["train_valid_split"],
-            keys=self.keys,
+            keys=keys,
             mode=config.dataset["mode"],
             shuffle=config.training["shuffle"]
         )
@@ -220,7 +221,7 @@ class Engine:
             num_workers=0,
             pin_memory=False,
             test_size=1,  # testing set should all be set as evaluation (no training)
-            keys=self.keys,
+            keys=keys,
             mode=config.dataset["mode"],
             shuffle=config.training["shuffle"]
         )
@@ -370,11 +371,8 @@ class Engine:
         per_epoch_callback: method
             a function that contains the code to be executed after each epoch
         """
-        best_valid_loss = float("inf")  # initialization with largest possible number
-
+        keys = (config.transforms["img_key"], config.transforms["label_key"], config.transforms["pred_key"])
         for epoch in range(epochs):
-            gc.collect()
-            torch.cuda.empty_cache() #free gpu
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric=0
@@ -382,12 +380,15 @@ class Engine:
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
-                volume, mask = batch["image"].to(self.device), batch["label"].to(
-                    self.device
-                )
-                pred = self.network(volume)
-                loss = self.loss(pred, mask)
-                self.metrics((torch.sigmoid(pred)>0.5).int(), mask.int())
+                volume = batch[keys[0]].to(self.device)
+                mask= batch[keys[1]].to(self.device)
+                batch[keys[2]] = self.network(volume)
+                loss = self.loss(batch[keys[2]], mask)
+                #Apply post processing transforms and calculate metrics
+                post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+                batch[keys[2]] = from_engine(keys[2])(post_batch)
+                batch[keys[2]]= torch.stack(batch[keys[2]],dim=0)
+                self.metrics(batch[keys[2]].int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -399,22 +400,19 @@ class Engine:
                                 batch_num,
                                 volume,
                                 mask,
-                                (torch.sigmoid(pred) > 0.5).float(),  # predicted mask after thresholding
+                                batch[keys[2]].float(),  # predicted mask after thresholding
                             )
             self.scheduler.step()
-            training_loss = training_loss / len(
-                self.train_dataloader
-            )  # normalize loss over batch size
+            # normalize loss over batch size
+            training_loss = training_loss / len(self.train_dataloader)  
             # aggregate the final mean dice result
             training_metric = self.metrics.aggregate().item() # total epoch metric
             # reset the status for next computation round
             self.metrics.reset()
-            if (
-                epoch + 1
-            ) % evaluate_epochs == 0:  # every evaluate_epochs, test model on test set
+            # every evaluate_epochs, test model on test set
+            if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-                if save_weight and (valid_loss <= best_valid_loss):  # save model if performance improved on validation set
-                    best_valid_loss = valid_loss
+                if save_weight:
                     self.save_checkpoint(save_path)
             else:
                 valid_loss = None
@@ -426,6 +424,7 @@ class Engine:
                     training_metric,
                     valid_metric,
                 )
+
 
     def test(self, dataloader= None, callback=False):
         """
@@ -440,23 +439,24 @@ class Engine:
         """
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
+        keys = (config.transforms["img_key"], config.transforms["label_key"], config.transforms["pred_key"])
         num_batches = len(dataloader)
         test_loss = 0
         test_metric=0
         self.network.eval()
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
-                volume, mask = batch["image"].to(self.device), batch["label"].to(
-                    self.device
-                )
-                pred = self.network(volume)
-                test_loss += self.loss(pred, mask).item()
+                volume = batch[keys[0]].to(self.device)
+                mask= batch[keys[1]].to(self.device)
+                batch[keys[2]] = self.network(volume)
+                test_loss += self.loss(batch[keys[2]], mask).item()
                 #Apply post processing transforms on 2D prediction
-                pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
-                pred=torch.stack(pred)
-                self.metrics(pred.int(), mask.int()).mean().item()
+                post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+                batch[keys[2]] = from_engine(keys[2])(post_batch)
+                batch[keys[2]]= torch.stack(batch[keys[2]],dim=0)
+                self.metrics(batch[keys[2]].int(), mask.int())
                 if callback:
-                  self.per_batch_callback(batch_num,volume,mask,pred.float())
+                  self.per_batch_callback(batch_num,volume,mask,batch[keys[2]].float())
             test_loss /= num_batches
             # aggregate the final mean dice result
             test_metric = self.metrics.aggregate().item() # total epoch metric
@@ -477,11 +477,12 @@ class Engine:
         tensor
             tensor of the predicted labels
         """
+        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
-            predict_files = [{"image": image_name} for image_name in volume_paths]
+            predict_files = [{keys[0]: image_name} for image_name in volume_paths]
             predict_set = Dataset(data=predict_files, transform=self.test_transform)
             predict_loader = MonaiLoader(
                 predict_set,
@@ -491,59 +492,16 @@ class Engine:
             )
             prediction_list = []
             for batch in predict_loader:
-                volume = batch["image"].to(self.device)
-                pred = self.network(volume)
+                volume = batch[keys[0]].to(self.device)
+                batch[keys[1]] = self.network(volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
-                    pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
-                    pred=torch.stack(pred)        
-                prediction_list.append(pred)
+                    post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+                    batch[keys[1]] = from_engine(keys[1])(post_batch)
+                    batch[keys[1]]= torch.stack(batch[keys[1]],dim=0)
+                prediction_list.append(batch[keys[1]])
             prediction_list = torch.cat(prediction_list, dim=0)
-
         return prediction_list
-
-
-
-    def predict_2dto3d(self, volume_path,temp_path="temp/"):
-        """
-        predicts the label of a 3D volume using a 2D network
-        Parameters
-        ----------
-        volume_path: str
-            path of the input file. expects a 3D nifti file.
-        temp_path: str
-            a temporary path to save 3d volume as 2d png slices. default is "temp/"
-            automatically deleted before returning the prediction
-
-        Returns
-        -------
-        tensor
-            tensor of the predicted labels with shape (1,channel,length,width,depth) 
-        """
-        #read volume
-        img_volume = SimpleITK.ReadImage(volume_path)
-        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
-        number_of_slices = img_volume_array.shape[0]
-        #create temporary folder to store 2d png files 
-        if os.path.exists(temp_path) == False:
-          os.mkdir(temp_path)
-        #write volume slices as 2d png files 
-        for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number, :, :]
-            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
-            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
-            cv2.imwrite(volume_png_path, volume_silce)
-        #predict slices individually then reconstruct 3D prediction
-        prediction=self.predict(temp_path)
-        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
-        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
-        #Apply post processing transforms on 3D prediction
-        if (config.transforms['mode']=="3D"):
-            prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
-            prediction=torch.stack(prediction)
-        #delete temporary folder
-        shutil.rmtree(temp_path)
-        return prediction
 
 
 def set_seed():

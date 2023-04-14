@@ -1,5 +1,5 @@
-from engine.config import config
-from engine.engine import Engine, set_seed
+from liver_imaging_analysis.engine.config import config
+from liver_imaging_analysis.engine.engine import Engine, set_seed
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -15,19 +15,43 @@ from monai.transforms import (
     RandAdjustContrastd,
     RandZoomd,
     CropForegroundd,
-    Activations,
-    AsDiscrete,
-    KeepLargestConnectedComponent,
-    RemoveSmallObjects,
-    FillHoles,
+    ActivationsD,
+    AsDiscreteD,
+    KeepLargestConnectedComponentD,
+    RemoveSmallObjectsD,
+    FillHolesD,
     ScaleIntensityRanged,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
+import os
+from monai.data import DataLoader as MonaiLoader
+from monai.data import Dataset,decollate_batch
+import torch
+import numpy as np
+from monai.transforms import ToTensor
+import SimpleITK
+import cv2
+import shutil
+import natsort
+from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+
+def set_configs():
+    config.dataset['prediction']="test cases/sample_image"
+    config.training['batch_size']=8
+    config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
+    config.network_parameters['dropout']= 0
+    config.network_parameters['channels']= [64, 128, 256, 512]
+    config.network_parameters['strides']=  [2, 2, 2]
+    config.network_parameters['num_res_units']=  4
+    config.network_parameters['norm']= "INSTANCE"
+    config.network_parameters['bias']= 1
+    config.save['liver_checkpoint']= 'liver_cp'
+    config.transforms['mode']= "3D"
 
 
 class LiverSegmentation(Engine):
@@ -37,20 +61,8 @@ class LiverSegmentation(Engine):
      contains the transforms required by the user and the function that is used to start training
 
     """
-
-
     def __init__(self):
-        config.dataset['prediction']="test cases/sample_image"
-        config.training['batch_size']=8
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
-        config.network_parameters['bias']= 1
-        config.save['liver_checkpoint']= 'liver_cp'
-        config.transforms['mode']= "3D"
+        set_configs()
         super().__init__()
     
     def get_pretraining_transforms(self, transform_name, keys):
@@ -164,7 +176,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name]
 
 
-    def get_postprocessing_transforms(self,transform_name):
+    def get_postprocessing_transforms(self,transform_name, keys):
         """
         Function used to define the needed post processing transforms for prediction correction
 
@@ -178,10 +190,10 @@ class LiverSegmentation(Engine):
 
         '2DUnet_transform': Compose(
             [
-                Activations(sigmoid=True),
-                AsDiscrete(threshold=0.5),
-                FillHoles(),
-                KeepLargestConnectedComponent(),   
+                ActivationsD(keys[1],sigmoid=True),
+                AsDiscreteD(keys[1],threshold=0.5),
+                FillHolesD(keys[1]),
+                KeepLargestConnectedComponentD(keys[1]),   
             ]
         )
         } 
@@ -226,6 +238,50 @@ class LiverSegmentation(Engine):
 
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+
+
+    def predict_2dto3d(self, volume_path,temp_path="temp/"):
+        """
+        predicts the label of a 3D volume using a 2D network
+        Parameters
+        ----------
+        volume_path: str
+            path of the input file. expects a 3D nifti file.
+        temp_path: str
+            a temporary path to save 3d volume as 2d png slices. default is "temp/"
+            automatically deleted before returning the prediction
+
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels with shape (1,channel,length,width,depth) 
+        """
+        keys = (config.transforms["img_key"], config.transforms["pred_key"])
+        #read volume
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        #create temporary folder to store 2d png files 
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        #write volume slices as 2d png files 
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        #predict slices individually then reconstruct 3D prediction
+        pred_dict={keys[1]:self.predict(temp_path)}
+        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
+        pred_dict[keys[1]]=pred_dict[keys[1]].permute(1,2,3,0).unsqueeze(dim=0) 
+        #Apply post processing transforms on 3D prediction
+        if (config.transforms['mode']=="3D"):
+            postpred_dict = [self.postprocessing_transforms(i) for i in decollate_batch(pred_dict)]
+            pred_dict[keys[1]] = from_engine(keys[1])(postpred_dict)   
+            pred_dict[keys[1]]= torch.stack(pred_dict[keys[1]],dim=0)
+        #delete temporary folder
+        shutil.rmtree(temp_path)
+        return pred_dict[keys[1]]
 
 
 

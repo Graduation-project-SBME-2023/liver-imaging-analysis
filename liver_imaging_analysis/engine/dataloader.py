@@ -4,7 +4,7 @@ a module to create a dataloader for our dataset and apply the selected preproces
 """
 import os
 
-from engine.config import config
+from liver_imaging_analysis.engine.config import config
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from sklearn.model_selection import train_test_split

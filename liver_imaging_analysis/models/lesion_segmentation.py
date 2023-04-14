@@ -1,5 +1,5 @@
-from engine.config import config
-from engine.engine import Engine, set_seed
+from liver_imaging_analysis.engine.config import config
+from liver_imaging_analysis.engine.engine import Engine, set_seed
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -15,11 +15,11 @@ from monai.transforms import (
     RandAdjustContrastd,
     RandZoomd,
     CropForegroundd,
-    Activations,
-    AsDiscrete,
-    KeepLargestConnectedComponent,
-    RemoveSmallObjects,
-    FillHoles,
+    ActivationsD,
+    AsDiscreteD,
+    KeepLargestConnectedComponentD,
+    RemoveSmallObjectsD,
+    FillHolesD,
     ScaleIntensityRanged,
 )
 from monai.visualize import plot_2d_or_3d_image
@@ -31,15 +31,34 @@ from monai.data import Dataset,decollate_batch
 import torch
 import numpy as np
 from monai.transforms import ToTensor
-from models.liver_segmentation import LiverSegmentation
+from liver_imaging_analysis.models.liver_segmentation import LiverSegmentation
 import SimpleITK
 import cv2
 import shutil
 import natsort
+from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
+def set_configs():
+    config.dataset['prediction']="test cases/sample_image"
+    config.dataset['training']="Temp2D/Train/"
+    config.dataset['testing']="Temp2D/Test/"
+    config.training['batch_size']=8
+    config.training['optimizer_parameters']={"lr": 0.01}
+    config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
+    config.network_parameters['dropout']= 0
+    config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
+    config.network_parameters["out_channels"]= 1
+    config.network_parameters['strides']=  [2, 2, 2, 2, 2]
+    config.network_parameters['num_res_units']=  4
+    config.network_parameters['norm']= "BATCH"
+    config.network_parameters['bias']= 0
+    config.save['lesion_checkpoint']= 'lesion_cp'
+    config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
+    config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
+    config.transforms['mode']= "3D"
 
 class LesionSegmentation(Engine):
     """
@@ -49,23 +68,7 @@ class LesionSegmentation(Engine):
 
     """
     def __init__(self):
-        config.dataset['prediction']="test cases/sample_image"
-        config.dataset['training']="Temp2D/Train/"
-        config.dataset['testing']="Temp2D/Test/"
-        config.training['batch_size']=8
-        config.training['optimizer_parameters']={"lr": 0.01}
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
-        config.network_parameters["out_channels"]= 1
-        config.network_parameters['strides']=  [2, 2, 2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= 0
-        config.save['lesion_checkpoint']= 'lesion_cp'
-        config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
-        config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
-        config.transforms['mode']= "3D"
+        set_configs()
         super().__init__()
 
     
@@ -190,7 +193,7 @@ class LesionSegmentation(Engine):
         return transforms[transform_name]
 
 
-    def get_postprocessing_transforms(self,transform_name):
+    def get_postprocessing_transforms(self,transform_name, keys):
         """
         Function used to define the needed post processing transforms for prediction correction
 
@@ -201,13 +204,12 @@ class LesionSegmentation(Engine):
 
         """
         transforms= {
-
         '2DUnet_transform': Compose(
             [
-                Activations(sigmoid=True),
-                AsDiscrete(threshold=0.5),
-                RemoveSmallObjects(min_size=5),
-                FillHoles(),
+                ActivationsD(keys[1], sigmoid=True),
+                AsDiscreteD(keys[1], threshold=0.5),
+                RemoveSmallObjectsD(keys[1], min_size=5),
+                FillHolesD(keys[1]),
             ]
         )
         } 
@@ -267,11 +269,12 @@ class LesionSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
+        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
-            predict_files = [{"image": image_name} for image_name in volume_paths]
+            predict_files = [{keys[0]: image_name} for image_name in volume_paths]
             predict_set = Dataset(data=predict_files, transform=self.test_transform)
             predict_loader = MonaiLoader(
                 predict_set,
@@ -279,7 +282,6 @@ class LesionSegmentation(Engine):
                 num_workers=0,
                 pin_memory=False,
             )
-
             liver_set = Dataset(data=liver_mask)
             liver_loader = MonaiLoader(
                 liver_set,
@@ -287,22 +289,23 @@ class LesionSegmentation(Engine):
                 num_workers=0,
                 pin_memory=False,
             )
-
             prediction_list = []
             for batch,liver_mask_batch in zip(predict_loader,liver_loader):
-                volume = batch["image"].to(self.device)
+                volume = batch[keys[0]].to(self.device)
                 #isolate the liver and suppress other organs
                 suppressed_volume=np.where(liver_mask_batch==1,volume,volume.min())
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
-                pred = self.network(suppressed_volume)
+                batch[keys[1]] = self.network(suppressed_volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
-                    pred = [self.postprocessing_transforms(i) for i in decollate_batch(pred)]
-                    pred=torch.stack(pred)        
-                prediction_list.append(pred)
+                    post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+                    batch[keys[1]] = from_engine(keys[1])(post_batch)
+                    batch[keys[1]]= torch.stack(batch[keys[1]],dim=0)
+                prediction_list.append(batch[keys[1]])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
+    
     
     def predict_2dto3d(self, volume_path,liver_mask,temp_path="temp/"):
         """
@@ -320,6 +323,7 @@ class LesionSegmentation(Engine):
         tensor
             tensor of the predicted labels with shape (1,channel,length,width,depth) 
         """
+        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         #read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -333,17 +337,18 @@ class LesionSegmentation(Engine):
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
-        #predict slices individually then reconstruct 3d prediction
-        prediction=self.predict(temp_path,liver_mask)
+        #predict slices individually then reconstruct 3D prediction
+        pred_dict={keys[1]:self.predict(temp_path,liver_mask)}
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
-        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        pred_dict[keys[1]]=pred_dict[keys[1]].permute(1,2,3,0).unsqueeze(dim=0) 
         #Apply post processing transforms on 3D prediction
         if (config.transforms['mode']=="3D"):
-            prediction = [self.postprocessing_transforms(i) for i in decollate_batch(prediction)]
-            prediction=torch.stack(prediction)
+            postpred_dict = [self.postprocessing_transforms(i) for i in decollate_batch(pred_dict)]
+            pred_dict[keys[1]] = from_engine(keys[1])(postpred_dict)   
+            pred_dict[keys[1]]= torch.stack(pred_dict[keys[1]],dim=0)
         #delete temporary folder
         shutil.rmtree(temp_path)
-        return prediction
+        return pred_dict[keys[1]]
     
 
 def segment_lesion(*args):
