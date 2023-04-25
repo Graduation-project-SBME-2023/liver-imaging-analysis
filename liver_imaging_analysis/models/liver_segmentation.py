@@ -45,7 +45,6 @@ def set_configs(mode='2D'):
     if mode == '2D':
         config.dataset['prediction']="test cases/sample_image"
         config.training['batch_size']=8
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
         config.network_parameters['dropout']= 0
         config.network_parameters['channels']= [64, 128, 256, 512]
         config.network_parameters['strides']=  [2, 2, 2]

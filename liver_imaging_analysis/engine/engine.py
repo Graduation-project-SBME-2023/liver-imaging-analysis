@@ -33,6 +33,7 @@ class Engine:
 
         self.device = config.device
         self.batch_size = config.training["batch_size"]
+        print("Used Device: ", self.device)
         self.loss = self.get_loss(
             loss_name=config.training["loss_name"],
             **config.training["loss_parameters"],

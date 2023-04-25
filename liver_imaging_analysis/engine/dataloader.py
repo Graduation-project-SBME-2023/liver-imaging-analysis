@@ -171,6 +171,7 @@ class DataLoader:
         shuffle=False
         if len(self.train_ds)!=0:
           shuffle=self.shuffle
+        print("shuffe:",shuffle)
         train_loader = MonaiLoader(
             self.train_ds,
             batch_size=self.batch_size,
@@ -192,6 +193,7 @@ class DataLoader:
         shuffle=False
         if len(self.test_ds)!=0:
           shuffle=self.shuffle
+        print("shuffe:",shuffle)
         test_loader = MonaiLoader(
             self.test_ds,
             batch_size=self.batch_size,
