@@ -71,19 +71,19 @@ class ViewSegmentation():
     def get_segmentation(self):
         sagittal_plane = "yz" 
         sagittal_model=SagittalSegmentation2D()
-        sagittal_model.load_checkpoint("/Users/mn3n3/Documents/GP/2D_sagittal_checkpoint_newformat")
+        sagittal_model.load_checkpoint("/Users/mn3n3/Documents/GP/model_checkpoints/sagittal_checkpoint")
         sagittal_prediction = sagittal_model.predict(f"{self.slices_2d_path}/volume_sagittal")
         sagittal_prediction = self.reorder_dims(sagittal_plane , sagittal_prediction)
 
         coronal_plane = "xz"
         coronal_model = CoronalSegmentation2D()
-        coronal_model.load_checkpoint("/Users/mn3n3/Documents/GP/coronal_checkpoint")
+        coronal_model.load_checkpoint("/Users/mn3n3/Documents/GP/model_checkpoints/coronal_checkpoint")
         coronal_prediction = coronal_model.predict(f"{self.slices_2d_path}/volume_coronal")
         coronal_prediction = self.reorder_dims(coronal_plane , coronal_prediction)
 
         axial_plane = "xy"
         axial_model = AxialSegmentation2D()
-        axial_model.load_checkpoint("/Users/mn3n3/Documents/GP/axial_checkpoint_2")
+        axial_model.load_checkpoint("/Users/mn3n3/Documents/GP/model_checkpoints/axial_checkpoint")
         axial_prediction = axial_model.predict(f"{self.slices_2d_path}/volume_axial")
         axial_prediction = self.reorder_dims(axial_plane ,axial_prediction )
 
