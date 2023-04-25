@@ -49,8 +49,8 @@
     "save": {
         "volume_png_path": "Temp2D/volume/",
         "mask_png_path": "Temp2D/mask/",
-        "model_checkpoint": "checkpoints/model_checkpoint",
-        "potential_checkpoint": "checkpoints/potential_checkpoint",
+        "model_checkpoint": "model_checkpoint",
+        "potential_checkpoint": "potential_checkpoint",
         "tensorboard": "runs/"
     },
     "seed": 0

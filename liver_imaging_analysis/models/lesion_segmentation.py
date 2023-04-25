@@ -36,6 +36,7 @@ import SimpleITK
 import cv2
 import shutil
 import natsort
+import nibabel as nib
 from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
@@ -323,18 +324,18 @@ class LesionSegmentation(Engine):
         """
         keys = (config.transforms["img_key"], config.transforms["pred_key"])
         #read volume
-        img_volume = SimpleITK.ReadImage(volume_path)
-        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
-        number_of_slices = img_volume_array.shape[0]
+        img_volume_array=nib.load(volume_path).get_fdata()
+        number_of_slices = img_volume_array.shape[2]
         #create temporary folder to store 2d png files 
         if os.path.exists(temp_path) == False:
           os.mkdir(temp_path)
         #write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number,:, :]
+            volume_silce = img_volume_array[:, :,slice_number]
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
-            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
-            cv2.imwrite(volume_png_path, volume_silce)
+            nii_volume_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".nii.gz")
+            new_nii_volume = nib.Nifti1Image(volume_silce, affine=np.eye(4))
+            nib.save(new_nii_volume, nii_volume_path)
         #predict slices individually then reconstruct 3D prediction
         batch={keys[1]:self.predict(temp_path,liver_mask)}
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
@@ -390,6 +391,7 @@ def train_lesion(*args):
     """
     set_seed()
     model = LesionSegmentation()
+    model.load_data()
     model.data_status()
     # model.load_checkpoint(config.save["potential_checkpoint"])
     print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE

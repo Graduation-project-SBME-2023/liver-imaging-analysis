@@ -368,6 +368,7 @@ def train_liver(*args):
     """
     set_seed()
     model = LiverSegmentation()
+    model.load_data()
     model.data_status()
     # model.load_checkpoint(config.save["potential_checkpoint"])
     print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
