@@ -29,7 +29,6 @@ class Engine:
     Class that implements the basic PyTorch methods for deep learning tasks
     tasks should inherit this class
     """
-
     def __init__(self):
 
         self.device = config.device
@@ -189,6 +188,23 @@ class Engine:
         return Compose([])
 
 
+    def post_process(self, batch, key):
+        """
+        Applies the stack of post processing transformations defined in get_postprocessing_transforms
+
+        Parameters
+        ----------
+        batch: dict
+            a dictionary containing the model's output to be post-processed
+        key: str
+            dictionary key of model's ouput
+        """
+        post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+        batch[key] = from_engine(key)(post_batch)
+        batch[key]= torch.stack(batch[key],dim=0)
+        return batch
+    
+
     def load_data(
         self,
     ):
@@ -333,7 +349,7 @@ class Engine:
           """
           pass
 
-
+    
     def per_epoch_callback(self, *args, **kwargs):
         """
         A generic callback function to be executed every epoch.
@@ -385,9 +401,7 @@ class Engine:
                 batch[keys[2]] = self.network(volume)
                 loss = self.loss(batch[keys[2]], mask)
                 #Apply post processing transforms and calculate metrics
-                post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
-                batch[keys[2]] = from_engine(keys[2])(post_batch)
-                batch[keys[2]]= torch.stack(batch[keys[2]],dim=0)
+                batch= self.post_process(batch,keys[2])
                 self.metrics(batch[keys[2]].int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -400,7 +414,7 @@ class Engine:
                                 batch_num,
                                 volume,
                                 mask,
-                                batch[keys[2]].float(),  # predicted mask after thresholding
+                                batch[keys[2]],  # predicted mask after thresholding
                             )
             self.scheduler.step()
             # normalize loss over batch size
@@ -451,19 +465,17 @@ class Engine:
                 batch[keys[2]] = self.network(volume)
                 test_loss += self.loss(batch[keys[2]], mask).item()
                 #Apply post processing transforms on 2D prediction
-                post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
-                batch[keys[2]] = from_engine(keys[2])(post_batch)
-                batch[keys[2]]= torch.stack(batch[keys[2]],dim=0)
+                batch= self.post_process(batch,keys[2])
                 self.metrics(batch[keys[2]].int(), mask.int())
                 if callback:
-                  self.per_batch_callback(batch_num,volume,mask,batch[keys[2]].float())
+                  self.per_batch_callback(batch_num,volume,mask,batch[keys[2]])
             test_loss /= num_batches
             # aggregate the final mean dice result
             test_metric = self.metrics.aggregate().item() # total epoch metric
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
-
+    
 
     def predict(self, data_dir):
         """
@@ -496,9 +508,7 @@ class Engine:
                 batch[keys[1]] = self.network(volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
-                    post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
-                    batch[keys[1]] = from_engine(keys[1])(post_batch)
-                    batch[keys[1]]= torch.stack(batch[keys[1]],dim=0)
+                    batch= self.post_process(batch,keys[1])
                 prediction_list.append(batch[keys[1]])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list

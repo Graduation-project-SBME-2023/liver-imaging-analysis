@@ -208,7 +208,7 @@ class LesionSegmentation(Engine):
             [
                 ActivationsD(keys[1], sigmoid=True),
                 AsDiscreteD(keys[1], threshold=0.5),
-                RemoveSmallObjectsD(keys[1], min_size=5),
+                # RemoveSmallObjectsD(keys[1], min_size=5),
                 FillHolesD(keys[1]),
             ]
         )
@@ -299,9 +299,7 @@ class LesionSegmentation(Engine):
                 batch[keys[1]] = self.network(suppressed_volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
-                    post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
-                    batch[keys[1]] = from_engine(keys[1])(post_batch)
-                    batch[keys[1]]= torch.stack(batch[keys[1]],dim=0)
+                    batch= self.post_process(batch,keys[1])
                 prediction_list.append(batch[keys[1]])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -338,17 +336,15 @@ class LesionSegmentation(Engine):
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
         #predict slices individually then reconstruct 3D prediction
-        pred_dict={keys[1]:self.predict(temp_path,liver_mask)}
+        batch={keys[1]:self.predict(temp_path,liver_mask)}
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
-        pred_dict[keys[1]]=pred_dict[keys[1]].permute(1,2,3,0).unsqueeze(dim=0) 
+        batch[keys[1]]=batch[keys[1]].permute(1,2,3,0).unsqueeze(dim=0) 
         #Apply post processing transforms on 3D prediction
         if (config.transforms['mode']=="3D"):
-            postpred_dict = [self.postprocessing_transforms(i) for i in decollate_batch(pred_dict)]
-            pred_dict[keys[1]] = from_engine(keys[1])(postpred_dict)   
-            pred_dict[keys[1]]= torch.stack(pred_dict[keys[1]],dim=0)
+            batch= self.post_process(batch,keys[1])
         #delete temporary folder
         shutil.rmtree(temp_path)
-        return pred_dict[keys[1]]
+        return batch[keys[1]]
     
 
 def segment_lesion(*args):
