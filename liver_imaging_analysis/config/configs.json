@@ -1,10 +1,11 @@
 {
-    "device": "cuda",
+    "device": "mps",
     "dataset": {
         "mode":"2D",
         "training": "Temp2D/Train/",
         "testing": "Temp2D/Test/",
-        "unittest": "Temp2D/Test/"
+        "unittest": "Temp2D/Test/",
+        "slices_2d_path":"/Users/mn3n3/Documents/GP/Temp2D"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,

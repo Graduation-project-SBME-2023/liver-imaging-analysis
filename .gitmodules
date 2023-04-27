@@ -1,0 +1,3 @@
+[submodule "Liver-Segmentation-Website"]
+	path = Liver-Segmentation-Website
+	url = https://github.com/Graduation-project-SBME-2023/Liver-Segmentation-Website.git

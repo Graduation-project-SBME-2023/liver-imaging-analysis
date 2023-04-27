@@ -3,7 +3,9 @@
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+
 from liver_imaging_analysis.engine.buildingblocks import ExtResNetBlock, create_decoders, create_encoders
+
 
 
 def number_of_features_per_level(init_channel_number, num_levels):

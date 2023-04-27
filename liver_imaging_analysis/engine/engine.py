@@ -4,6 +4,7 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
+
 from liver_imaging_analysis.engine import dataloader
 from liver_imaging_analysis.engine import losses
 from liver_imaging_analysis.engine import models
@@ -11,18 +12,23 @@ import numpy as np
 import torch
 import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
+import gc 
 import monai
 from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
 from torchmetrics import Accuracy, Dice, JaccardIndex
+
 from liver_imaging_analysis.engine.utils import progress_bar
+
 from monai.metrics import DiceMetric
 import natsort
 import SimpleITK
 import cv2
 import shutil
-from monai.transforms import Compose
+
+from monai.transforms import Compose , Resize , ToTensor
 from monai.handlers.utils import from_engine
+
 
 class Engine:
     """
@@ -54,6 +60,7 @@ class Engine:
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
         )
+
         keys = (config.transforms["img_key"], config.transforms["label_key"])
         self.train_transform = self.get_pretraining_transforms(
             config.transforms["train_transform"], keys
@@ -65,6 +72,7 @@ class Engine:
         self.postprocessing_transforms=self.get_postprocessing_transforms(
              config.transforms["post_transform"], keys
         )
+
 
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -327,10 +335,10 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path,map_location=torch.device(self.device))
         self.network.load_state_dict(checkpoint['state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.scheduler.load_state_dict(checkpoint['scheduler']) 
 
 
     def compile_status(self):
@@ -504,14 +512,120 @@ class Engine:
             )
             prediction_list = []
             for batch in predict_loader:
+
                 volume = batch[keys[0]].to(self.device)
                 batch[keys[1]] = self.network(volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
                     batch= self.post_process(batch,keys[1])
                 prediction_list.append(batch[keys[1]])
+
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
+
+
+
+
+
+    def predict_2dto3d(self, volume_path,temp_path="temp/"):
+        """
+        predicts the label of a 3D volume using a 2D network
+        Parameters
+        ----------
+        volume_path: str
+            path of the input file. expects a 3D nifti file.
+        temp_path: str
+            a temporary path to save 3d volume as 2d png slices. default is "temp/"
+            automatically deleted before returning the prediction
+
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels with shape (1,channel,length,width,depth) 
+        """
+        #read volume
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        #create temporary folder to store 2d png files 
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        #write volume slices as 2d png files 
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        #predict slices individually then reconstruct 3d prediction
+        prediction=self.predict(temp_path)
+        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
+        prediction=prediction.permute(1,2,3,0).unsqueeze(dim=0) 
+        #delete temporary folder
+        shutil.rmtree(temp_path)
+        return prediction
+
+
+    def predict_with_lesions(self, volume_path, network_lesions):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        temp_path="temp/"
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        volume_names = natsort.natsorted(os.listdir(temp_path))
+        volume_paths = [os.path.join(temp_path, file_name) for file_name in volume_names]
+        predict_files = [{"image": image_name} for image_name in volume_paths]
+        predict_set = Dataset(data=predict_files, transform=self.test_transform)
+        predict_loader = MonaiLoader(
+            predict_set,
+            batch_size=self.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+        liver_prediction = []
+        lesion_prediction = []
+        volume_reconstructed=[]        
+
+        with torch.no_grad():
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                volume_reconstructed.append(volume)
+                pred = self.network(volume)
+                pred = (torch.sigmoid(pred) > 0.5).int()
+                liver_prediction.append(pred)
+                suppressed_volume=np.where(pred==1,volume,volume.min())
+                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                pred2= network_lesions(suppressed_volume)
+                pred2 = (torch.sigmoid(pred2) > 0.5).int()
+                lesion_prediction.append(pred2)
+            liver_prediction = torch.cat(liver_prediction, dim=0)
+            lesion_prediction = torch.cat(lesion_prediction, dim=0)
+            volume_reconstructed = torch.cat(volume_reconstructed, dim=0)
+        largestconnected=monai.transforms.KeepLargestConnectedComponent()
+        lesion_prediction=lesion_prediction.permute(1,2,3,0)
+        liver_prediction=liver_prediction.permute(1,2,3,0)
+        volume_reconstructed=volume_reconstructed.permute(1,2,3,0)
+        liver_prediction=largestconnected(liver_prediction)
+        lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
+        liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+        shutil.rmtree(temp_path)
+        return volume_reconstructed[0],liver_lesion_prediction[0]
 
 
 def set_seed():
