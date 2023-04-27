@@ -24,7 +24,8 @@ import natsort
 import SimpleITK
 import cv2
 import shutil
-from monai.transforms import Resize
+from monai.transforms import Resize , ToTensor
+
 
 class Engine:
     """
@@ -542,6 +543,68 @@ class Engine:
         shutil.rmtree(temp_path)
         return prediction
 
+
+    def predict_with_lesions(self, volume_path, network_lesions):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        temp_path="temp/"
+        img_volume = SimpleITK.ReadImage(volume_path)
+        img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
+        number_of_slices = img_volume_array.shape[0]
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        for slice_number in range(number_of_slices):
+            volume_silce = img_volume_array[slice_number, :, :]
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
+            volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
+            cv2.imwrite(volume_png_path, volume_silce)
+        volume_names = natsort.natsorted(os.listdir(temp_path))
+        volume_paths = [os.path.join(temp_path, file_name) for file_name in volume_names]
+        predict_files = [{"image": image_name} for image_name in volume_paths]
+        predict_set = Dataset(data=predict_files, transform=self.test_transform)
+        predict_loader = MonaiLoader(
+            predict_set,
+            batch_size=self.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+        liver_prediction = []
+        lesion_prediction = []
+        volume_reconstructed=[]        
+
+        with torch.no_grad():
+            for batch in predict_loader:
+                volume = batch["image"].to(self.device)
+                volume_reconstructed.append(volume)
+                pred = self.network(volume)
+                pred = (torch.sigmoid(pred) > 0.5).int()
+                liver_prediction.append(pred)
+                suppressed_volume=np.where(pred==1,volume,volume.min())
+                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                pred2= network_lesions(suppressed_volume)
+                pred2 = (torch.sigmoid(pred2) > 0.5).int()
+                lesion_prediction.append(pred2)
+            liver_prediction = torch.cat(liver_prediction, dim=0)
+            lesion_prediction = torch.cat(lesion_prediction, dim=0)
+            volume_reconstructed = torch.cat(volume_reconstructed, dim=0)
+        largestconnected=monai.transforms.KeepLargestConnectedComponent()
+        lesion_prediction=lesion_prediction.permute(1,2,3,0)
+        liver_prediction=liver_prediction.permute(1,2,3,0)
+        volume_reconstructed=volume_reconstructed.permute(1,2,3,0)
+        liver_prediction=largestconnected(liver_prediction)
+        lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
+        liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+        shutil.rmtree(temp_path)
+        return volume_reconstructed[0],liver_lesion_prediction[0]
 
 def set_seed():
     """

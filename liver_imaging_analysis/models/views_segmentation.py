@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from monai.transforms import Resize
 from axial_2d import AxialSegmentation2D
-from sagittal_2d import SagittalSegmentation2D
+from liver_segmentation import SagittalSegmentation2D
 from coronal_2d import CoronalSegmentation2D
 from config import config
 from utils import nii2png_XYZ

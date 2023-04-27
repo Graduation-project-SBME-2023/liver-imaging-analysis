@@ -38,7 +38,6 @@ class AxialSegmentation2D(Engine):
     """
 
     def __init__(self):
-        config.device="mps"  # for macOS
         config.network_parameters['bias']= 0
         config.network_parameters['norm']= "batch"
         config.network_parameters['dropout']= 0

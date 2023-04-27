@@ -1,5 +1,5 @@
-from engine.config import config
-from engine.engine import Engine, set_seed
+from config import config
+from engine import Engine, set_seed
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -27,7 +27,7 @@ from monai.data import Dataset
 import torch
 import numpy as np
 from monai.transforms import ToTensor
-from models.liver_segmentation import LiverSegmentation
+from liver_segmentation import LiverSegmentation
 import SimpleITK
 import cv2
 import shutil
