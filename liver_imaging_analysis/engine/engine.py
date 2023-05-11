@@ -4,7 +4,7 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
-from liver_imaging_analysis.engine import dataloader
+from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
 from liver_imaging_analysis.engine import losses
 from liver_imaging_analysis.engine import models
 import numpy as np
@@ -54,18 +54,15 @@ class Engine:
             metrics_name=config.training["metrics"],
             **config.training["metrics_parameters"],
         )
-        keys = (config.transforms["img_key"], config.transforms["label_key"])
         self.train_transform = self.get_pretraining_transforms(
-            config.transforms["train_transform"], keys
+            config.transforms["train_transform"]
         )
         self.test_transform = self.get_pretesting_transforms(
-            config.transforms["test_transform"], keys
+            config.transforms["test_transform"]
         )
-        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.postprocessing_transforms=self.get_postprocessing_transforms(
-             config.transforms["post_transform"], keys
+             config.transforms["post_transform"]
         )
-
 
     def get_optimizer(self, optimizer_name, **kwargs):
         """
@@ -216,8 +213,7 @@ class Engine:
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
-        keys = (config.transforms["img_key"], config.transforms["label_key"])
-        trainloader = dataloader.DataLoader(
+        trainloader = DataLoader(
             dataset_path=config.dataset["training"],
             batch_size=config.training["batch_size"],
             train_transforms=self.train_transform,
@@ -225,11 +221,10 @@ class Engine:
             num_workers=0,
             pin_memory=False,
             test_size=config.training["train_valid_split"],
-            keys=keys,
             mode=config.dataset["mode"],
             shuffle=config.training["shuffle"]
         )
-        testloader = dataloader.DataLoader(
+        testloader = DataLoader(
             dataset_path=config.dataset["testing"],
             batch_size=config.training["batch_size"],
             train_transforms=self.train_transform,
@@ -237,7 +232,6 @@ class Engine:
             num_workers=0,
             pin_memory=False,
             test_size=1,  # testing set should all be set as evaluation (no training)
-            keys=keys,
             mode=config.dataset["mode"],
             shuffle=config.training["shuffle"]
         )
@@ -252,20 +246,17 @@ class Engine:
         and a testing batch, if exists.
         """
 
-        img_key = config.transforms["img_key"]
-        label_key = config.transforms["label_key"]
-
         dataloader_iterator = iter(self.train_dataloader)
         try:
             print("Number of Training Batches:", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Training Features:"
-                f" {batch[img_key].shape} {batch[img_key].dtype}"
+                f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             print(
                 f"Batch Shape of Training Labels:"
-                f" {batch[label_key].shape} {batch[label_key].dtype}"
+                f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
         except StopIteration:
             print("No Training Set")
@@ -276,11 +267,11 @@ class Engine:
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Validation Features:"
-                f" {batch[img_key].shape} {batch[img_key].dtype}"
+                f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             print(
                 f"Batch Shape of Validation Labels:"
-                f" {batch[label_key].shape} {batch[label_key].dtype}"
+                f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
         except StopIteration:
             print("No Validation Set")
@@ -291,11 +282,11 @@ class Engine:
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Testing Features:"
-                f" {batch[img_key].shape} {batch[img_key].dtype}"
+                f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             print(
                 f"Batch Shape of Testing Labels:"
-                f" {batch[label_key].shape} {batch[label_key].dtype}"
+                f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
         except StopIteration:
             print("No Testing Set")
@@ -387,7 +378,6 @@ class Engine:
         per_epoch_callback: method
             a function that contains the code to be executed after each epoch
         """
-        keys = (config.transforms["img_key"], config.transforms["label_key"], config.transforms["pred_key"])
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -396,13 +386,13 @@ class Engine:
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
-                volume = batch[keys[0]].to(self.device)
-                mask= batch[keys[1]].to(self.device)
-                batch[keys[2]] = self.network(volume)
-                loss = self.loss(batch[keys[2]], mask)
+                volume = batch[Keys.IMAGE].to(self.device)
+                mask= batch[Keys.LABEL].to(self.device)
+                batch[Keys.PRED] = self.network(volume)
+                loss = self.loss(batch[Keys.PRED], mask)
                 #Apply post processing transforms and calculate metrics
-                batch= self.post_process(batch,keys[2])
-                self.metrics(batch[keys[2]].int(), mask.int())
+                batch= self.post_process(batch,Keys.PRED)
+                self.metrics(batch[Keys.PRED].int(), mask.int())
                 # Backpropagation
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -414,7 +404,7 @@ class Engine:
                                 batch_num,
                                 volume,
                                 mask,
-                                batch[keys[2]],  # predicted mask after thresholding
+                                batch[Keys.PRED],  # predicted mask after thresholding
                             )
             self.scheduler.step()
             # normalize loss over batch size
@@ -453,22 +443,21 @@ class Engine:
         """
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
-        keys = (config.transforms["img_key"], config.transforms["label_key"], config.transforms["pred_key"])
         num_batches = len(dataloader)
         test_loss = 0
         test_metric=0
         self.network.eval()
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
-                volume = batch[keys[0]].to(self.device)
-                mask= batch[keys[1]].to(self.device)
-                batch[keys[2]] = self.network(volume)
-                test_loss += self.loss(batch[keys[2]], mask).item()
+                volume = batch[Keys.IMAGE].to(self.device)
+                mask= batch[Keys.LABEL].to(self.device)
+                batch[Keys.PRED] = self.network(volume)
+                test_loss += self.loss(batch[Keys.PRED], mask).item()
                 #Apply post processing transforms on 2D prediction
-                batch= self.post_process(batch,keys[2])
-                self.metrics(batch[keys[2]].int(), mask.int())
+                batch= self.post_process(batch,Keys.PRED)
+                self.metrics(batch[Keys.PRED].int(), mask.int())
                 if callback:
-                  self.per_batch_callback(batch_num,volume,mask,batch[keys[2]])
+                  self.per_batch_callback(batch_num,volume,mask,batch[Keys.PRED])
             test_loss /= num_batches
             # aggregate the final mean dice result
             test_metric = self.metrics.aggregate().item() # total epoch metric
@@ -489,12 +478,11 @@ class Engine:
         tensor
             tensor of the predicted labels
         """
-        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
-            predict_files = [{keys[0]: image_name} for image_name in volume_paths]
+            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
             predict_set = Dataset(data=predict_files, transform=self.test_transform)
             predict_loader = MonaiLoader(
                 predict_set,
@@ -504,12 +492,12 @@ class Engine:
             )
             prediction_list = []
             for batch in predict_loader:
-                volume = batch[keys[0]].to(self.device)
-                batch[keys[1]] = self.network(volume)
+                volume = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.PRED] = self.network(volume)
                 #Apply post processing transforms on 2D prediction
                 if (config.transforms['mode']=="2D"):
-                    batch= self.post_process(batch,keys[1])
-                prediction_list.append(batch[keys[1]])
+                    batch= self.post_process(batch,Keys.PRED)
+                prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
 

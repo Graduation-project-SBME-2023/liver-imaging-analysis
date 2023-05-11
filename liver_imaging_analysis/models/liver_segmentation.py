@@ -1,5 +1,6 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
+from liver_imaging_analysis.engine.dataloader import Keys
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
     Compose,
@@ -82,15 +83,13 @@ class LiverSegmentation(Engine):
         set_configs(mode='2D')
         super().__init__()
     
-    def get_pretraining_transforms(self, transform_name, keys):
+    def get_pretraining_transforms(self, transform_name):
         """
         Function used to define the needed transforms for the training data
 
         Args:
              transform_name: string
              Name of the required set of transforms
-             keys: list
-             Keys of the corresponding items to be transformed.
 
         Return:
             transforms: compose
@@ -101,26 +100,26 @@ class LiverSegmentation(Engine):
         transforms = {
             "3DUnet_transform": Compose(
                 [
-                    LoadImageD(keys, allow_missing_keys=True),
-                    EnsureChannelFirstD(keys, allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys=True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
                     # OrientationD(keys, axcodes="LAS", allow_missing_keys=True),  # preferred by radiologists
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True, allow_missing_keys=True),
-                    ToTensorD(keys, allow_missing_keys=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    ForegroundMaskD(Keys.LABEL, threshold=0.5, invert=True, allow_missing_keys=True),
+                    ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageD(keys),
-                    EnsureChannelFirstD(keys),
-                    ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
-                    RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
-                    RandFlipd(keys, prob=0.5, spatial_axis=1),
-                    RandRotated(keys, range_x=1.5, range_y=0, range_z=0, prob=0.5),
-                    RandAdjustContrastd(keys[0], prob=0.25),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True), #remove for lesion segmentation
-                    ToTensorD(keys),
+                    LoadImageD(Keys.all(), allow_missing_keys=True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    ResizeD(Keys.all(), resize_size, mode=("bilinear", "nearest", "nearest"), allow_missing_keys=True),
+                    RandZoomd(Keys.all(),prob=0.5, min_zoom=0.8, max_zoom=1.2, allow_missing_keys=True),
+                    RandFlipd(Keys.all(), prob=0.5, spatial_axis=1, allow_missing_keys=True),
+                    RandRotated(Keys.all(), range_x=1.5, range_y=0, range_z=0, prob=0.5, allow_missing_keys=True),
+                    RandAdjustContrastd(Keys.IMAGE, prob=0.25),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    ForegroundMaskD(Keys.LABEL, threshold=0.5, invert=True), #remove for lesion segmentation
+                    ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
             "custom_transform": Compose(
@@ -131,13 +130,12 @@ class LiverSegmentation(Engine):
         }
         return transforms[transform_name]
 
-    def get_pretesting_transforms(self, transform_name, keys):
+    def get_pretesting_transforms(self, transform_name):
         """
         Function used to define the needed transforms for the training data
 
         Args:
              transform_name(string): name of the required set of transforms
-             keys(list): keys of the corresponding items to be transformed.
 
         Return:
             transforms(compose): return the compose of transforms selected
@@ -148,29 +146,29 @@ class LiverSegmentation(Engine):
         transforms = {
             "3DUnet_transform": Compose(
                 [
-                    LoadImageD(keys, allow_missing_keys=True),
-                    EnsureChannelFirstD(keys, allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys=True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
                     # OrientationD(keys, axcodes="LAS", allow_missing_keys=True),  # preferred by radiologists
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
-                    ForegroundMaskD(keys[1], threshold=0.5, invert=True, allow_missing_keys=True),
-                    ToTensorD(keys, allow_missing_keys=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    ForegroundMaskD(Keys.LABEL, threshold=0.5, invert=True, allow_missing_keys=True),
+                    ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
             "2DUnet_transform": Compose(
                 [
-                    LoadImageD(keys, allow_missing_keys=True),
-                    EnsureChannelFirstD(keys, allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys=True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
                     ResizeD(
-                        keys,
+                        Keys.all(),
                         resize_size,
-                        mode=("bilinear", "nearest"),
+                        mode=("bilinear", "nearest", "nearest"),
                         allow_missing_keys=True,
                     ),
-                    NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
                     ForegroundMaskD(
-                        keys[1], threshold=0.5, invert=True, allow_missing_keys=True
+                        Keys.LABEL, threshold=0.5, invert=True, allow_missing_keys=True
                     ),#remove for lesion segmentation
-                    ToTensorD(keys, allow_missing_keys=True),
+                    ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
             "custom_transform": Compose(
@@ -182,7 +180,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name]
 
 
-    def get_postprocessing_transforms(self,transform_name, keys):
+    def get_postprocessing_transforms(self,transform_name):
         """
         Function used to define the needed post processing transforms for prediction correction
 
@@ -196,19 +194,19 @@ class LiverSegmentation(Engine):
 
         '3DUnet_transform': Compose(
             [
-                ActivationsD(keys[1],sigmoid=True),
-                AsDiscreteD(keys[1],threshold=0.5),
-                FillHolesD(keys[1]),
-                KeepLargestConnectedComponentD(keys[1]),   
+                ActivationsD(Keys.PRED,sigmoid=True),
+                AsDiscreteD(Keys.PRED,threshold=0.5),
+                FillHolesD(Keys.PRED),
+                KeepLargestConnectedComponentD(Keys.PRED),   
             ]
         ),
 
         '2DUnet_transform': Compose(
             [
-                ActivationsD(keys[1],sigmoid=True),
-                AsDiscreteD(keys[1],threshold=0.5),
-                FillHolesD(keys[1]),
-                KeepLargestConnectedComponentD(keys[1]),   
+                ActivationsD(Keys.PRED,sigmoid=True),
+                AsDiscreteD(Keys.PRED,threshold=0.5),
+                FillHolesD(Keys.PRED),
+                KeepLargestConnectedComponentD(Keys.PRED),   
             ]
         )
 
@@ -272,7 +270,6 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels with shape (1,channel,length,width,depth) 
         """
-        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         #read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -287,15 +284,15 @@ class LiverSegmentation(Engine):
             volume_png_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".png")
             cv2.imwrite(volume_png_path, volume_silce)
         #predict slices individually then reconstruct 3D prediction
-        batch={keys[1]:self.predict(temp_path)}
+        batch={Keys.PRED:self.predict(temp_path)}
         #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
-        batch[keys[1]]=batch[keys[1]].permute(1,2,3,0).unsqueeze(dim=0) 
+        batch[Keys.PRED]=batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
         #Apply post processing transforms on 3D prediction
         if (config.transforms['mode']=="3D"):
-            batch= self.post_process(batch,keys[1])
+            batch= self.post_process(batch,Keys.PRED)
         #delete temporary folder
         shutil.rmtree(temp_path)
-        return batch[keys[1]]
+        return batch[Keys.PRED]
 
 
     def predict_sliding_window(self, data_dir):
@@ -310,7 +307,6 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
-        keys = (config.transforms["img_key"], config.transforms["pred_key"])
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
@@ -325,13 +321,13 @@ class LiverSegmentation(Engine):
             )
             prediction_list = []
             for batch in predict_loader:
-                volume = batch[keys[0]].to(self.device)
+                volume = batch[Keys.IMAGE].to(self.device)
                 #predict by sliding window
-                batch[keys[1]] = sliding_window_inference(volume, (96,96,64), 4, self.network)
+                batch[Keys.PRED] = sliding_window_inference(volume, (96,96,64), 4, self.network)
                 #Apply post processing transforms on 3D prediction
                 if (config.transforms['mode']=="3D"):
-                    batch=self.post_process(batch,keys[1])    
-                prediction_list.append(batch[keys[1]])
+                    batch=self.post_process(batch,Keys.PRED)    
+                prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
     
