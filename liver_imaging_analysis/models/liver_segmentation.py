@@ -41,36 +41,6 @@ from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
-
-def set_configs(mode='2D'):
-    if mode == '2D':
-        config.dataset['prediction']="test cases/sample_image"
-        config.training['batch_size']=8
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
-        config.network_parameters['bias']= 1
-        config.save['liver_checkpoint']= 'liver_cp'
-        config.transforms['mode']= "3D"
-
-    elif mode == 'sliding_window':
-        config.dataset['prediction']="test cases/sample_volume"
-        config.training['batch_size']=1
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['spatial_dims']= 3
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  6
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= False
-        config.save['liver_checkpoint']= 'liver_cp_sliding_window'
-        config.transforms['mode']= "3D"
-        config.transforms['test_transform']= "3DUnet_transform"
-        config.transforms['post_transform']= "3DUnet_transform"
-    
     
 class LiverSegmentation(Engine):
     """
@@ -80,9 +50,21 @@ class LiverSegmentation(Engine):
 
     """
     def __init__(self):
-        set_configs(mode='2D')
+        self.set_configs()
         super().__init__()
-    
+
+    def set_configs(self):
+        config.dataset['prediction']="test cases/sample_image"
+        config.training['batch_size']=8
+        config.network_parameters['dropout']= 0
+        config.network_parameters['channels']= [64, 128, 256, 512]
+        config.network_parameters['strides']=  [2, 2, 2]
+        config.network_parameters['num_res_units']=  4
+        config.network_parameters['norm']= "INSTANCE"
+        config.network_parameters['bias']= 1
+        config.save['liver_checkpoint']= 'liver_cp'
+        config.transforms['mode']= "2D"
+
     def get_pretraining_transforms(self, transform_name):
         """
         Function used to define the needed transforms for the training data

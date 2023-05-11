@@ -43,25 +43,6 @@ from monai.handlers.utils import from_engine
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
-def set_configs():
-    config.dataset['prediction']="test cases/sample_image"
-    config.dataset['training']="Temp2D/Train/"
-    config.dataset['testing']="Temp2D/Test/"
-    config.training['batch_size']=8
-    config.training['optimizer_parameters']={"lr": 0.01}
-    config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-    config.network_parameters['dropout']= 0
-    config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
-    config.network_parameters["out_channels"]= 1
-    config.network_parameters['strides']=  [2, 2, 2, 2, 2]
-    config.network_parameters['num_res_units']=  4
-    config.network_parameters['norm']= "BATCH"
-    config.network_parameters['bias']= 0
-    config.save['lesion_checkpoint']= 'lesion_cp'
-    config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
-    config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
-    config.transforms['mode']= "3D"
-
 class LesionSegmentation(Engine):
     """
 
@@ -70,10 +51,28 @@ class LesionSegmentation(Engine):
 
     """
     def __init__(self):
-        set_configs()
+        self.set_configs()
         super().__init__()
 
-    
+    def set_configs(self):
+        config.dataset['prediction']="test cases/sample_image"
+        config.dataset['training']="Temp2D/Train/"
+        config.dataset['testing']="Temp2D/Test/"
+        config.training['batch_size']=8
+        config.training['optimizer_parameters']={"lr": 0.01}
+        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
+        config.network_parameters['dropout']= 0
+        config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
+        config.network_parameters["out_channels"]= 1
+        config.network_parameters['strides']=  [2, 2, 2, 2, 2]
+        config.network_parameters['num_res_units']=  4
+        config.network_parameters['norm']= "BATCH"
+        config.network_parameters['bias']= 0
+        config.save['lesion_checkpoint']= 'lesion_cp'
+        config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
+        config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
+        config.transforms['mode']= "2D"
+
     def get_pretraining_transforms(self, transform_name):
         """
         Function used to define the needed transforms for the training data
