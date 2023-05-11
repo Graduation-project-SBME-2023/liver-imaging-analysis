@@ -40,13 +40,13 @@ import nibabel as nib
 from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+dice_metric=DiceMetric(ignore_empty=True,include_background=False,reduction='mean')
 
 def set_configs():
     config.dataset['prediction']="test cases/sample_image"
     config.dataset['training']="Temp2D/Train/"
     config.dataset['testing']="Temp2D/Test/"
-    config.training['batch_size']=8
+    config.training['batch_size']=2
     config.training['optimizer_parameters'] = { "lr" : 0.01 }
     config.training['scheduler_parameters'] = { "step_size" : 200, "gamma" : 0.5, "verbose" : False }
     config.network_parameters['dropout']= 0
@@ -58,8 +58,8 @@ def set_configs():
     config.network_parameters['norm']= "INSTANCE"
     config.network_parameters['bias']= 1
     config.save['lobe_checkpoint']= 'lobe_cp'
-    config.training['loss_parameters']= { "softmax" : True, "batch" : True, "include_background" : True, "to_onehot_y" : True }
-    config.training['metrics_parameters']= { "ignore_empty" : True, "include_background" : True, "reduction" : "mean_batch" }
+    config.training['loss_parameters']= { "softmax" : True, "batch" : True, "include_background" : True, "to_onehot_y" : False }
+    config.training['metrics_parameters']= { "ignore_empty" : True, "include_background" : False, "reduction" : "mean" }
     config.transforms['mode']= "3D"
     config.transforms["train_transform"] = "2DUnet_transform"
     config.transforms["test_transform"] = "2DUnet_transform"
@@ -122,6 +122,7 @@ class LobeSegmentation(Engine):
                     EnsureChannelFirstD(keys),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest")),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    AsDiscreteD(keys[1], to_onehot=10),
                     #Augmentations
                     # RandZoomd(keys,prob=0.5, min_zoom=0.8, max_zoom=1.2),
                     # RandFlipd(keys, prob=0.5, spatial_axis=1),
@@ -173,6 +174,7 @@ class LobeSegmentation(Engine):
                     EnsureChannelFirstD(keys, allow_missing_keys=True),
                     ResizeD(keys, resize_size, mode=("bilinear", "nearest"), allow_missing_keys=True ),
                     NormalizeIntensityD(keys=keys[0], channel_wise=True),
+                    AsDiscreteD(keys[1], to_onehot=10, allow_missing_keys=True),
                     ToTensorD(keys, allow_missing_keys=True),
                 ]
             ),
@@ -201,7 +203,8 @@ class LobeSegmentation(Engine):
                 # ActivationsD(keys[1], softmax=True),
                 AsDiscreteD(keys[1], argmax=True),
                 FillHolesD(keys[1]),
-                KeepLargestConnectedComponentD(keys[1]),   
+                KeepLargestConnectedComponentD(keys[1]),
+                AsDiscreteD(keys[1], to_onehot=10)   #mandatory for training
             ]
         )
         } 
@@ -209,7 +212,12 @@ class LobeSegmentation(Engine):
     
 
     def per_batch_callback(self, batch_num, image, label, prediction):
-        dice_score=dice_metric(prediction.int(),label.int())[0].item()
+        dice_metric(prediction.int(),label.int())
+        dice_score= dice_metric.aggregate().item()
+        if(label.shape[1]>1):
+            label=torch.argmax(label, dim=1, keepdim=True)
+        if(prediction.shape[1]>1):
+            prediction=torch.argmax(prediction, dim=1, keepdim=True)
         plot_2d_or_3d_image(
             data=image,
             step=0,
@@ -231,6 +239,7 @@ class LobeSegmentation(Engine):
             frame_dim=-1,
             tag=f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
+        dice_metric.reset()
 
 
     def per_epoch_callback(self, epoch, training_loss, valid_loss, training_metric, valid_metric):
@@ -382,12 +391,12 @@ def train_lobe(*args):
     model = LobeSegmentation()
     model.load_data()
     model.data_status()
-    # model.load_checkpoint(config.save["potential_checkpoint"])
-    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
+    model.load_checkpoint(config.save["lobe_checkpoint"])
+    print("Initial test loss:", model.test(model.test_dataloader, callback=False))
     model.fit(
         evaluate_epochs=1,
         batch_callback_epochs=100,
         save_weight=True,
     )
-    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
+    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on last saved checkpoint
     print("final test loss:", model.test(model.test_dataloader, callback=False))
