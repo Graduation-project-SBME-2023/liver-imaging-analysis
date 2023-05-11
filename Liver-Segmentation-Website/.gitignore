@@ -1,0 +1,10 @@
+__pycache__/
+static/img
+*.DS_Store
+static/sagittal
+static/coronal
+static/axial
+static/contour
+static/box
+static/zoom
+temp/

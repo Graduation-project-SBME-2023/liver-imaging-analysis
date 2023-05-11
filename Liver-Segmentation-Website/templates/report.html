@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<html>
+  <head>
+    <title>Patient Information</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f2f2f2;
+      }
+      h1 {
+        color: #ffffff;
+        text-align: center;
+        margin-top: 50px;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      li {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #fff;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
+        border-radius: 5px;
+        width: 300px;
+        display: flex;
+        justify-content: space-between;
+      }
+      strong {
+        color: #2d3e50;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Patient Information</h1>
+    <ul>
+      {% for patient_data in patient_data %}
+      <li>
+        <strong>{{ patient_data[0] }}</strong>
+        <span>{{ patient_data[1] }}</span>
+      </li>
+      {%endfor%}
+    </ul>
+  </body>
+</html>
+<head>
+    <style>
+    table {
+      font-family: arial, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    
+    td, th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+    
+    tr:nth-child(even) {
+      background-color: #dddddd;
+    }
+    tr:nth-child(odd) {
+      background-color: #c187d9;
+    }
+    </style>
+    </head>
+<div class="container">
+    <div class="row">
+        <div class="col"></div>
+        <div class="col-8">
+            <div class="card my-3" id="report-card">
+                <div class="card-header" align="center" style="font-family: 'Tinos', serif;font-size:40px;">
+                  Lesions analysis Report
+                </div>
+                <div class="card-body">
+                <table>
+                    <tr>
+                        {% for header in headings %}
+                        <th> {{ header }}</th>
+                        {%endfor%}
+                    </tr>
+                    {% for row in data %}
+                    <tr>
+                        <td>{{row[0]}}</td>
+                        <td>{{row[1]}}</td>
+                        <td>{{row[2]}}</td>
+                        <td>{{row[3]}}</td>
+                    </tr>
+                    {%endfor%}
+                </table>
+                  <h5> Sum of longest diameters: {{longest_diam}}</h5>
+                  <div>
+                    <a class="btn btn-dark my-2" href="/pdf" id="dark1">download as pdf</a>
+                </div>
+                </div>
+            </div>
+        </div>
+        <div class="col"></div>
+    </div>
+</div>
+
+
+{% endblock %}

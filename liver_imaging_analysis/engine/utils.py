@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 import natsort
 import nibabel as nib
 import numpy as np
-from numpy.random import randint
 import SimpleITK as sitk
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
-
+plt.switch_backend('Agg') 
 rc("animation", html="html5")
 
 
@@ -59,28 +58,6 @@ def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
         dest = cv.addWeighted(dest, alpha, mask_label[i], alpha, 0.0)
     return dest  # return an array of the volume with the mask overlayed on it with different label colors
 
-
-def animate(volume, output_name):
-    """
-        A method to save the animated gif from the overlay array
-        Parameters
-        ----------
-        volume: tensor
-            expects a 4d array of the volume/mask overlay
-        output_name: str
-            the name of the gif file to be saved
-    """
-    fig = plt.figure()
-    ims = []
-    for i in range(
-        volume.shape[2]
-    ):  # generate an animation over the slices of the array
-        plt.axis("off")
-        im = plt.imshow(volume[:, :, i], animated=True)
-        ims.append([im])
-
-    ani = animation.ArtistAnimation(fig, ims, interval=200, blit=True, repeat_delay=100)
-    ani.save(output_name, dpi=300, writer=PillowWriter(fps=5))
 
 
 def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
@@ -352,3 +329,38 @@ def get_batch_names(batch,key):
             the key of the batch dict
     """
     return batch[f'{key}_meta_dict']['filename_or_obj']
+
+def animate(self,target,save_path,view):
+    """
+    generate GIF from the 3D arrays
+
+    Parameters
+    ----------
+    target: 3D array
+        the array that will be used to generate the gif animation
+    save_path : str
+        saves the created gif in this path
+    view  : int
+        choose which view to slice in , where  2 axial, 1 coronal, 0 sagittal
+    
+    """
+    fig = plt.figure(facecolor='black')
+    plt.axis('off')
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    ax = plt.axes([0,0,1,1], frameon=False)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    target_array=[]
+
+    for i in range(target.shape[view]):  # generate an animation over the slices of the array
+
+        if view==2:
+            img = plt.imshow(target[:, :, i], animated=True,extent=[0, 512, 0, 512])
+        if view==1:
+            img = plt.imshow(target[:, i, :], animated=True,extent=[0, 512, 0, 512])
+        if view==0:
+            img = plt.imshow(target[i, :, :], animated=True,extent=[0, 512, 0, 512])
+        target_array.append([img])
+        
+    ani = animation.ArtistAnimation(fig, target_array, interval=40, blit=True)
+    ani.save(save_path, dpi=100, writer=PillowWriter(fps=10))

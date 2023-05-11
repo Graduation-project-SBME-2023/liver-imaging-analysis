@@ -327,7 +327,7 @@ class Engine:
         path: str
             The path of the checkpoint. (Default is the model path in config)
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path , map_location=torch.device(self.device))
         self.network.load_state_dict(checkpoint['state_dict'])
         if ('optimizer' in checkpoint.keys()):
             self.optimizer.load_state_dict(checkpoint['optimizer'])

@@ -1,0 +1,132 @@
+
+
+
+
+{% extends 'base.html' %}
+{% block content %}
+
+
+<script>
+    function myFunc(vars) {
+        return vars}
+</script>
+
+<div class="container p-5">
+    <div class="p-3">
+        <center>
+        <h3 class="text">
+          Liver Lesions Visualization 
+        </h3>
+     
+          <div class="row">
+            <div class="col"></div>
+            <div class="col">
+                <select class="form-select" aria-label="Default select example" id="Shape" onchange="displayLesion()">
+                    <option value="1">contour</option>
+                    <option value="2">box</option>
+                    <option value="3" selected>zooming</option>
+                </select>
+            </div>
+            <div class="col"></div>
+          </div>
+     
+      </center>
+    </div>
+    <div class="row">
+        <div class="col"></div>
+        <div class="col">
+          
+                <!-- <div style="width: 350px;" class="card-header"><center><h4 class="card-title">nfs el kalam</h4></center></div> -->
+                <div class="gif_wrapper" id="gif_wrapper" style="width: 800px; display: flex; margin-top: 15px;">
+
+                    <img style="max_width:800px ; max-height:300px;  " id="tumor_mood_image" src="../static/zoom/tumor_0.png" alt="this slowpoke moves" class="controled_image" />
+
+                </div>
+          
+        </div>
+        <div class="col"></div>
+           
+    </div>
+    <div class="row">
+        <div class="col"></div>
+        <div class="col-6">
+            <label style="color: white; font: 1em sans-serif;" for="lesions">select the tumor
+
+            </label><br>
+                
+            <select class="form-select" aria-label="Default select example" id="lesions" onchange="displayLesion()">
+                
+            </select>
+        </div>
+        <div class="col">
+            <br>
+            <div>
+                <a class="btn btn-dark my-1" href="/report" id="dark1">generate report</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    
+    myVar = myFunc({{data|tojson}});
+    console.log(myVar['Data'].length) ;
+    function codeAddress() {
+       
+        let i = 1;
+        let len = myVar['Data'].length;
+        console.log(myVar);
+        let text = "";
+
+        for (; i < len+1; i++) {
+            var y = document.getElementById("lesions");
+            var option = document.createElement("option");
+            option.text = "Lesion #"+i;
+            val = i;
+            option.value = val.toString();
+            y.add(option);
+        }
+      }
+    window.onload = codeAddress;
+
+
+    const sb = document.getElementById('Shape');
+    function displayLesion(){
+        var shape = document.getElementById("Shape").value;
+        var lesion = document.getElementById("lesions").value;
+       // console.log(x);
+        switch(shape) {
+            case "1":
+                index=+lesion;
+                index--;
+
+                document.getElementById("tumor_mood_image").src = "../static/contour/tumor_"+index+".png";
+                document.getElementById("tumor_mood_image").style.marginLeft = "200px";
+
+                break;
+            case "2":
+                index=+lesion;
+                document.getElementById("tumor_mood_image").src = "../static/box/tumor_"+index+".png";
+                document.getElementById("tumor_mood_image").style.marginLeft = "200px";
+          
+              break;
+            case "3":
+                index=+lesion;
+                index--;
+
+                document.getElementById("tumor_mood_image").src = "../static/zoom/tumor_"+index+".png";
+                document.getElementById("tumor_mood_image").style.marginLeft = "0px";
+
+                break;
+               break;
+         
+        }
+        console.log("lesion #"+lesion);
+
+    }
+   
+    
+</script>
+
+{% endblock %}
+

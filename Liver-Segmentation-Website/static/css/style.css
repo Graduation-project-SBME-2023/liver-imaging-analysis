@@ -1,0 +1,149 @@
+body {
+    width:100%;
+  }
+#inputGroupFileAddon04:hover {
+    text-shadow:2px 2px 8px white;
+}
+
+#About{
+color:#ffffff; 
+font-family: 'Gloock', serif;
+}
+
+#About:hover{
+    text-shadow:2px 2px 8px #ffffff;
+    color: #ffffff;   
+}
+
+h5 a{
+    color: white; 
+    font-family: 'Gloock', serif; 
+}
+
+h5 a:hover{
+    color: white;
+    text-shadow:2px 2px 8px white;
+    text-decoration: none;
+}
+
+
+
+h1{
+font-size: 70px;
+font-weight: 600;
+background-image: linear-gradient(to left, #4a3486, #b393d3);
+color: transparent;
+background-clip: text;
+-webkit-background-clip: text;
+
+}
+#index-p{
+color:white;
+font-family: 'Gloock', serif; 
+background-image: radial-gradient(ellipse, #4a3486, #b393d3);
+color: transparent;
+background-clip: text;
+-webkit-background-clip: text;
+
+}
+
+#column-title{
+background: rgba(256,256,256,0.8);
+width:65% ; 
+padding-top: 5px; 
+padding-bottom: 5px;
+border-radius: 5px;
+}
+p{
+background-image: radial-gradient(ellipse, #4a3486, #b393d3);
+color: transparent;
+background-clip: text;
+-webkit-background-clip: text;
+}
+
+#p-text{
+font-family: 'Gloock', serif; 
+font-size:20px; 
+background: rgba(256, 256, 256, 0.8); 
+box-shadow: 0 4px 8px 0 black; 
+color:#4a3486; 
+padding-top: 5px; 
+padding-bottom: 5px;
+}
+
+h3{
+color: white;
+font-family: 'Gloock', serif; 
+}
+.card-header{
+    background-color: white;
+}
+
+h4{
+color: #56567c;
+font-weight: bolder; 
+}
+
+#about-card{
+    margin-left: 14%;
+    margin-top: 25%;
+    box-shadow: 0 4px 4px 0 black; 
+
+}
+.card-title{
+font-family: 'Gloock', serif;
+}
+
+#about-card p{
+font-family: 'Gloock', serif;
+color: #4a3486;
+}
+
+canvas{
+    width:450px !important;
+    height:500px ;
+    margin-left: -470px;
+    margin-top: -30px ;
+    transform: rotate(270deg); 
+}
+body{
+    background:url('../dna.PNG');
+    background-repeat:  repeat-y;
+    background-size: cover;
+}
+
+#options a{
+    border: solid #b393d3 2px;
+    border-radius: 4px;
+    background-color: #b393d3;
+    color: white;
+    padding: 5px;
+    margin-bottom: 5px;
+    text-decoration: none;
+    font-family: 'Gloock', serif;
+}
+#options a:hover{
+    box-shadow: 2px 2px 8px #ffffff;
+}
+
+#TumorRoute{
+    color: white;
+    padding: 5px;
+    margin-bottom: 5px;
+    text-decoration: none;
+    font-family: 'Gloock', serif;
+}
+#TumorRoute:hover{
+    text-decoration: underline white;
+    text-shadow: 2px 2px 8px #ffffff;;
+}
+.gif_wrapper p{
+    display: flex;
+    color: white;
+    padding: 5px;
+    margin-bottom: 5px;
+    margin-left: 45px;
+    text-align: center;
+    font-size: larger;
+    font-family: 'Gloock', serif;
+}
