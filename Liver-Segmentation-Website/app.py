@@ -27,8 +27,8 @@ liver_model.load_checkpoint("Liver-Segmentation-Website/models_checkpoints/liver
 lesion_model = lesion_segmentation.LesionSegmentation()
 
 
-data_arr = [[]]
-sum_longest = 0
+
+sum_longest = 0  # global variable
 
 
 @app.route("/")
@@ -36,7 +36,7 @@ def index():
     """
     main page
     """
-    return render_template("index.html")
+    return render_template("index_2.html")
 
 
 @app.route("/about")
@@ -52,12 +52,12 @@ def success():
     """
     Start segmentation , create and display the gifs
     """
-    global save_folder
+
     if request.method == "POST":
         nifti_file = request.files["file"]
         save_location = nifti_file.filename
         save_location = save_folder + save_location
-        nifti_file.save(save_location)
+        # nifti_file.save(save_location)
         # volume, prediction = liver_model.predict_with_lesions(
         #     save_location, network_lesions
         # )
@@ -116,16 +116,16 @@ def tumor_analysis():
     """
     parsing Tumor analysis
     """
-    global data_arr
-    global sum_longest
+
+    
     sum_longest_diameter = 0
 
-    data_arr = []
     for item in parameters:
         max_axis = max(item[0], item[1])
         sum_longest_diameter += max_axis
-    # data_arr = parameters
-    data_arr = [[1, 1, 2, 3], [2, 4, 5, 6], [3, 7, 8, 9]]
+
+
+    global sum_longest
     sum_longest = sum_longest_diameter
     data = {"Data": parameters, "sum_longest": sum_longest}
     return render_template("visualization.html", data=data)
@@ -151,14 +151,14 @@ def report():
 
         analysis_headings = (
             "Lesion",
-            "Longest diameter",
-            "Shortest diameter",
+            "axis_1",
+            "axis2",
             "Volume",
         )
         return render_template(
             "report.html",
             headings=analysis_headings,
-            data=data_arr,
+            data=parameters,
             longest_diam=sum_longest,
             patient_data=patient_data,
         )

@@ -14,6 +14,7 @@ from monai.transforms import (
 )
 
 
+# parameters = [[12, 1, 2], [33, 4, 5], [44, 7, 8]]
 parameters = []
 
 def visualize_tumor(volume_path,mask_path,mode):
@@ -34,8 +35,8 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
 
     first_tumor=True
     i = 0
-    # global parameters
-    arr = []
+    global parameters
+    
     while(np.unique(mask).any()==1):
         fig, ax1 = plt.subplots()
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(CUDA/cpu)
@@ -55,8 +56,8 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
         first_tumor=False
         fig.savefig(f'Liver-Segmentation-Website/static/contour/tumor_{i}.png')
         i += 1
-        arr.append([axis1,axis2,max_volume])
-        parameters[:] = arr
+        parameters.append([axis1,axis2,max_volume])
+
     plt.close('all')        
 
 def plot_bbox_image_call(image, mask,volume_to_pix_dim, crop_margin=0):
