@@ -28,7 +28,7 @@ from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
 import os
 from monai.data import DataLoader as MonaiLoader
-from monai.data import Dataset,decollate_batch
+from monai.data import Dataset, decollate_batch
 import torch
 import numpy as np
 from monai.transforms import ToTensor
@@ -45,45 +45,54 @@ dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
 class LesionSegmentation(Engine):
     """
-
-    a class that must be used when you want to run the liver segmentation engine,
-     contains the transforms required by the user and the function that is used to start training
-
+    A class used for the lesion segmentation task. Inherits from Engine.
     """
+
     def __init__(self):
         self.set_configs()
         super().__init__()
 
     def set_configs(self):
-        config.dataset['prediction']="test cases/sample_image"
-        config.dataset['training']="Temp2D/Train/"
-        config.dataset['testing']="Temp2D/Test/"
-        config.training['batch_size']=8
-        config.training['optimizer_parameters']={"lr": 0.01}
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [32, 64, 128, 256, 512, 1024]
-        config.network_parameters["out_channels"]= 1
-        config.network_parameters['strides']=  [2, 2, 2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= 0
-        config.save['lesion_checkpoint']= 'lesion_cp'
-        config.training['loss_parameters']= {"sigmoid":True,"batch":True,"include_background":True}
-        config.training['metrics_parameters']= {"ignore_empty":True,"include_background":False}
-        config.transforms['mode']= "2D"
+        config.dataset['prediction'] = "test cases/sample_image"
+        config.dataset['training'] = "Temp2D/Train/"
+        config.dataset['testing'] = "Temp2D/Test/"
+        config.training['batch_size'] = 8
+        config.training['optimizer_parameters'] = {"lr": 0.01}
+        config.training['scheduler_parameters'] = {
+                                                    "step_size":20,
+                                                    "gamma":0.5, 
+                                                    "verbose":False
+                                                  }
+        config.network_parameters['dropout'] = 0
+        config.network_parameters['channels'] = [64, 128, 256, 512]
+        config.network_parameters["out_channels"] = 1
+        config.network_parameters['strides'] =  [2, 2, 2]
+        config.network_parameters['num_res_units'] =  0
+        config.network_parameters['norm'] = "INSTANCE"
+        config.network_parameters['bias'] = True
+        config.save['lesion_checkpoint'] = 'lesion_cp'
+        config.training['loss_parameters'] = {
+                                                "sigmoid" : True,
+                                                "batch" : True,
+                                                "include_background" : True
+                                             }
+        config.training['metrics_parameters'] = {
+                                                    "ignore_empty" : True,
+                                                    "include_background" : False
+                                                }
+        config.transforms['mode'] = "2D"
 
     def get_pretraining_transforms(self, transform_name):
         """
-        Function used to define the needed transforms for the training data
+        Gets a stack of preprocessing transforms to be used on the training data.
 
         Args:
-             transform_name: string
-             Name of the required set of transforms
+             transform_name: str
+                Name of the required set of transforms.
 
         Return:
-            transforms: compose
-             Return the compose of transforms selected
+            Compose
+                Stack of selected transforms.
         """
 
         resize_size = config.transforms["transformation_size"]
@@ -92,9 +101,23 @@ class LesionSegmentation(Engine):
                 [
                     LoadImageD(Keys.all(), allow_missing_keys=True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    OrientationD(Keys.all(), axcodes="LAS", allow_missing_keys=True),  # preferred by radiologists
-                    ResizeD(Keys.all(), resize_size, mode=("trilinear", "nearest", "nearest"), allow_missing_keys=True),
-                    RandFlipd(Keys.all(), prob=0.5, spatial_axis=1, allow_missing_keys=True),
+                    OrientationD(
+                        Keys.all(), 
+                        axcodes="LAS", 
+                        allow_missing_keys=True
+                        ),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode=("trilinear", "nearest", "nearest"), 
+                        allow_missing_keys=True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob=0.5, 
+                        spatial_axis=1, 
+                        allow_missing_keys=True
+                        ),
                     RandRotated(
                         Keys.all(),
                         range_x=0.1,
@@ -113,7 +136,12 @@ class LesionSegmentation(Engine):
                     #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys=True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    ResizeD(Keys.all(), resize_size, mode=("bilinear", "nearest", "nearest"), allow_missing_keys=True),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode=("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys=True
+                        ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
                         a_min=0,
@@ -123,12 +151,34 @@ class LesionSegmentation(Engine):
                         clip=True,
                     ),
                     #Augmentations
-                    RandZoomd(Keys.all(),prob=0.5, min_zoom=0.8, max_zoom=1.2, allow_missing_keys=True),
-                    RandFlipd(Keys.all(), prob=0.5, spatial_axis=1, allow_missing_keys=True),
-                    RandFlipd(Keys.all(), prob=0.5, spatial_axis=0, allow_missing_keys=True),
-                    RandRotated(Keys.all(), range_x=1.5, range_y=0, range_z=0, prob=0.5, allow_missing_keys=True),
+                    RandZoomd(
+                        Keys.all(), 
+                        prob=0.5, 
+                        min_zoom=0.8, 
+                        max_zoom=1.2, 
+                        allow_missing_keys=True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob=0.5, 
+                        spatial_axis=1, 
+                        allow_missing_keys=True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob=0.5, 
+                        spatial_axis=0, 
+                        allow_missing_keys=True
+                        ),
+                    RandRotated(
+                        Keys.all(), 
+                        range_x=1.5, 
+                        range_y=0, 
+                        range_z=0, 
+                        prob=0.5, 
+                        allow_missing_keys=True
+                        ),
                     RandAdjustContrastd(Keys.IMAGE, prob=0.5),
-
                     ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
@@ -142,14 +192,15 @@ class LesionSegmentation(Engine):
 
     def get_pretesting_transforms(self, transform_name):
         """
-        Function used to define the needed transforms for the training data
+        Gets a stack of preprocessing transforms to be used on the testing data.
 
         Args:
-             transform_name(string): name of the required set of transforms
+             transform_name: str
+                Name of the required set of transforms.
 
         Return:
-            transforms(compose): return the compose of transforms selected
-
+            Compose
+                Stack of selected transforms.
         """
 
         resize_size = config.transforms["transformation_size"]
@@ -158,8 +209,17 @@ class LesionSegmentation(Engine):
                 [
                     LoadImageD(Keys.all(), allow_missing_keys=True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    OrientationD(Keys.all(), axcodes="LAS", allow_missing_keys=True),  # preferred by radiologists
-                    ResizeD(Keys.all(), resize_size, mode=("trilinear", "nearest", "nearest"), allow_missing_keys=True),
+                    OrientationD(
+                        Keys.all(), 
+                        axcodes="LAS", 
+                        allow_missing_keys=True
+                        ),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode=("trilinear", "nearest", "nearest"), 
+                        allow_missing_keys=True
+                        ),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
                     ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
@@ -169,7 +229,12 @@ class LesionSegmentation(Engine):
                     #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys=True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    ResizeD(Keys.all(), resize_size, mode=("bilinear", "nearest", "nearest"), allow_missing_keys=True),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode=("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys=True
+                        ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
                         a_min=0,
@@ -192,14 +257,17 @@ class LesionSegmentation(Engine):
 
     def get_postprocessing_transforms(self,transform_name):
         """
-        Function used to define the needed post processing transforms for prediction correction
+        Gets a stack of post processing transforms to be used on predictions.
 
         Args:
-             transform_name(string): name of the required set of transforms
-        Return:
-            transforms(compose): return the compose of transforms selected
+             transform_name: str
+                Name of the required set of transforms.
 
+        Return:
+            Compose
+                Stack of selected transforms.
         """
+
         transforms= {
         '2DUnet_transform': Compose(
             [
@@ -212,8 +280,22 @@ class LesionSegmentation(Engine):
         } 
         return transforms[transform_name] 
     
-
     def per_batch_callback(self, batch_num, image, label, prediction):
+        """
+        Plots image, label and prediction into tensorboard,
+        and prints the prediction dice score.
+
+        Args:
+            batch_num: int
+                The current batch index for identification.
+            image: tensor
+                original input image
+            label: tensor
+                target lesion mask
+            prediction:
+                predicted lesion mask
+        """
+
         dice_score=dice_metric(prediction.int(),label.int())[0].item()
         plot_2d_or_3d_image(
             data=image,
@@ -237,8 +319,31 @@ class LesionSegmentation(Engine):
             tag=f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
 
+    def per_epoch_callback(
+            self,
+            epoch, 
+            training_loss, 
+            valid_loss, 
+            training_metric, 
+            valid_metric
+            ):
+        """
+        Prints training and testing loss and metric,
+        and plots them in tensorboard.
 
-    def per_epoch_callback(self, epoch, training_loss, valid_loss, training_metric, valid_metric):
+        Args:
+            epoch: int
+                Current epoch index for identification.
+            training_loss: float
+                Loss calculated over the training set.
+            valid_loss: float
+                Loss calculated over the testing set.
+            training_metric: float
+                Metric calculated over the training set.
+            valid_metric: float
+                Metric calculated over the testing set.
+        """
+
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
@@ -246,32 +351,35 @@ class LesionSegmentation(Engine):
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
-
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
-
     def predict(self, data_dir, liver_mask):
         """
-        predicts the liver & lesions mask given the liver mask
-        Parameters
-        ----------
-        data_dir: str
-            path of the input directory. expects nifti or png files.
-        liver_mask: tensor
-            the liver mask predicted by the liver model
+        Predicts the lesion mask given the liver mask.
+
+        Args:
+            data_dir: str
+                Path of the input directory. expects nifti or png files.
+            liver_mask: tensor
+                 Liver mask predicted by the liver model.
         
-        Returns
-        -------
-        tensor
-            tensor of the predicted labels
+        Returns:
+            tensor
+                Predicted Labels. Values: background: 0, liver: 1, lesion: 2.
         """
+
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
-            volume_paths = [os.path.join(data_dir, file_name) for file_name in volume_names]
-            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
-            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            volume_paths = [os.path.join(data_dir, file_name) 
+                            for file_name in volume_names]
+            predict_files = [{Keys.IMAGE: image_name} 
+                             for image_name in volume_paths]
+            predict_set = Dataset(
+                            data=predict_files,
+                            transform=self.test_transform
+                            )
             predict_loader = MonaiLoader(
                 predict_set,
                 batch_size=self.batch_size,
@@ -287,9 +395,13 @@ class LesionSegmentation(Engine):
             )
             prediction_list = []
             for batch,liver_mask_batch in zip(predict_loader,liver_loader):
-                volume = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 #isolate the liver and suppress other organs
-                suppressed_volume=np.where(liver_mask_batch==1,volume,volume.min())
+                suppressed_volume = np.where(
+                                        liver_mask_batch == 1,
+                                        batch[Keys.IMAGE],
+                                        batch[Keys.IMAGE].min()
+                                        )
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
                 batch[Keys.PRED] = self.network(suppressed_volume)
@@ -300,52 +412,59 @@ class LesionSegmentation(Engine):
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
     
-    
-    def predict_2dto3d(self, volume_path,liver_mask,temp_path="temp/"):
+    def predict_2dto3d(self, volume_path, liver_mask, temp_path="temp/"):
         """
-        predicts the label of a 3D volume using a 2D network
-        Parameters
-        ----------
-        volume_path: str
-            path of the input directory. expects a 3D nifti file.
-        temp_path: str
-            a temporary path to save 3d volume as 2d png slices. default is "temp/"
-            automatically deleted before returning the prediction
+        Predicts the lesions of a 3D volume using a 2D network given a liver mask.
+        
+        Args:
+            volume_path: str
+                path of the input directory. expects a 3D nifti file.
+            liver_mask: tensor
+                liver mask predicted by the liver model.
+            temp_path: str
+                A temporary path to save 3d volume as 2d png slices. 
+                Default is "temp/".
+                Automatically deleted before returning the prediction.
 
-        Returns
-        -------
-        tensor
-            tensor of the predicted labels with shape (1,channel,length,width,depth) 
+        Returns:
+            tensor
+                Predicted labels with shape (1,channel,length,width,depth).
+                Values: background: 0, liver: 1, lesion: 2.
         """
-        #read volume
+        # Read volume
         img_volume_array=nib.load(volume_path).get_fdata()
         number_of_slices = img_volume_array.shape[2]
-        #create temporary folder to store 2d png files 
+        # Create temporary folder to store 2d png files 
         if os.path.exists(temp_path) == False:
           os.mkdir(temp_path)
-        #write volume slices as 2d png files 
+        # Write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
             volume_silce = img_volume_array[:, :,slice_number]
-            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]  # delete extension from filename
-            nii_volume_path = (os.path.join(temp_path, volume_file_name + "_" + str(slice_number))+ ".nii.gz")
-            new_nii_volume = nib.Nifti1Image(volume_silce, affine=np.eye(4))
+            # Delete extension from filename
+            volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]
+            nii_volume_path = os.path.join(
+                                temp_path, 
+                                volume_file_name + "_" + str(slice_number)
+                                ) + ".nii.gz"
+            new_nii_volume = nib.Nifti1Image(volume_silce, affine = np.eye(4))
             nib.save(new_nii_volume, nii_volume_path)
-        #predict slices individually then reconstruct 3D prediction
+        # Predict slices individually then reconstruct 3D prediction
         batch={Keys.PRED:self.predict(temp_path,liver_mask)}
-        #transform shape from (batch,channel,length,width) to (1,channel,length,width,batch) 
+        # Transform shape from (batch,channel,length,width) 
+        # to (1,channel,length,width,batch) 
         batch[Keys.PRED]=batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
-        #Apply post processing transforms on 3D prediction
+        # Apply post processing transforms on 3D prediction
         if (config.transforms['mode']=="3D"):
             batch= self.post_process(batch,Keys.PRED)
-        #delete temporary folder
+        # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
     
 
 def segment_lesion(*args):
     """
-    a function used to segment the liver lesions using the liver and the lesion models
-
+    A function used to segment the liver lesions using
+    the liver and the lesion models.
     """
 
     set_seed()
@@ -354,7 +473,10 @@ def segment_lesion(*args):
     lesion_model = LesionSegmentation()
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
     liver_prediction=liver_model.predict(config.dataset['prediction'])
-    lesion_prediction= lesion_model.predict(config.dataset['prediction'],liver_mask=liver_prediction)
+    lesion_prediction= lesion_model.predict(
+                            config.dataset['prediction'],
+                            liver_mask=liver_prediction
+                            )
     lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
     liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
@@ -362,18 +484,21 @@ def segment_lesion(*args):
 
 def segment_lesion_3d(*args):
     """
-    a function used to segment the liver lesions of a 3d volume using the liver and the lesion models
-
+    A function used to segment the liver lesions
+    of a 3d volume using the liver and the lesion models.
     """
     set_seed()
     liver_model = LiverSegmentation()
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation()
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction=liver_model.predict_2dto3d(volume_path=args[0])
-    lesion_prediction= lesion_model.predict_2dto3d(volume_path=args[0],liver_mask=liver_prediction[0].permute(3,0,1,2))
-    lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
-    liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+    liver_prediction = liver_model.predict_2dto3d(volume_path=args[0])
+    lesion_prediction = lesion_model.predict_2dto3d(
+                            volume_path = args[0],
+                            liver_mask = liver_prediction[0].permute(3,0,1,2)
+                            )
+    lesion_prediction = lesion_prediction*liver_prediction #no liver -> no lesion
+    liver_lesion_prediction = lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
 
 
@@ -387,12 +512,16 @@ def train_lesion(*args):
     model = LesionSegmentation()
     model.load_data()
     model.data_status()
-    # model.load_checkpoint(config.save["potential_checkpoint"])
-    print("Initial test loss:", model.test(model.test_dataloader, callback=False))#FAlSE
+    model.load_checkpoint(config.save["potential_checkpoint"])
+    print(
+        "Initial test loss:", 
+        model.test(model.test_dataloader, callback=False)
+        )
     model.fit(
         evaluate_epochs=1,
         batch_callback_epochs=100,
         save_weight=True,
     )
-    model.load_checkpoint(config.save["potential_checkpoint"]) # evaluate on latest saved check point
+    # evaluate on last saved check point
+    model.load_checkpoint(config.save["potential_checkpoint"])
     print("final test loss:", model.test(model.test_dataloader, callback=False))
