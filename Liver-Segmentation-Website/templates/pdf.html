@@ -3,36 +3,129 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bootstrap demo</title>
+    <title>Patient Report</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <style>
+      .container {
+        width: 100%;
+      }
+      
+      .box {
+        display: inline-block;
+        width: 33%;
+        height: 100px;
+        background-color: gray;
+        margin: 0;
+      }
+      .first table, .first td{
+        border: 1px solid;
+      }
+      
+      .first table {
+        
+        border-collapse: collapse;
+      }
+      table{
+        margin-left: 5%;
+        width: 90%;
+      }
+      tr {
+        height: 40px;
+      }
+      td{
+        padding: 2%;
+        font-family: Verdana, sans-serif;
+      }
+    </style>
   </head>
   <body>
-    <div class="container">
-        <div class="row">
-            <div class="col"></div>
-            <div class="col-8">
-                <div class="card my-3" id="report-card">
-                    <div class="card-header" style="font-family: 'Tinos', serif;">
-                      Patient Report
-                    </div>
-                    <br>
-                    <div class="card-body">
-                    
-                      {% for in_arr in out_arr %}
-                      <h5 class="card-title">Lesion {{loop.index}}</h5>
-                      <p class="card-text">Longest diameter: {{in_arr[0]}}</p>
-                      <p class="card-text">Shortest diameter: {{in_arr[1]}}</p>
-                      <p class="card-text">Volume: {{in_arr[2]}}</p>
-                      <br>
-                      {%endfor%}
-                      <h5> Sum of longest diameters: {{longest_diam}}</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col"></div>
-        </div>
+    <div style="background-color:#587daa;">
+      <br>
+      <br>
+      <h1 style="color:white; font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        Patient Report
+      </h1>
+      <br>
+      <br>
     </div>
-    
+    <div class="first">
+      <br>
+      <p style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        Patient Demographics
+      </p>
+      <table>
+        <tr>
+          <td style="width:20% ; background-color:#becbdc; font-weight:bold;">Gender</td>
+          <td style="width:29%;">Female</td>
+          <td style="width:20% ; background-color:#becbdc; font-weight:bold;">Gender</td>
+          <td style="width:29%;">Female</td>
+        </tr>
+      </table>
+    </div>
+    <div class="second">
+      <br>
+      <table style="border: solid 1px #587daa;">
+        <tr>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Medical Status
+          </th>
+        </tr>
+      </table>
+      <table style="border: solid 1px #becbdc;">
+        <tr>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Lesions:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Cirrhosis:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Spleen Volume:</td>
+        </tr>
+        <tr>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Excess Fat:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Fibrosis:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Liver Volume:</td>
+        </tr>
+        <tr>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Excess Iron:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">NAFLD:</td>
+          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">NASH:</td>
+        </tr>
+      </table>
+    </div>
+    <div>
+      <br>
+      <p style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        Lesions' Details
+      </p>
+      <br>
+      <table style="border: solid 1px #587daa;">
+        <tr>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Lesion Number
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Longest Diameter
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Shortest Diameter
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Volume
+          </th>
+        </tr>
+        {% for in_arr in out_arr %}
+        <tr>
+          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">Lesion {{loop.index}}</td>
+          <td style="width:24%; font-weight:400; border:none;">{{ in_arr[0]}}</td>
+          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">{{in_arr[1]}}</td>
+          <td style="width:24% ; font-weight:400; border: none ;">{{in_arr[2]}}</td>
+        </tr>
+       {%endfor%}
+      </table>
+      <br>
+      <h5 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        Sum of longest diameters: {{longest_diam}}
+      </h5>
+      <br>
+    </div>
+   
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
   </body>
 </html>
