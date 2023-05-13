@@ -14,9 +14,7 @@ import shutil
 import torch
 import numpy as np
 from monai.transforms import Resize, EnsureChannelFirst, Compose, AddChannel
-from axial_2d import AxialSegmentation2D
-from sagittal_2d import SagittalSegmentation2D
-from coronal_2d import CoronalSegmentation2D
+from liver_segmentation import LiverSegmentation
 from engine.utils import nii2png_XYZ
 from engine.config import config
 
@@ -140,7 +138,7 @@ class ViewSegmentation:
         """
 
         sagittal_plane = "yz"
-        sagittal_model = SagittalSegmentation2D()
+        sagittal_model = LiverSegmentation(view="sagittal")
         sagittal_model.load_checkpoint(
             "/content/drive/MyDrive/voting_updated/engine/sagittal_checkpoint"
         )
@@ -151,7 +149,7 @@ class ViewSegmentation:
                                                 sagittal_prediction)
 
         coronal_plane = "xz"
-        coronal_model = CoronalSegmentation2D()
+        coronal_model = LiverSegmentation(mode="coronal")
         coronal_model.load_checkpoint(
             "/content/drive/MyDrive/voting_updated/engine/"
             "Copy of coronal_checkpoint"
@@ -163,7 +161,7 @@ class ViewSegmentation:
                                                coronal_prediction)
 
         axial_plane = "xy"
-        axial_model = AxialSegmentation2D()
+        axial_model = LiverSegmentation(mode = "voting_axial")
         axial_model.load_checkpoint(
             "/content/drive/MyDrive/voting_updated/engine/axial_checkpoint"
         )

@@ -1,3 +1,26 @@
+"""
+This module provides classes and functions for
+training and testing a liver segmentation model
+in different planes using Monai.
+
+Classes
+-------
+LiverSegmentation
+    A class representing a liver segmentation engine
+    that can be used to train and test a 2D liver segmentation model
+    for multiple views.
+
+Functions
+---------
+segment_liver
+    A functin segments the liver in 2D images using a 2D liver model.
+segment_liver_3d
+    A function used to segment the liver of a 3d volume using a 2D liver model
+train_liver
+    A function used to start the training of liver segmentation
+
+"""
+
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -44,28 +67,104 @@ dice_metric=DiceMetric(ignore_empty=True,include_background=True)
     
 class LiverSegmentation(Engine):
     """
-    A class used for the liver segmentation task. Inherits from Engine.
+    A class used for the liver segmentation task, contains the transforms required
+    by the user and the function that is used to start training. Inherits from Engine.
     """
 
-    def __init__(self):
-        self.set_configs()
+    def __init__(self,mode = "axial"):
+        self.set_configs(mode)
         super().__init__()
 
-    def set_configs(self):
+    def set_configs(self,mode):
         """
-        Sets new values for config parameters.
-        """
-        config.dataset['prediction'] = "test cases/sample_image"
-        config.training['batch_size'] = 8
-        config.network_parameters['dropout'] = 0
-        config.network_parameters['channels'] = [64, 128, 256, 512]
-        config.network_parameters['strides'] =  [2, 2, 2]
-        config.network_parameters['num_res_units'] =  4
-        config.network_parameters['norm'] = "INSTANCE"
-        config.network_parameters['bias'] = 1
-        config.save['liver_checkpoint'] = 'liver_cp'
-        config.transforms['mode'] = "2D"
+            
+        Sets configurations for different modes.
 
+        Parameters
+        ----------
+        mode : str
+            The mode for which to set the configurations.
+
+        Returns:
+        -------
+        None
+    
+        """
+        if (mode == "axial"):
+            config.dataset['prediction'] = "test cases/sample_image"
+            config.training['batch_size'] = 8
+            config.network_parameters['dropout'] = 0
+            config.network_parameters['channels'] = [64, 128, 256, 512]
+            config.network_parameters['strides'] =  [2, 2, 2]
+            config.network_parameters['num_res_units'] =  4
+            config.network_parameters['norm'] = "INSTANCE"
+            config.network_parameters['bias'] = 1
+            config.save['liver_checkpoint'] = 'liver_cp'
+            config.transforms['mode'] = "2D"
+
+        elif (mode == "sagittal"):
+            config.network_parameters["dropout"] = 0
+            config.network_parameters["num_res_units"] = 2
+            config.network_parameters["norm"] = "batch"
+            config.network_parameters["bias"] = 0
+            config.training["batch_size"] = 16
+            config.training["optimizer_parameters"]["lr"] = 0.001
+            config.training["scheduler_parameters"]["step_size"] = 10
+            config.training["scheduler_parameters"]["verbose"] = 0
+            config.training["scheduler_parameters"]["gamma"] = 0
+
+        elif (mode == "sliding_window"):
+            config.dataset["prediction"] = "test cases/sample_volume"
+            config.training["batch_size"] = 1
+            config.training["scheduler_parameters"] = {
+                "step_size": 20,
+                "gamma": 0.5,
+                "verbose": False,
+            }
+            config.network_parameters["dropout"] = 0
+            config.network_parameters["channels"] = [64, 128, 256, 512]
+            config.network_parameters["spatial_dims"] = 3
+            config.network_parameters["strides"] = [2, 2, 2]
+            config.network_parameters["num_res_units"] = 6
+            config.network_parameters["norm"] = "BATCH"
+            config.network_parameters["bias"] = False
+            config.save["liver_checkpoint"] = "liver_cp_sliding_window"
+            config.transforms["mode"] = "3D"
+            config.transforms["test_transform"] = "3DUnet_transform"
+            config.transforms["post_transform"] = "3DUnet_transform"
+
+        elif (mode == "voting_axial"):
+            config.training["scheduler_parameters"] = {
+            "step_size": 20,
+            "gamma": 0.5,
+            "verbose": False,
+            }
+            config.dataset["prediction"] = "test cases/sample_image"
+            config.training["batch_size"] = 8
+            config.network_parameters["dropout"] = 0
+            config.network_parameters["channels"] = [64, 128, 256, 512]
+            config.network_parameters["strides"] = [2, 2, 2]
+            config.network_parameters["num_res_units"] = 4
+            config.network_parameters["norm"] = "INSTANCE"
+            config.network_parameters["bias"] = 1
+            config.save["liver_checkpoint"] = "liver_cp"
+            config.transforms["mode"] = "3D"
+
+        elif (mode == "coronal"):
+            config.network_parameters["channels"] = [64, 128, 256, 512, 1024, 2048]
+            config.network_parameters["strides"] = [2, 2, 2, 2, 2]
+            config.network_parameters["dropout"] = 0.25
+            config.network_parameters["num_res_units"] = 4
+            config.network_parameters["norm"] = "INSTANCE"
+            config.network_parameters["bias"] = 1
+            config.training["batch_size"] = 8
+            config.training["optimizer_parameters"]["lr"] = 0.001
+            config.training["scheduler_parameters"]["step_size"] = 20000
+            config.transforms["mode"] = "3D"
+            config.transforms["post_transform"] = "3DUnet_transform"
+
+        
+    
     def get_pretraining_transforms(self, transform_name):
         """
         Gets a stack of preprocessing transforms to be used on the training data.
