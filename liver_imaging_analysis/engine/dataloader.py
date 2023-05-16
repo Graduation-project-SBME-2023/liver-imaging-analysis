@@ -4,10 +4,11 @@ a module to create a dataloader for our dataset and apply the selected preproces
 """
 import os
 
-from config import config
+from liver_imaging_analysis.engine.config import config
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 from sklearn.model_selection import train_test_split
+from enum import Enum
 
 
 def slices_paths_reader(volume_text_path, mask_text_path):
@@ -46,6 +47,34 @@ def slices_paths_reader(volume_text_path, mask_text_path):
     return volume_paths, mask_paths
 
 
+class Keys(str, Enum):
+    """
+    An enum that contains keys to access data dictionaries
+    """
+
+    IMAGE = 'image'
+    LABEL = 'label'
+    PRED = 'pred'
+
+    def __str__(self):
+        return self.value
+    
+    def __repr__(self):
+        return self.value
+    
+    @classmethod
+    def all(cls):
+        """lists all dictionary keys to access data
+
+        Returns
+        -------
+        list
+            list of strings to be used as dictionary keys
+
+        """
+        return list(map(lambda key: key.value, cls))
+    
+
 class DataLoader:
     def __init__(
         self,
@@ -56,7 +85,6 @@ class DataLoader:
         num_workers=0,
         pin_memory=False,
         test_size=0.1,
-        keys=("image", "label"),
         mode="2D",
         shuffle=False,
     ):
@@ -83,10 +111,7 @@ class DataLoader:
          test_size : float
              proportion of the test size to the whole dataset.
              A number between 0 and 1. Default is 0.1
-         keys: dict
-              Dictionary of the corresponding items to be loaded.
-              set by default to ("image","label")
-        mode: string
+         mode: string
               a string defines whether we will work with 2D images or 3D volumes
          shuffle: bool
               If, True will shuffle the loaded images and masks before returning them
@@ -147,11 +172,11 @@ class DataLoader:
             )
 
         train_files = [
-            {keys[0]: image_name, keys[1]: label_name}
+            {Keys.IMAGE: image_name, Keys.LABEL: label_name}
             for image_name, label_name in zip(training_volume_path, training_mask_path)
         ]
         test_files = [
-            {keys[0]: image_name, keys[1]: label_name}
+            {Keys.IMAGE: image_name, Keys.LABEL: label_name}
             for image_name, label_name in zip(test_volume_path, test_mask_path)
         ]
 
@@ -164,16 +189,18 @@ class DataLoader:
         Returns
         -------
         dict
-            Dictionary containing the training volumes and masks
+            An iterable dictionary containing the training volumes and masks
             that can be called using their specified keys.
-            An iterable object over the training data
         """
+        shuffle=False
+        if len(self.train_ds)!=0:
+          shuffle=self.shuffle
         train_loader = MonaiLoader(
             self.train_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            shuffle=self.shuffle,
+            shuffle=shuffle,
         )
         return train_loader
 
@@ -183,14 +210,18 @@ class DataLoader:
         Returns
         -------
         dict
-        Dictionary containing the testing volumes and masks
+        An iterable dictionary containing the testing volumes and masks
         that can be called using their specified keys.
         """
+        shuffle=False
+        if len(self.test_ds)!=0:
+          shuffle=self.shuffle
         test_loader = MonaiLoader(
             self.test_ds,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            shuffle=shuffle,
         )
 
         return test_loader

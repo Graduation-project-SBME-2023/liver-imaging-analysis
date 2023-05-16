@@ -6,9 +6,9 @@ import os
 
 import cv2 as cv
 import numpy as np
-from config import config
+from liver_imaging_analysis.config import config
 from monai.transforms import LoadImage
-
+from liver_imaging_analysis.engine.dataloader import Keys
 
 class LoadImageLocally(LoadImage):
     """
@@ -27,9 +27,9 @@ class LoadImageLocally(LoadImage):
         for key in list(data.keys()):
             # keys loop
             input_data_path = d[key]  # ".../training/volume/volume-0_0.nii"
-            if key == "image":
+            if key == Keys.IMAGE:
                 model_png_path = config.save["volume_png_path"]  # ".../Temp2D/volume/"
-            elif key == "label":
+            elif key == Keys.LABEL:
                 model_png_path = config.save["mask_png_path"]  # ".../Temp2D/volume/"
             slice_id = (
                 model_png_path + input_data_path.split("/")[-1]
