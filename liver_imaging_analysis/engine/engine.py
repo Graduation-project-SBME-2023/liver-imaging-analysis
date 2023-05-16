@@ -500,9 +500,8 @@ class Engine:
             for batch in predict_loader:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                #Apply post processing transforms on 2D prediction
-                if (config.transforms['mode']=="2D"):
-                    batch= self.post_process(batch,Keys.PRED)
+                #Apply post processing transforms
+                batch= self.post_process(batch,Keys.PRED)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list

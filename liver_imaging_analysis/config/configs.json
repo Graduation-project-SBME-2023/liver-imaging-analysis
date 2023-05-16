@@ -43,8 +43,7 @@
         "pred_key": "pred",
         "train_transform": "2DUnet_transform",
         "test_transform": "2DUnet_transform",
-        "post_transform": "2DUnet_transform",
-        "mode": "2D"
+        "post_transform": "2DUnet_transform"
     },
     "save": {
         "volume_png_path": "Temp2D/volume/",

@@ -46,11 +46,19 @@ dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 class LesionSegmentation(Engine):
     """
     A class used for the lesion segmentation task. Inherits from Engine.
+
+    Args:
+        mode: str
+            determines the mode of inference. 
+            Expects "2D" for slice inference or "3D" for volume inference.
+            Default is "2D"
     """
 
-    def __init__(self):
+    def __init__(self, mode = "2D"):
         self.set_configs()
         super().__init__()
+        if mode == '3D':
+            self.predict = self.predict_2dto3d
 
     def set_configs(self):
         config.dataset['prediction'] = "test cases/sample_image"
@@ -80,7 +88,6 @@ class LesionSegmentation(Engine):
                                                     "ignore_empty" : True,
                                                     "include_background" : False
                                                 }
-        config.transforms['mode'] = "2D"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -405,9 +412,8 @@ class LesionSegmentation(Engine):
                 suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
                 batch[Keys.PRED] = self.network(suppressed_volume)
-                #Apply post processing transforms on 2D prediction
-                if (config.transforms['mode']=="2D"):
-                    batch= self.post_process(batch,Keys.PRED)
+                #Apply post processing transforms
+                batch= self.post_process(batch,Keys.PRED)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -449,13 +455,50 @@ class LesionSegmentation(Engine):
             new_nii_volume = nib.Nifti1Image(volume_silce, affine = np.eye(4))
             nib.save(new_nii_volume, nii_volume_path)
         # Predict slices individually then reconstruct 3D prediction
-        batch={Keys.PRED:self.predict(temp_path,liver_mask)}
+        self.network.eval()
+        with torch.no_grad():
+            volume_names = natsort.natsorted(os.listdir(temp_path))
+            volume_paths = [os.path.join(temp_path, file_name) 
+                            for file_name in volume_names]
+            predict_files = [{Keys.IMAGE: image_name} 
+                             for image_name in volume_paths]
+            predict_set = Dataset(
+                            data=predict_files,
+                            transform=self.test_transform
+                            )
+            predict_loader = MonaiLoader(
+                predict_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            liver_set = Dataset(data=liver_mask)
+            liver_loader = MonaiLoader(
+                liver_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            prediction_list = []
+            for batch,liver_mask_batch in zip(predict_loader,liver_loader):
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                #isolate the liver and suppress other organs
+                suppressed_volume = np.where(
+                                        liver_mask_batch == 1,
+                                        batch[Keys.IMAGE],
+                                        batch[Keys.IMAGE].min()
+                                        )
+                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                #predict lesions in isolated liver
+                batch[Keys.PRED] = self.network(suppressed_volume)
+                prediction_list.append(batch[Keys.PRED])
+            prediction_list = torch.cat(prediction_list, dim=0)
+        batch={Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
         # to (1,channel,length,width,batch) 
-        batch[Keys.PRED]=batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
-        # Apply post processing transforms on 3D prediction
-        if (config.transforms['mode']=="3D"):
-            batch= self.post_process(batch,Keys.PRED)
+        batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
+        # Apply post processing transforms
+        batch = self.post_process(batch,Keys.PRED)
         # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
@@ -468,9 +511,9 @@ def segment_lesion(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation()
+    liver_model = LiverSegmentation(mode = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model = LesionSegmentation()
+    lesion_model = LesionSegmentation(mode = '2D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
     liver_prediction=liver_model.predict(config.dataset['prediction'])
     lesion_prediction= lesion_model.predict(
@@ -488,12 +531,12 @@ def segment_lesion_3d(*args):
     of a 3d volume using the liver and the lesion models.
     """
     set_seed()
-    liver_model = LiverSegmentation()
+    liver_model = LiverSegmentation(mode = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model = LesionSegmentation()
+    lesion_model = LesionSegmentation(mode = '3D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction = liver_model.predict_2dto3d(volume_path=args[0])
-    lesion_prediction = lesion_model.predict_2dto3d(
+    liver_prediction = liver_model.predict(volume_path=args[0])
+    lesion_prediction = lesion_model.predict(
                             volume_path = args[0],
                             liver_mask = liver_prediction[0].permute(3,0,1,2)
                             )
@@ -509,7 +552,7 @@ def train_lesion(*args):
 
     """
     set_seed()
-    model = LesionSegmentation()
+    model = LesionSegmentation(mode = '2D')
     model.load_data()
     model.data_status()
     model.load_checkpoint(config.save["potential_checkpoint"])

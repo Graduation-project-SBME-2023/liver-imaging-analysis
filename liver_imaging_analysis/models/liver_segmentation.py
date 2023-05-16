@@ -45,27 +45,60 @@ dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 class LiverSegmentation(Engine):
     """
     A class used for the liver segmentation task. Inherits from Engine.
+
+    Args:
+        mode: str
+            determines the mode of inference. 
+            Expects "2D" for slice inference, "3D" for volume inference,
+            or "sliding_window" for sliding window inference.
+            Default is "2D"
     """
 
-    def __init__(self):
-        self.set_configs()
+    def __init__(self, mode = "2D"):
+        self.set_configs(mode)
         super().__init__()
+        if mode == '3D':
+            self.predict = self.predict_2dto3d
+        elif mode == 'sliding_window':
+            self.predict = self.predict_sliding_window
 
-    def set_configs(self):
+    def set_configs(self, mode):
         """
         Sets new values for config parameters.
-        """
-        config.dataset['prediction'] = "test cases/sample_image"
-        config.training['batch_size'] = 8
-        config.network_parameters['dropout'] = 0
-        config.network_parameters['channels'] = [64, 128, 256, 512]
-        config.network_parameters['strides'] =  [2, 2, 2]
-        config.network_parameters['num_res_units'] =  4
-        config.network_parameters['norm'] = "INSTANCE"
-        config.network_parameters['bias'] = 1
-        config.save['liver_checkpoint'] = 'liver_cp'
-        config.transforms['mode'] = "2D"
 
+        Args:
+            mode: str
+                chooses the specified set of configs.
+        """
+        if mode in ['2D', '3D']:
+            config.dataset['prediction'] = "test cases/sample_image"
+            config.training['batch_size'] = 8
+            config.network_parameters['dropout'] = 0
+            config.network_parameters['channels'] = [64, 128, 256, 512]
+            config.network_parameters['strides'] =  [2, 2, 2]
+            config.network_parameters['num_res_units'] =  4
+            config.network_parameters['norm'] = "INSTANCE"
+            config.network_parameters['bias'] = 1
+            config.save['liver_checkpoint'] = 'liver_cp'
+        elif mode == 'sliding_window':
+            config.dataset['prediction']="test cases/sample_volume"
+            config.training['batch_size'] = 1
+            config.training['scheduler_parameters'] = {
+                                                        "step_size":20,
+                                                        "gamma":0.5, 
+                                                        "verbose":False
+                                                        }
+            config.network_parameters['dropout'] = 0
+            config.network_parameters['channels'] = [64, 128, 256, 512]
+            config.network_parameters['spatial_dims'] = 3
+            config.network_parameters['strides'] =  [2, 2, 2]
+            config.network_parameters['num_res_units'] =  6
+            config.network_parameters['norm'] = "BATCH"
+            config.network_parameters['bias'] = False
+            config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
+            config.transforms['test_transform'] = "3DUnet_transform"
+            config.transforms['post_transform'] = "3DUnet_transform"
+    
     def get_pretraining_transforms(self, transform_name):
         """
         Gets a stack of preprocessing transforms to be used on the training data.
@@ -311,7 +344,7 @@ class LiverSegmentation(Engine):
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
 
-    def predict_2dto3d(self, volume_path,temp_path="temp/"):
+    def predict_2dto3d(self, volume_path, temp_path="temp/"):
         """
         Predicts the label of a 3D volume using a 2D network.
 
@@ -346,19 +379,41 @@ class LiverSegmentation(Engine):
                                     ) + ".png"
             cv2.imwrite(volume_png_path, volume_silce)
         # Predict slices individually then reconstruct 3D prediction
-        batch={Keys.PRED:self.predict(temp_path)}
+        self.network.eval()
+        with torch.no_grad():
+            volume_names = natsort.natsorted(os.listdir(temp_path))
+            volume_paths = [os.path.join(temp_path, file_name) 
+                            for file_name in volume_names]
+            predict_files = [{Keys.IMAGE: image_name} 
+                             for image_name in volume_paths]
+            predict_set = Dataset(
+                data=predict_files, 
+                transform=self.test_transform
+                )
+            predict_loader = MonaiLoader(
+                predict_set,
+                batch_size=self.batch_size,
+                num_workers=0,
+                pin_memory=False,
+            )
+            prediction_list = []
+            for batch in predict_loader:
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
+                prediction_list.append(batch[Keys.PRED])
+            prediction_list = torch.cat(prediction_list, dim=0)
+        batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
         # to (1,channel,length,width,batch) 
-        batch[Keys.PRED]=batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
-        # Apply post processing transforms on 3D prediction
-        if (config.transforms['mode']=="3D"):
-            batch= self.post_process(batch,Keys.PRED)
+        batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
+        # Apply post processing transforms
+        batch = self.post_process(batch,Keys.PRED)
         # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
 
 
-    def predict_sliding_window(self, data_dir):
+    def predict_sliding_window(self, volume_path):
         """
         predict the label of the given input
         Parameters
@@ -372,11 +427,7 @@ class LiverSegmentation(Engine):
         """
         self.network.eval()
         with torch.no_grad():
-            volume_names = natsort.natsorted(os.listdir(data_dir))
-            volume_paths = [os.path.join(data_dir, file_name) 
-                            for file_name in volume_names]
-            predict_files = [{"image": image_name} 
-                             for image_name in volume_paths]
+            predict_files = [{Keys.IMAGE : volume_path}] 
             predict_set = Dataset(
                             data=predict_files, 
                             transform=self.test_transform
@@ -397,9 +448,8 @@ class LiverSegmentation(Engine):
                                         4, 
                                         self.network
                                         )
-                # Apply post processing transforms on 3D prediction
-                if (config.transforms['mode']=="3D"):
-                    batch=self.post_process(batch,Keys.PRED)    
+                # Apply post processing transforms
+                batch = self.post_process(batch,Keys.PRED)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -412,7 +462,7 @@ def segment_liver(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation()
+    liver_model = LiverSegmentation(mode = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     liver_prediction=liver_model.predict(config.dataset['prediction'])
     return liver_prediction
@@ -424,9 +474,21 @@ def segment_liver_3d(*args):
 
     """
     set_seed()
-    liver_model = LiverSegmentation()
+    liver_model = LiverSegmentation(mode = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict_2dto3d(volume_path=args[0])
+    liver_prediction=liver_model.predict(volume_path=args[0])
+    return liver_prediction
+
+
+def segment_liver_sliding_window(*args):
+    """
+    a function used to segment the liver of a 3d volume using a 2D liver model
+
+    """
+    set_seed()
+    liver_model = LiverSegmentation(mode = 'sliding_window')
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    liver_prediction=liver_model.predict(volume_path=args[0])
     return liver_prediction
 
 
@@ -436,7 +498,7 @@ def train_liver(*args):
 
     """
     set_seed()
-    model = LiverSegmentation()
+    model = LiverSegmentation(mode = '2D')
     model.load_data()
     model.data_status()
     model.load_checkpoint(config.save["potential_checkpoint"])
