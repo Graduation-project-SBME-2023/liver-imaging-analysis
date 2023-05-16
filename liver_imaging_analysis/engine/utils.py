@@ -23,6 +23,7 @@ rc("animation", html="html5")
 def progress_bar(progress, total):
     """
     A method to visualize the training progress by a progress bar
+
     Parameters
     ----------
     progress: float
@@ -38,6 +39,7 @@ def progress_bar(progress, total):
 def get_batch_names(batch, key):
     """
     A method to get the filenames of the current batch
+
     Parameters
     ----------
     batch: tensor
@@ -50,38 +52,49 @@ def get_batch_names(batch, key):
 
 class Overlay:
     """
-    a class used to visualize the mask overlayed on the volume and saves output as GIF.
+    Used to visualize the mask overlayed on the volume and saves the output as GIF.
     """
-    def gray_to_colored(VolumePath, MaskPath, alpha=0.2):
+    def __init__(self,volume_path,mask_path,output_name,alpha=0.2):
         """
-        A method to generate the volume and the mask overlay
+        Initializes the variables needed in the class.
+
         Parameters
         ----------
-        Volume Path: str
-            the directory that includes the volume nii file
-        Mask Path: str
-            the directory that includes the segmented mask nii file
-        alpha: float
-            the opacity of the displayed mask. default=0.2
-        Returns
-        -------
-        tensor
-            The Stacked 4 channels array of the nifti input
+        volume_path : str
+            The path of the volume to be animated.
+        mask_path : str
+            The path of the mask to be overlaid on the volume and animated.
+        output_name : str
+            The name of the generated GIF overlay.
+        alpha : float, optional
+            The opacity of the mask. (Default: 0.2)
+        """
+        self.volume_path=volume_path
+        self.mask_path=mask_path
+        self.alpha=alpha
+        self.output_name=output_name
+
+    def gray_to_colored(self):
+        """
+        Stacks the 1-channel gray volume to a 3-channel RGB volume and overlays the mask by assigning
+        a different color to the mask with a reasonable opacity.
+        Supports multi-class overlay by assigning a unique color to each class in the mask.
+
         """
 
         def normalize(arr):
             return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-        volume = nib.load(VolumePath).get_fdata()
-        mask = nib.load(MaskPath).get_fdata()
+        volume = nib.load(self.volume_path).get_fdata()
+        mask = nib.load(self.mask_path).get_fdata()
         mask_label = []
         masksNo = np.unique(mask)[1:]
-        dest = np.stack(
+        self.dest = np.stack(
             (normalize(volume).astype(np.uint8),) * 3, axis=-1
         )  # stacked array of volume
-        numbers = [0, 0.5, 1]
-        perm = permutations(numbers)
-        colors = [color for color in perm]
+
+        
+        colors =Visualization.get_colors()
         for i, label in enumerate(
             masksNo
         ):  # a loop to iterate over each label in the mask and perform weighted add for each
@@ -91,92 +104,96 @@ class Overlay:
             mask_label[i] = np.multiply(
                 (mask_label[i].astype(np.uint8) * 255), colors[i]
             ).astype(np.uint8)
-            dest = cv.addWeighted(dest, alpha, mask_label[i], alpha, 0.0)
-        return dest  # return an array of the volume with the mask overlayed on it with different label colors
+            self.dest = cv.addWeighted(self.dest, self.alpha, mask_label[i], self.alpha, 0.0)
 
-    def animate(volume, output_name):
+
+    def animate(self):
         """
-        A method to save the animated gif from the overlay array
-        Parameters
-        ----------
-        volume: tensor
-            expects a 4d array of the volume/mask overlay
-        output_name: str
-            the name of the gif file to be saved
+        Animates the overlay and saves the output as GIF
+
         """
         fig = plt.figure()
         ims = []
         for i in range(
-            volume.shape[2]
+            self.dest.shape[2]
         ):  # generate an animation over the slices of the array
             plt.axis("off")
-            im = plt.imshow(volume[:, :, i], animated=True)
+            im = plt.imshow(self.dest[:, :, i], animated=True)
             ims.append([im])
 
         ani = animation.ArtistAnimation(
             fig, ims, interval=200, blit=True, repeat_delay=100
         )
-        ani.save(output_name, dpi=300, writer=PillowWriter(fps=5))
+        ani.save(self.output_name, dpi=300, writer=PillowWriter(fps=5))
 
-    def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
+    def generate_animation(self):
         """
-        A method to generate the volume and the mask overlay from arrays
-        Parameters
-        ----------
-        Volume: tensor
-            the volume array
-        Mask: tensor
-            the mask array
-        mask2: tensor
-            optional additional mask to be overlayed. default is None
-        alpha: float
-            the opacity of the displayed mask. default=0.2
-        Returns
-        ----------
-        tensor
-            The Stacked 4 channels array of the nifti input
+        Used directly to generate and save the overlay animation. 
+
         """
+        self.gray_to_colored()
+        self.animate()
 
-        def normalize(arr):
-            return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-        mask_label = []
-        masks_number = np.unique(Mask)[1:]
-        if mask2 is not None:
-            mask_label2 = []
-            masks_number2 = np.unique(mask2)[1:0]
-        dest = np.stack(
-            (normalize(Volume).astype(np.uint8),) * 3, axis=-1
-        )  # stacked array of volume
+    # def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
+    #     """
+    #     A method to generate the volume and the mask overlay from arrays
+    #     Parameters
+    #     ----------
+    #     Volume: tensor
+    #         the volume array
+    #     Mask: tensor
+    #         the mask array
+    #     mask2: tensor
+    #         optional additional mask to be overlayed. default is None
+    #     alpha: float
+    #         the opacity of the displayed mask. default=0.2
+    #     Returns
+    #     ----------
+    #     tensor
+    #         The Stacked 4 channels array of the nifti input
+    #     """
 
-        numbers = [0, 0.5, 1]
-        perm = permutations(numbers)
-        colors = [color for color in perm]
+    #     def normalize(arr):
+    #         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-        for i, label in enumerate(
-            masks_number
-        ):  # a loop to iterate over each label in the mask and perform weighted add for each
-            # label with a unique color for each one
-            mask_label.append(Mask == label)
-            mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
-            mask_label[i] = np.multiply(
-                (mask_label[i].astype(np.uint8) * 255), colors[i]
-            ).astype(np.uint8)
-            dest = cv.addWeighted(dest, 1, mask_label[i], alpha, 0.0)
-        if mask2 is not None:
-            colors = np.flip(colors)
-            for i, label in enumerate(
-                masks_number2
-            ):  # a loop to iterate over each label in the mask and perform weighted add for each
-                # label with a unique color for each one
-                mask_label2.append(mask2 == label)
-                mask_label2[i] = np.stack((mask_label2[i],) * 3, axis=-1)
-                mask_label2[i] = np.multiply(
-                    (mask_label2[i].astype(np.uint8) * 255), colors[i]
-                ).astype(np.uint8)
-                dest = cv.addWeighted(dest, 1, mask_label2[i], alpha, 0.0)
+    #     mask_label = []
+    #     masks_number = np.unique(Mask)[1:]
+    #     if mask2 is not None:
+    #         mask_label2 = []
+    #         masks_number2 = np.unique(mask2)[1:0]
+    #     dest = np.stack(
+    #         (normalize(Volume).astype(np.uint8),) * 3, axis=-1
+    #     )  # stacked array of volume
 
-        return dest  # return an array of the volume with the mask overlayed on it with different label colors
+    #     numbers = [0, 0.5, 1]
+    #     perm = permutations(numbers)
+    #     colors = [color for color in perm]
+
+    #     for i, label in enumerate(
+    #         masks_number
+    #     ):  # a loop to iterate over each label in the mask and perform weighted add for each
+    #         # label with a unique color for each one
+    #         mask_label.append(Mask == label)
+    #         mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
+    #         mask_label[i] = np.multiply(
+    #             (mask_label[i].astype(np.uint8) * 255), colors[i]
+    #         ).astype(np.uint8)
+    #         dest = cv.addWeighted(dest, 1, mask_label[i], alpha, 0.0)
+    #     if mask2 is not None:
+    #         colors = np.flip(colors)
+    #         for i, label in enumerate(
+    #             masks_number2
+    #         ):  # a loop to iterate over each label in the mask and perform weighted add for each
+    #             # label with a unique color for each one
+    #             mask_label2.append(mask2 == label)
+    #             mask_label2[i] = np.stack((mask_label2[i],) * 3, axis=-1)
+    #             mask_label2[i] = np.multiply(
+    #                 (mask_label2[i].astype(np.uint8) * 255), colors[i]
+    #             ).astype(np.uint8)
+    #             dest = cv.addWeighted(dest, 1, mask_label2[i], alpha, 0.0)
+
+    #     return dest  # return an array of the volume with the mask overlayed on it with different label colors
 
 
 class VolumeSlicing:
@@ -186,6 +203,7 @@ class VolumeSlicing:
     def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
         """
         A method to generate 2d .png slices from 3d .nii volumes
+
         Parameters
         ----------
         volume_nii_path: str
@@ -249,6 +267,7 @@ class VolumeSlicing:
     ):
         """
         A method to generate 2d .nii slices from 3d .nii volumes
+
         Parameters
         ----------
         volume_nii_path: str
@@ -382,6 +401,7 @@ class Visualization:
     def get_colors(self, numbers=[1, 0.5, 0]):
         """
         calculate a list with unique colors
+
         Parameters
         ----------
         colors: list

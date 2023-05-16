@@ -179,13 +179,13 @@ def segment_liver(*args):
     """
     model = LiverSegmentation()
 
-    model.data_status()
-    # model.load_checkpoint()
-    model.fit(
-        evaluate_epochs=1,
-        batch_callback_epochs=1,
-        save_weight=True,
-    )
+    # model.data_status()
+    # # model.load_checkpoint()
+    # model.fit(
+    #     evaluate_epochs=1,
+    #     batch_callback_epochs=1,
+    #     save_weight=True,
+    # )
     # print("final test loss:", model.test(model.test_dataloader))
     # return model.predict("/content/drive/MyDrive/ToyLiver2DPredict")
 

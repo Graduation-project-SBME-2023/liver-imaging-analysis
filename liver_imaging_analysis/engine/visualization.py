@@ -1,5 +1,5 @@
 """
-a module to perform different visualization functions on tumors
+This module provides various visualization functions for tumors.
 """
 
 from skimage.measure import find_contours
@@ -14,23 +14,25 @@ import SimpleITK as sitk
 first_tumor = False  # to add plot titles for first tumor only not on every plot
 
 
-def visualize_tumor(volume, mask, idx, mode):
+def visualize_tumor(volume, mask, idx=None, mode='contour'):
     """
-    initiate the visualization for the chose mood, and whether we will calculate tumor for whole volume or specific slice
+    Initiate the tumor visualization based on the chosen mode and whether to calculate the tumor
+    for the whole volume or a specific slice.
 
     Parameters
     ----------
-    volume: nparray
-            the nfti volume data
-    mask: nparray
-            the nfti tumor mask data ( 0: background , 1: tumor)
-    idx: int
-            the index of slice to calculate all tumors in it. If None, the calculations are done for all slices
-    mode: string
-            the visualization mood
-                contour: draw the major axis and contour around the tumor
-                box: draw a bounding box around the tumor
-                zoom: zoomin, draw major axis and contours on tumor
+    volume : np.ndarray
+        The NIfTI volume data.
+    mask : np.ndarray
+        The NIfTI tumor mask data (0: background, 1: tumor).
+    idx : int, optional
+        The index of the slice to calculate all tumors in it. If None, the calculations are done for all slices.
+    mode : str, optional
+        The visualization mode:
+            - 'contour': Draws the major axis and contour around the tumor.
+            - 'box': Draws a bounding box around the tumor.
+            - 'zoom': Zooms in and draws the major axis and contours on the tumor.
+
     """
     fig, ax = plt.subplots()
     ax.axes.get_yaxis().set_visible(False)
@@ -68,20 +70,20 @@ def visualize_tumor(volume, mask, idx, mode):
 
 def major_axis_recursive(volume, mask, mode="volume"):
     """
-    in order to call major_axis independently for each tumor in volume,
-    remove all tumors in volume/slice except the largest one and call major_axis function for it,
-    then removes it and repeat.
+    Calls the 'major_axis' function independently for each tumor in the volume.
+    It removes all tumors in the volume/slice except the largest one and then calls the 'major_axis' function for it.
+    This process is repeated until all tumors have been processed.
 
     Parameters
     ----------
-    volume: np array
-            the nfti volume data
-    mask: nparray
-            the nfti tumor mask data ( 0: background , 1: tumor)
-    mode: string
-            whether the input is 3D volume or 2D slice, if 3D volume the code is performed for each
-            tumor in the volume and plotted individually in slice with largest volume,
-            if slice the code is performed on all tumors in a specific slice
+    volume : np.ndarray
+        The NIfTI volume data.
+    mask : np.ndarray
+        The NIfTI tumor mask data (0: background, 1: tumor).
+    mode : str, optional
+        Determines whether the input is a 3D volume or a 2D slice.
+        If 'volume', the code is performed for each tumor in the volume, and each tumor is plotted individually in the slice with the largest volume.
+        If 'slice', the code is performed on all tumors in a specific slice.
     """
 
     global first_tumor
@@ -96,7 +98,7 @@ def major_axis_recursive(volume, mask, mode="volume"):
         if mode == "volume":
             idx = visualization.calculate_largest_tumor(largest_tumor[0])
 
-            major_axis(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
+            major_axes(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
 
             contours = find_contours(largest_tumor[0][:, :, idx], 0)
             for contour in contours:
@@ -105,7 +107,7 @@ def major_axis_recursive(volume, mask, mode="volume"):
             fig, ax = plt.subplots()
 
         elif mode == "slice":
-            major_axis(volume, largest_tumor[0], ax)
+            major_axes(volume, largest_tumor[0], ax)
 
             contours = find_contours(mask, 0)
             for contour in contours:
@@ -116,19 +118,18 @@ def major_axis_recursive(volume, mask, mode="volume"):
     plt.show()
 
 
-def major_axis(volume_slice, mask_slice, ax):
+def major_axes(volume_slice, mask_slice, ax):
     """
-    calculate major axes length and draw them on the tumors for a given slice
+    Calculates the major axes length for each tumor in a given slice and draws them on the tumors.
 
     Parameters
     ----------
-    volume_slice: np array
-            a specific slice from patient volume
-    mask_slice: nparray
-            a specific slice from patient tumor mask ( 0: background , 1: tumor)
-    ax: matplotlip axis
-            the axis to plot the axes on to make all axes on same axis
-
+    volume_slice : np.ndarray
+        A specific slice from the patient's volume.
+    mask_slice : np.ndarray
+        A specific slice from the patient's tumor mask. (0: background, 1: tumor)
+    ax : matplotlib axis
+        The axis to plot the axes on, in order to align all axes.
     """
     img = sitk.GetImageFromArray(mask_slice.astype(int))
 
@@ -204,7 +205,7 @@ def major_axis(volume_slice, mask_slice, ax):
             lw=1,
             c="b",
             linestyle="dashed",
-            label="Shortest Diameter",
+            label="Major Axis",
         )
     else:
         ax.plot(
@@ -229,7 +230,7 @@ def major_axis(volume_slice, mask_slice, ax):
             lw=1,
             c="g",
             linestyle="dashed",
-            label="Longest Diameter",
+            label="Minor Axis",
         )
     else:
         ax.plot(
@@ -245,19 +246,19 @@ def major_axis(volume_slice, mask_slice, ax):
 
 def get_bounding_box(mask_slice, crop_margin=0):
     """
-    get the vertices of bounding box around mask
+    Retrieves the vertices of the bounding box around the tumor mask.
 
     Parameters
     ----------
-    mask_slice: np array
-            a specific slice from patient tumor mask ( 0: background , 1: tumor)
-    crop_maring: int
-            the margin of the box
-    Returns
-    ----------
-    tuple:
-            returns tuple of xmin,xmax,ymin,ymax which are the vertices of box
+    mask_slice : np.ndarray
+        A specific slice from the patient's tumor mask. (0: background, 1: tumor)
+    crop_margin : int, optional
+        The margin of the bounding box.
 
+    Returns
+    -------
+    tuple
+        A tuple containing the vertices of the bounding box: (xmin, xmax, ymin, ymax).
     """
     xmin, ymin, xmax, ymax = 0, 0, 0, 0
 
@@ -286,14 +287,16 @@ def get_bounding_box(mask_slice, crop_margin=0):
 
 def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
     """
-    plot bounding box around tumors in a specific slice
+    Plots the bounding box around tumors in a specific slice.
 
     Parameters
     ----------
-    mask_slice: np array
-            a specific slice from patient tumor mask ( 0: background , 1: tumor)
-    crop_maring: int
-            the margin of the box
+    mask_slice : np.ndarray
+        A specific slice from the patient's tumor mask. (0: background, 1: tumor)
+    crop_margin : int, optional
+        The margin of the bounding box.
+    j : int, optional
+        An additional parameter for the function to track and number each tumor in volume. (Default: -1)
     """
 
     dimensions = []
@@ -313,12 +316,12 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
     colors = visualization.get_colors()
     print("Tumors Number = ", len(dimensions))
     x_dim, y_dim, z_dim = visualization.find_pix_dim()  # again same calculation
-    for i in range(len(dimensions)):
 
-        if j != -1:
+    for i in range(len(dimensions)):
+        if j != -1: # if j is not equal to -1, then it's the number of tumor in volume and should be tracked.
             n = j
         else:
-            n = i
+            n = i # if j equals -1 then it's a single tumor 
         xmin, ymin, xmax, ymax, pixels = dimensions[i]
 
         plt.plot([xmin, xmax], [ymin, ymin], color=colors[i], label=f"Lesion {n+1}")
@@ -335,14 +338,16 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
 
 def plot_bbox_image_volume(volume, mask, crop_margin=0):
     """
-    plot bounding box around tumors in a the volume by calculating for each tumor independently
+    Plots the bounding box around tumors in the volume by calculating for each tumor independently.
 
     Parameters
     ----------
-    volume: np array
-            the volume to calculate all tumors in
-    mask: np array
-            the tumors mask (0: background, 1:tumor)
+    volume : np.ndarray
+        The volume to calculate all tumors in.
+    mask : np.ndarray
+        The tumor mask. (0: background, 1: tumor)
+    crop_margin : int, optional
+        The margin of the bounding box.
     """
     i = 0
     while np.unique(mask).any() == 1:
@@ -359,18 +364,18 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
 
 def crop_to_bbox(image, bbox, crop_margin=0, pad=40):
     """
-    crop the box of the image to zoom in
+    Crops the image to the bounding box to zoom in.
 
     Parameters
     ----------
-    image: np array
-            the image to zoom in it
-    bbox: list
-            the vertices of bounding box to crop
-    crop_margin: int
-            the margin of crop
-    pad: int
-            zoomin padding
+    image : np.ndarray
+        The image to zoom in on.
+    bbox : list
+        The vertices of the bounding box to crop.
+    crop_margin : int, optional
+        The margin for cropping. (Default: 0)
+    pad : int, optional
+        Padding for zooming in. (Default: 40)
     """
     x1, y1, x2, y2 = bbox
 
@@ -390,14 +395,14 @@ def crop_to_bbox(image, bbox, crop_margin=0, pad=40):
 
 def plot_tumor(volume_slice, mask_slice):
     """
-    draw a box around the tmor, zoomin, draw contours and major axes for tumor in a slice
+    Draws a box around the tumor, zooms in, and plots contours and major axes for the tumor in a specific slice.
 
     Parameters
     ----------
-    volume_slice: np array
-            specific slice of patient volume
-    mask_slice: np array
-            tumor mask
+    volume_slice : np.ndarray
+        Specific slice of the patient's volume.
+    mask_slice : np.ndarray
+        Specific slice of the patient's tumor mask (0: background, 1:tumor).
 
     """
     image = np.asarray(volume_slice)
@@ -431,7 +436,7 @@ def plot_tumor(volume_slice, mask_slice):
         ax[1].plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
     ax[1].imshow(croped_image, cmap="gray")
 
-    major_axis(croped_image, croped_masks, ax[2])
+    major_axes(croped_image, croped_masks, ax[2])
 
     for axis in ["top", "bottom", "left", "right"]:
         ax[1].spines[axis].set_color("red")
@@ -451,14 +456,14 @@ def plot_tumor(volume_slice, mask_slice):
 
 def plot_tumor_volume(volume, mask):
     """
-    draw a box around the tmor, zoomin, draw contours and major axes for all tumors in volume
+    Draws a box around tumors, zooms in, and plots contours and major axes for all tumors in the volume.
 
     Parameters
     ----------
-    volume: np array
-            patient volume
-    mask: np array
-            tumor mask volume
+    volume : np.ndarray
+        Patient volume.
+    mask : np.ndarray
+        Tumor mask volume.
 
     """
     global first_tumor
