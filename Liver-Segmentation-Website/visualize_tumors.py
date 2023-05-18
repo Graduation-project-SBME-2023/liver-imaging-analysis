@@ -56,7 +56,7 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
         first_tumor=False
         fig.savefig(f'Liver-Segmentation-Website/static/contour/tumor_{i}.png')
         i += 1
-        parameters.append([axis1,axis2,max_volume])
+        parameters.append([round(axis1, 2),round(axis2, 2),round(max_volume,2)])
 
     plt.close('all')        
 
