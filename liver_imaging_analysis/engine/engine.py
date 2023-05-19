@@ -329,10 +329,8 @@ class Engine:
         """
         checkpoint = torch.load(path , map_location=torch.device(self.device))
         self.network.load_state_dict(checkpoint['state_dict'])
-        if ('optimizer' in checkpoint.keys()):
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-        if ('scheduler' in checkpoint.keys()):
-            self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.scheduler.load_state_dict(checkpoint['scheduler'])
 
 
     def compile_status(self):

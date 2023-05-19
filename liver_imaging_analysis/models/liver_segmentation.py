@@ -43,7 +43,6 @@ dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 
 def set_configs(mode='2D'):
     if mode == '2D':
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
         config.dataset['prediction']="test cases/sample_image"
         config.training['batch_size']=8
         config.network_parameters['dropout']= 0
