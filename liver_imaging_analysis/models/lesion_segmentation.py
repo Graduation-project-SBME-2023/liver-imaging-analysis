@@ -41,7 +41,7 @@ import nibabel as nib
 from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+dice_metric = DiceMetric(ignore_empty = True, include_background = False)
 
 class LesionSegmentation(Engine):
     """
@@ -97,7 +97,7 @@ class LesionSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -205,7 +205,7 @@ class LesionSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -270,7 +270,7 @@ class LesionSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -303,31 +303,31 @@ class LesionSegmentation(Engine):
                 original input image
             label: tensor
                 target lesion mask
-            prediction:
+            prediction: tensor
                 predicted lesion mask
         """
 
-        dice_score=dice_metric(prediction.int(),label.int())[0].item()
+        dice_score = dice_metric(prediction.int(),label.int())[0].item()
         plot_2d_or_3d_image(
-            data=image,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Volume:dice_score:{dice_score}",
+            data = image,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Volume:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
-            data=label,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Mask:dice_score:{dice_score}",
+            data = label,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Mask:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
-            data=prediction,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
+            data = prediction,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
 
     def per_epoch_callback(
@@ -388,22 +388,22 @@ class LesionSegmentation(Engine):
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
-                            data=predict_files,
-                            transform=self.test_transform
+                            data = predict_files,
+                            transform = self.test_transform
                             )
             predict_loader = MonaiLoader(
-                predict_set,
-                batch_size=self.batch_size,
-                num_workers=0,
-                pin_memory=False,
-            )
-            liver_set = Dataset(data=liver_mask)
+                                            predict_set,
+                                            batch_size = self.batch_size,
+                                            num_workers = 0,
+                                            pin_memory = False,
+                                        )
+            liver_set = Dataset(data = liver_mask)
             liver_loader = MonaiLoader(
-                liver_set,
-                batch_size=self.batch_size,
-                num_workers=0,
-                pin_memory=False,
-            )
+                                        liver_set,
+                                        batch_size = self.batch_size,
+                                        num_workers = 0,
+                                        pin_memory = False,
+                                    )
             prediction_list = []
             for batch,liver_mask_batch in zip(predict_loader,liver_loader):
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -413,11 +413,11 @@ class LesionSegmentation(Engine):
                                         batch[Keys.IMAGE],
                                         batch[Keys.IMAGE].min()
                                         )
-                suppressed_volume=ToTensor()(suppressed_volume).to(self.device)
+                suppressed_volume = ToTensor()(suppressed_volume).to(self.device)
                 #predict lesions in isolated liver
                 batch[Keys.PRED] = self.network(suppressed_volume)
                 #Apply post processing transforms
-                batch= self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch,Keys.PRED)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -438,9 +438,10 @@ class LesionSegmentation(Engine):
 
         Returns:
             tensor
-                Predicted labels with shape (1,channel,length,width,depth).
+                Predicted labels with shape (1, channel, length, width, depth).
                 Values: background: 0, liver: 1, lesion: 2.
         """
+
         # Read volume
         img_volume_array=nib.load(volume_path).get_fdata()
         number_of_slices = img_volume_array.shape[2]
@@ -484,7 +485,7 @@ class LesionSegmentation(Engine):
                 pin_memory=False,
             )
             prediction_list = []
-            for batch,liver_mask_batch in zip(predict_loader,liver_loader):
+            for batch, liver_mask_batch in zip(predict_loader, liver_loader):
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 #isolate the liver and suppress other organs
                 suppressed_volume = np.where(
@@ -497,7 +498,7 @@ class LesionSegmentation(Engine):
                 batch[Keys.PRED] = self.network(suppressed_volume)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
-        batch={Keys.PRED : prediction_list}
+        batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
         # to (1,channel,length,width,batch) 
         batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 

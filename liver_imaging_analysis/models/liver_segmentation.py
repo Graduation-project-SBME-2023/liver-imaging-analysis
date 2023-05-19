@@ -112,7 +112,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -187,7 +187,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -246,7 +246,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
