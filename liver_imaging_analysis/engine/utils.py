@@ -50,11 +50,81 @@ def get_batch_names(batch, key):
     return batch[f"{key}_meta_dict"]["filename_or_obj"]
 
 
+def calculate_largest_tumor(mask):
+    """
+    Get the index of the slice with the largest tumor volume.
+
+    Parameters:
+    mask (np.array): The tumor mask where 0 represents the background and 1 represents the tumor.
+
+    Returns:
+    idx (int): The index of the slice with the largest tumor volume.
+    """
+    max_volume = -1
+    idx = -1
+    x, y, z = find_pix_dim(path=config.visualization["volume"])
+    clone = mask.clone()
+    largest_tumor = KeepLargestConnectedComponent()(clone)
+    for i in range(largest_tumor.shape[-1]):
+        slice = largest_tumor[:, :, i]
+        if slice.any() == 1:
+            count = np.unique(slice, return_counts=True)[1][1]
+            if count > max_volume:
+                max_volume = count
+                idx = i
+    max_volume = max_volume * x * y * z
+    print("Largest Volume = ", max_volume, " In Slice ", idx)
+
+    return idx
+
+
+def get_colors(numbers=[1, 0.5, 0]):
+    """
+    calculate a list with unique colors
+
+    Parameters
+    ----------
+    colors: list
+        the r,g,b values to be permuted
+    Returns
+    -------
+    colors: list
+        list with all possible permutations of rgb values
+    """
+
+    perm = permutations(numbers)
+    colors = [color for color in perm]
+    return colors
+
+
+def find_pix_dim(path=config.visualization["volume"]):
+    """
+    calculate the pixel dimensions in mm in the 3 axes
+
+    Parameters
+    ----------
+    path: str
+        path of the input directory. expects nifti file.
+    Returns
+    -------
+    list
+        list if mm dimensions of 3 axes (L,W,N)
+    """
+    volume = nib.load(path)
+    pix_dim = volume.header["pixdim"][1:4]
+    pix_dimx = pix_dim[0]
+    pix_dimy = pix_dim[1]
+    pix_dimz = pix_dim[2]
+
+    return [pix_dimx, pix_dimy, pix_dimz]
+
+
 class Overlay:
     """
     Used to visualize the mask overlayed on the volume and saves the output as GIF.
     """
-    def __init__(self,volume_path,mask_path,output_name,alpha=0.2):
+
+    def __init__(self, volume_path, mask_path, output_name, mask2_path=None, alpha=0.2):
         """
         Initializes the variables needed in the class.
 
@@ -69,16 +139,17 @@ class Overlay:
         alpha : float, optional
             The opacity of the mask. (Default: 0.2)
         """
-        self.volume_path=volume_path
-        self.mask_path=mask_path
-        self.alpha=alpha
-        self.output_name=output_name
+        self.volume_path = volume_path
+        self.mask_path = mask_path
+        self.alpha = alpha
+        self.output_name = output_name
+        self.mask2_path = mask2_path
 
     def gray_to_colored(self):
         """
         Stacks the 1-channel gray volume to a 3-channel RGB volume and overlays the mask by assigning
         a different color to the mask with a reasonable opacity.
-        Supports multi-class overlay by assigning a unique color to each class in the mask.
+        Supports multi-class overlay and multi-label overlay.
 
         """
 
@@ -87,16 +158,23 @@ class Overlay:
 
         volume = nib.load(self.volume_path).get_fdata()
         mask = nib.load(self.mask_path).get_fdata()
+        if self.mask2_path is not None:
+            mask2 = nib.load(self.mask2_path).get_fdata()
+        else:
+            mask2 = None
         mask_label = []
-        masksNo = np.unique(mask)[1:]
+        masks_number = np.unique(mask)[1:]
+        if mask2 is not None:
+            mask_label2 = []
+            masks_number2 = np.unique(mask2)[1:0]
         self.dest = np.stack(
             (normalize(volume).astype(np.uint8),) * 3, axis=-1
         )  # stacked array of volume
 
-        
-        colors =Visualization.get_colors()
+        colors = get_colors()
+
         for i, label in enumerate(
-            masksNo
+            masks_number
         ):  # a loop to iterate over each label in the mask and perform weighted add for each
             # label with a unique color for each one
             mask_label.append(mask == label)
@@ -104,8 +182,21 @@ class Overlay:
             mask_label[i] = np.multiply(
                 (mask_label[i].astype(np.uint8) * 255), colors[i]
             ).astype(np.uint8)
-            self.dest = cv.addWeighted(self.dest, self.alpha, mask_label[i], self.alpha, 0.0)
-
+            self.dest = cv.addWeighted(self.dest, 1, mask_label[i], self.alpha, 0.0)
+        if mask2 is not None:
+            colors = np.flip(colors)
+            for i, label in enumerate(
+                masks_number2
+            ):  # a loop to iterate over each label in the mask and perform weighted add for each
+                # label with a unique color for each one
+                mask_label2.append(mask2 == label)
+                mask_label2[i] = np.stack((mask_label2[i],) * 3, axis=-1)
+                mask_label2[i] = np.multiply(
+                    (mask_label2[i].astype(np.uint8) * 255), colors[i]
+                ).astype(np.uint8)
+                self.dest = cv.addWeighted(
+                    self.dest, 1, mask_label2[i], self.alpha, 0.0
+                )
 
     def animate(self):
         """
@@ -128,78 +219,18 @@ class Overlay:
 
     def generate_animation(self):
         """
-        Used directly to generate and save the overlay animation. 
+        Used directly to generate and save the overlay animation.
 
         """
         self.gray_to_colored()
         self.animate()
 
 
-    # def gray_to_colored_from_array(Volume, Mask, mask2=None, alpha=0.2):
-    #     """
-    #     A method to generate the volume and the mask overlay from arrays
-    #     Parameters
-    #     ----------
-    #     Volume: tensor
-    #         the volume array
-    #     Mask: tensor
-    #         the mask array
-    #     mask2: tensor
-    #         optional additional mask to be overlayed. default is None
-    #     alpha: float
-    #         the opacity of the displayed mask. default=0.2
-    #     Returns
-    #     ----------
-    #     tensor
-    #         The Stacked 4 channels array of the nifti input
-    #     """
-
-    #     def normalize(arr):
-    #         return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
-
-    #     mask_label = []
-    #     masks_number = np.unique(Mask)[1:]
-    #     if mask2 is not None:
-    #         mask_label2 = []
-    #         masks_number2 = np.unique(mask2)[1:0]
-    #     dest = np.stack(
-    #         (normalize(Volume).astype(np.uint8),) * 3, axis=-1
-    #     )  # stacked array of volume
-
-    #     numbers = [0, 0.5, 1]
-    #     perm = permutations(numbers)
-    #     colors = [color for color in perm]
-
-    #     for i, label in enumerate(
-    #         masks_number
-    #     ):  # a loop to iterate over each label in the mask and perform weighted add for each
-    #         # label with a unique color for each one
-    #         mask_label.append(Mask == label)
-    #         mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
-    #         mask_label[i] = np.multiply(
-    #             (mask_label[i].astype(np.uint8) * 255), colors[i]
-    #         ).astype(np.uint8)
-    #         dest = cv.addWeighted(dest, 1, mask_label[i], alpha, 0.0)
-    #     if mask2 is not None:
-    #         colors = np.flip(colors)
-    #         for i, label in enumerate(
-    #             masks_number2
-    #         ):  # a loop to iterate over each label in the mask and perform weighted add for each
-    #             # label with a unique color for each one
-    #             mask_label2.append(mask2 == label)
-    #             mask_label2[i] = np.stack((mask_label2[i],) * 3, axis=-1)
-    #             mask_label2[i] = np.multiply(
-    #                 (mask_label2[i].astype(np.uint8) * 255), colors[i]
-    #             ).astype(np.uint8)
-    #             dest = cv.addWeighted(dest, 1, mask_label2[i], alpha, 0.0)
-
-    #     return dest  # return an array of the volume with the mask overlayed on it with different label colors
-
-
 class VolumeSlicing:
     """
     a class used to call different functions to divide 3D Nfti files to 2D images, Nfti files .
     """
+
     def nii2png(volume_nii_path, mask_nii_path, volume_save_path, mask_save_path):
         """
         A method to generate 2d .png slices from 3d .nii volumes
@@ -335,26 +366,26 @@ class VolumeSlicing:
 class Visualization:
     """
     a class used to call different visualization functions on tumors, volume and mask paths should be added
-    to config['visualization], the mask should be labeled 0 for background, 1 for tumor.
+    to config['visualization], the mask should be labeled 0 for background, 1 for liver, 2 for tumor.
     """
-    
-    def visualization_mood(self, mode='box',idx=None):
-        """
-        choose the visualization mood of tumor and load volume,mask and preprocess them. 
-        ----------
 
-        mode: str
-            the visualization mood. available moods are:-
-            'box': draw a bounding box arround tumor,
-            'contour': draw a contour around tumor and draw the longest,shortest diameters.
-            'zoom': draw bounding box, zoom, and draw longest,shortest diameters on tumors.
-        idx: int
-            if not None, it represents the index of a specific slice in the volume to execute
-            code on. if None, the code will be executed for all slices and all tumors
+    def visualization_mode(self, mode="box", idx=None):
         """
-        # idx = self.calculate_largest_tumor(mask)
-        # idx = None
+        Choose the visualization mode for tumors and load volume, mask, and preprocess them.
 
+        Parameters:
+        mode (str): The visualization mode. Available modes are:
+            - 'box': Draw a bounding box around the tumor.
+            - 'contour': Draw a contour around the tumor and display the longest and shortest diameters.
+            - 'zoom': Draw a bounding box, zoom, and display the longest and shortest diameters on tumors.
+
+
+        idx (int): If not None, it represents the index of a specific slice in the volume to execute code on.
+            If None, the code will be executed for all slices and all tumors.
+        """
+        from visualization import visualize_tumor           # to avoid cyclic importing
+
+        
         volume = nib.load(config.visualization["volume"]).get_fdata()
         volume = ScaleIntensityRange(
             a_min=-135,
@@ -364,78 +395,9 @@ class Visualization:
             clip=True,
         )(volume)
         mask = nib.load(config.visualization["mask"]).get_fdata()
-        mask = AsDiscrete(threshold=1.5)(mask)  # FIXED LATER 
+        mask = AsDiscrete(threshold=1.5)(mask)  
 
-        from visualization import visualize_tumor  # to avoid cyclic importing
         visualize_tumor(volume, mask, idx, mode)
-
-    def calculate_largest_tumor(self, mask):
-        """
-        get the slice with largest tumor volume
-        ----------
-
-        mask: np array
-            the tumors mask (0: background, 1: tumor)
-        Returns
-        -------
-        idx: int
-            index of the slice with largest volume
-        """
-        max_volume = -1
-        idx = -1
-        x, y, z = self.find_pix_dim(path=config.visualization["volume"])
-        clone = mask.clone()
-        largest_tumor = KeepLargestConnectedComponent()(clone)
-        for i in range(largest_tumor.shape[-1]):
-            slice = largest_tumor[:, :, i]
-            if slice.any() == 1:
-                count = np.unique(slice, return_counts=True)[1][1]
-                if count > max_volume:
-                    max_volume = count
-                    idx = i
-        max_volume = max_volume * x * y * z
-        print("Largest Volume = ", max_volume, " In Slice ", idx)
-
-        return idx
-
-    def get_colors(self, numbers=[1, 0.5, 0]):
-        """
-        calculate a list with unique colors
-
-        Parameters
-        ----------
-        colors: list
-            the r,g,b values to be permuted
-        Returns
-        -------
-        colors: list
-            list with all possible permutations of rgb values
-        """
-
-        perm = permutations(numbers)
-        colors = [color for color in perm]
-        return colors
-
-    def find_pix_dim(self, path=config.visualization['volume']):
-        """
-        calculate the pixel dimensions in mm in the 3 axes
-
-        Parameters
-        ----------
-        path: str
-            path of the input directory. expects nifti file.
-        Returns
-        -------
-        list
-            list if mm dimensions of 3 axes (L,W,N)
-        """
-        volume = nib.load(path)
-        pix_dim = volume.header["pixdim"][1:4]
-        pix_dimx = pix_dim[0]
-        pix_dimy = pix_dim[1]
-        pix_dimz = pix_dim[2]
-
-        return [pix_dimx, pix_dimy, pix_dimz]
 
 
 visualization = Visualization()
