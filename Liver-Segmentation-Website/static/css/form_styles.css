@@ -1,6 +1,6 @@
-@import url(https://fonts.googleapis.com/css?family=Open+Sans:400italic,400,300,600);
+/* @import url(https://fonts.googleapis.com/css?family=Open+Sans:400italic,400,300,600); */
 
-* {
+/* * {
 	margin:0;
 	padding:0;
 	box-sizing:border-box;
@@ -11,19 +11,20 @@
 	-o-font-smoothing:antialiased;
 	font-smoothing:antialiased;
 	text-rendering:optimizeLegibility;
-}
+} */
 
-body {
+/* body {
 	font-family:"Open Sans", Helvetica, Arial, sans-serif;
 	font-weight:300;
 	font-size: 12px;
 	line-height:30px;
 	color:#777;
 	background:rgb(0, 0, 0);
-}
+}  */
+
 
 .container {
-	max-width:400px;
+	max-width:800px;
 	width:100%;
 	margin:0 auto;
 	position:relative;

@@ -107,7 +107,8 @@ canvas{
     transform: rotate(270deg); 
 }
 body{
-    background:url('../dna.PNG');
+    /* background:url('../dna.PNG'); */
+    background-color: rgb(255, 255, 255);
     background-repeat:  repeat-y;
     background-size: cover;
 }
@@ -127,15 +128,15 @@ body{
 }
 
 #TumorRoute{
-    color: white;
+    color: rgb(0, 0, 0);
     padding: 5px;
     margin-bottom: 5px;
     text-decoration: none;
     font-family: 'Gloock', serif;
 }
 #TumorRoute:hover{
-    text-decoration: underline white;
-    text-shadow: 2px 2px 8px #ffffff;;
+    text-decoration: underline rgb(0, 0, 0);
+    /* text-shadow: 2px 2px 8px #ffffff;; */
 }
 .gif_wrapper p{
     display: flex;
@@ -263,4 +264,51 @@ body {
   .remove-image:active {
     border: 0;
     transition: all .2s ease;
+  }
+
+
+  
+  .box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  .box select {
+    background-color: #cfd3d4;
+    color: rgb(17, 15, 15);
+    padding: 12px;
+    width: 250px;
+    border: none;
+    font-size: 20px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+    -webkit-appearance: button;
+    appearance: button;
+    outline: none;
+  }
+  
+  .box::before {
+    content: "\f13a";
+    font-family: FontAwesome;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20%;
+    height: 100%;
+    text-align: center;
+    font-size: 28px;
+    line-height: 45px;
+    color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
+  
+  .box:hover::before {
+    color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .box select option {
+    padding: 30px;
   }

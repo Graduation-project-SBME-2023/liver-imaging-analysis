@@ -14,18 +14,42 @@
     <title>/Liver Segmentation    </title>
 
     <!-- Bootstrap core CSS -->
+    <!-- CSS FILES -->
+        
     <link
+    rel="stylesheet"
+    href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+    crossorigin="anonymous"
+    /> 
+
+    <link rel="stylesheet" href="../static/css/style.css">      
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link href="../static/css/bootstrap-icons.css" rel="stylesheet">
+    
+    <link href="../static/css/owl.carousel.min.css" rel="stylesheet">
+    
+    <link href="../static/css/owl.theme.default.min.css" rel="stylesheet">
+    
+    <link href="../static/css/templatemo-medic-care.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- <link
       rel="stylesheet"
       href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
       integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
       crossorigin="anonymous"
-    />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="../static/css/style.css">
-    
+    /> -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous"> -->
+    <!-- <link rel="stylesheet" href="../static/css/style.css"> -->
+<!--     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet"> -->
     <style>
     
     </style>
@@ -33,17 +57,53 @@
 
   <body cz-shortcut-listen="true" >
     
-    <div
-      class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4 mb-3 border-bottom box-shadow"
-      style="background-color: black;"
-    >
-      <h5 class="my-0 mr-md-auto font-weight-normal">
-        <a href="/">Liver Segmentation </a>
-      </h5>
-      <!-- text-shadow: 2px 2px 8px white; -->
-      <nav class="my-2 my-md-0 mr-md-3">
-        <a class="p-2" href="/about" id="About">About</a>
-      </nav>
+   
+      <nav class="navbar navbar-expand-lg bg-light fixed-top shadow-lg">
+        <div class="container">
+            <a class="navbar-brand mx-auto d-lg-none" href="index_2.html">
+                Medic Care
+                <strong class="d-block">Health Specialist</strong>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#hero">Home</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about">About</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#timeline">Workflow</a>
+                    </li>
+
+                    <a class="navbar-brand d-none d-lg-block" href="#hero">
+                        Segmify Pro
+                        <strong class="d-block">Liver Segmentation AI</strong>
+                    </a>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#reviews">Start the Demo</a>
+                    </li>
+
+                    <!-- <li class="nav-item">
+                        <a class="nav-link" href="#booking">Booking</a>
+                    </li> -->
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#contact">Contact</a>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+    </nav>
       
     </div>
     
@@ -53,75 +113,6 @@
     </div>
     </div>
 
-    <!--<div class="container">
-      <footer class="pt-4 my-md-5 pt-md-5 border-top">
-        <div class="row">
-          <div class="col-12 col-md">
-            <img
-              class="mb-2"
-              src="http://www.toubal.com/img/toubal-logo.png"
-              alt=""
-              width="150"
-            />
-            <small class="d-block mb-3 text-muted"
-              >© Toubal, Imad Eddine 2019</small
-            >
-          </div>
-          <div class="col-6 col-md">
-            <h5>Links</h5>
-            <ul class="list-unstyled text-small">
-              <li>
-                <a
-                  class="text-muted"
-                  href="https://github.com/imadtoubal/Pytorch-Flask-Docker-App"
-                  >Code on GitHub</a
-                >
-              </li>
-              <li>
-                <a
-                  class="text-muted"
-                  href="https://github.com/imadtoubal/Pytorch-Flask-Docker-App/issues"
-                  >How to contribute</a
-                >
-              </li>
-            </ul>
-          </div>
-          <div class="col-6 col-md">
-            <h5>Resources</h5>
-            <ul class="list-unstyled text-small">
-              <li>
-                <a
-                  class="text-muted"
-                  href="https://www.palletsprojects.com/p/flask/"
-                  >Flask</a
-                >
-              </li>
-              <li>
-                <a class="text-muted" href="https://pytorch.org/">Pytorch</a>
-              </li>
-              <li>
-                <a class="text-muted" href="https://pytorch.org/hub/"
-                  >Pytorch Hub</a
-                >
-              </li>
-            </ul>
-          </div>
-          <div class="col-6 col-md">
-            <h5>About</h5>
-            <ul class="list-unstyled text-small">
-              <li>
-                <a class="text-muted" href="http://www.toubal.com">About me</a>
-              </li>
-              <li>
-                <a class="text-muted" href="https://www.github.com/imadtoubal"
-                  >GitHub</a
-                >
-              </li>
-            </ul>
-          </div>
-        </div>
-      </footer>
-    </div>-->
 
     <!-- Bootstrap core JavaScript
     ================================================== -->

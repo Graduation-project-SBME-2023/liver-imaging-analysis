@@ -1,9 +1,30 @@
 {% extends 'base.html' %}
 {% block content %}
 
+
+
+<br>
+<br>
+<br>
+<br>
+
+<div style="position: relative;">    
+    <div class="box">
+        <select id="mySelect" onchange="myFunction">
+            <option value="2">Axial</option>
+            <option value="1">Coronal</option>
+            <option value="0">Sagittal</option>
+        </select>
+    </div>
+</div>
+
+
+<br>
+<br>
+
+
 <script type="text/javascript" src="./static/libgif.js"></script>
 <script type="text/javascript" src="./static/rubbable.js"></script>
-
 
 
 <script>
@@ -14,42 +35,37 @@
     let gifWrapper,clonedGifWrapper,center;
 
 </script>
-<div class="container p-5">
-    <div class="p-3"><center>
-        <h3 class="text">
-          This is the results page where you can see the orignal image and the result of the model prediction
-        </h3>
-        <label for="mySelect" style="color:white;">select the view:</label>
-        <select id="mySelect" onchange="myFunction">
-            <option value="2">axial</option>
-            <option value="1">coronal</option>
-            <option value="0">sagittal</option>
-        </select>
-     
-      </center>
-    </div>
+
+<!-- <div class="container p-5">   -->
+
+
+
+    
+
+
     <div class="row">
         <div class="col">
             <center id="center">
-            <!-- <div style="width: 350px;" class="card-header"><center><h4 class="card-title">Output</h4></center></div> -->
+                
 
-                <div  id="options" style="margin-top: 5px;">
-                    <a href="javascript:;" id="pause">Pause</a> |
-                    <a href="javascript:;" id="play">Play</a> |
-                    <a href="javascript:;" id="forward">Step forward</a> |
-                    <a href="javascript:;" id="backward">Step back</a>
+                <div  style="margin-top: 5px;">
+                    <a href="javascript:;" class="btn btn-dark my-1" id="pause">Pause</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="play">Play</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="forward">Step forward</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="backward">Step back</a>
                 </div>
-                <br>
-                <a href="/TumorRoute" id="TumorRoute"> Press to visualize tumors</a>
-                <br>
-                <br>
+                <br >
+                <br >
+                <a  href="/TumorRoute" id="TumorRoute" "> Press to visualize tumors</a>
+            
+                
                 <div class="gif_wrapper" id="gif_wrapper" style="width: 800px; display: flex; margin-top: 15px;">
                     <div>
-                       <p>Overlay</p>
+                       <p style="color: black;">Overlay</p>
                        <img style="max-height: 250px;" id="overlay" src="static\axial\OverlayGif.gif" alt="this slowpoke moves" class="controled_image" />
                     </div>
                     <div>
-                        <p>Original</p>
+                        <p style="color: black;">Original</p>
                         <img  style="max-height: 250px;" id="oringinal" src="static\axial\OriginalGif.gif" alt="this slowpoke moves" class="controled_image" />
                     </div>
                 </div>
@@ -57,7 +73,7 @@
         </div>
     </div>
 
-</div>
+</div> 
 
 
 <script>
