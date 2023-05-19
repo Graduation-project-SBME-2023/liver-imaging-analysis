@@ -149,6 +149,7 @@ class LiverSegmentation(Engine):
             config.network_parameters["bias"] = 1
             config.save["liver_checkpoint"] = "liver_cp"
             config.transforms["mode"] = "3D"
+            self.predict = self.predict_2dto3d
 
         elif (mode == "coronal"):
             config.network_parameters["channels"] = [64, 128, 256, 512, 1024, 2048]
