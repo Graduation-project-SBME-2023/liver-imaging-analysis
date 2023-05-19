@@ -65,19 +65,19 @@ class LesionSegmentation(Engine):
         config.dataset['training'] = "Temp2D/Train/"
         config.dataset['testing'] = "Temp2D/Test/"
         config.training['batch_size'] = 8
-        config.training['optimizer_parameters'] = {"lr": 0.01}
+        config.training['optimizer_parameters'] = {"lr" : 0.01}
         config.training['scheduler_parameters'] = {
-                                                    "step_size":20,
-                                                    "gamma":0.5, 
-                                                    "verbose":False
+                                                    "step_size" : 20,
+                                                    "gamma" : 0.5, 
+                                                    "verbose" : False
                                                   }
         config.network_parameters['dropout'] = 0
         config.network_parameters['channels'] = [64, 128, 256, 512]
         config.network_parameters["out_channels"] = 1
         config.network_parameters['strides'] =  [2, 2, 2]
-        config.network_parameters['num_res_units'] =  0
-        config.network_parameters['norm'] = "INSTANCE"
-        config.network_parameters['bias'] = True
+        config.network_parameters['num_res_units'] =  2
+        config.network_parameters['norm'] = "BATCH"
+        config.network_parameters['bias'] = False
         config.save['lesion_checkpoint'] = 'lesion_cp'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
@@ -88,6 +88,8 @@ class LesionSegmentation(Engine):
                                                     "ignore_empty" : True,
                                                     "include_background" : False
                                                 }
+        config.transforms['test_transform'] = "2DUnet_transform"
+        config.transforms['post_transform'] = "2DUnet_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -236,16 +238,16 @@ class LesionSegmentation(Engine):
                     #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys=True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode=("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys=True
-                        ),
+                    # ResizeD(
+                    #     Keys.all(), 
+                    #     resize_size, 
+                    #     mode=("bilinear", "nearest", "nearest"), 
+                    #     allow_missing_keys=True
+                    #     ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
-                        a_min=0,
-                        a_max=164,
+                        a_min=-135,
+                        a_max=215,
                         b_min=0.0,
                         b_max=1.0,
                         clip=True,
@@ -278,10 +280,12 @@ class LesionSegmentation(Engine):
         transforms= {
         '2DUnet_transform': Compose(
             [
-                ActivationsD(Keys.PRED, sigmoid=True),
-                AsDiscreteD(Keys.PRED, threshold=0.5),
-                # RemoveSmallObjectsD(Keys.PRED, min_size=5),
+                ActivationsD(Keys.PRED, sigmoid = True),
+                AsDiscreteD(Keys.PRED, threshold = 0.5),
                 FillHolesD(Keys.PRED),
+                RemoveSmallObjectsD(Keys.PRED, min_size = 5),
+                KeepLargestConnectedComponentD(Keys.PRED, num_components = 10),   
+
             ]
         )
         } 
@@ -445,14 +449,14 @@ class LesionSegmentation(Engine):
           os.mkdir(temp_path)
         # Write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[:, :,slice_number]
+            volume_slice = img_volume_array[:, :,slice_number]
             # Delete extension from filename
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]
             nii_volume_path = os.path.join(
                                 temp_path, 
                                 volume_file_name + "_" + str(slice_number)
                                 ) + ".nii.gz"
-            new_nii_volume = nib.Nifti1Image(volume_silce, affine = np.eye(4))
+            new_nii_volume = nib.Nifti1Image(volume_slice, affine = np.eye(4))
             nib.save(new_nii_volume, nii_volume_path)
         # Predict slices individually then reconstruct 3D prediction
         self.network.eval()
@@ -472,7 +476,7 @@ class LesionSegmentation(Engine):
                 num_workers=0,
                 pin_memory=False,
             )
-            liver_set = Dataset(data=liver_mask)
+            liver_set = Dataset(data = liver_mask)
             liver_loader = MonaiLoader(
                 liver_set,
                 batch_size=self.batch_size,
@@ -515,13 +519,13 @@ def segment_lesion(*args):
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation(mode = '2D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction=liver_model.predict(config.dataset['prediction'])
-    lesion_prediction= lesion_model.predict(
+    liver_prediction = liver_model.predict(config.dataset['prediction'])
+    lesion_prediction = lesion_model.predict(
                             config.dataset['prediction'],
-                            liver_mask=liver_prediction
+                            liver_mask = liver_prediction
                             )
-    lesion_prediction=lesion_prediction*liver_prediction #no liver -> no lesion
-    liver_lesion_prediction=lesion_prediction+liver_prediction #lesion label is 2
+    lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
+    liver_lesion_prediction = lesion_prediction + liver_prediction #lesion label is 2
     return liver_lesion_prediction
 
 
@@ -540,8 +544,8 @@ def segment_lesion_3d(*args):
                             volume_path = args[0],
                             liver_mask = liver_prediction[0].permute(3,0,1,2)
                             )
-    lesion_prediction = lesion_prediction*liver_prediction #no liver -> no lesion
-    liver_lesion_prediction = lesion_prediction+liver_prediction #lesion label is 2
+    lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
+    liver_lesion_prediction = lesion_prediction + liver_prediction #lesion label is 2
     return liver_lesion_prediction
 
 
@@ -561,10 +565,10 @@ def train_lesion(*args):
         model.test(model.test_dataloader, callback=False)
         )
     model.fit(
-        evaluate_epochs=1,
-        batch_callback_epochs=100,
-        save_weight=True,
+        evaluate_epochs = 1,
+        batch_callback_epochs = 100,
+        save_weight = True,
     )
     # evaluate on last saved check point
     model.load_checkpoint(config.save["potential_checkpoint"])
-    print("final test loss:", model.test(model.test_dataloader, callback=False))
+    print("final test loss:", model.test(model.test_dataloader, callback = False))

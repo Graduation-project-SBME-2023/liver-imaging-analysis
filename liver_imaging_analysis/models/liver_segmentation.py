@@ -41,37 +41,6 @@ from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
-
-def set_configs(mode='2D'):
-    if mode == '2D':
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.dataset['prediction']="test cases/sample_image"
-        config.training['batch_size']=8
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
-        config.network_parameters['bias']= 1
-        config.save['liver_checkpoint']= 'liver_cp'
-        config.transforms['mode']= "3D"
-
-    elif mode == 'sliding_window':
-        config.dataset['prediction']="test cases/sample_volume"
-        config.training['batch_size']=1
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['spatial_dims']= 3
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  6
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= False
-        config.save['liver_checkpoint']= 'liver_cp_sliding_window'
-        config.transforms['mode']= "3D"
-        config.transforms['test_transform']= "3DUnet_transform"
-        config.transforms['post_transform']= "3DUnet_transform"
-    
     
 class LiverSegmentation(Engine):
     """
@@ -104,13 +73,20 @@ class LiverSegmentation(Engine):
         if mode in ['2D', '3D']:
             config.dataset['prediction'] = "test cases/sample_image"
             config.training['batch_size'] = 8
+            config.training['scheduler_parameters'] = {
+                                                        "step_size":20,
+                                                        "gamma":0.5, 
+                                                        "verbose":False
+                                                        }
             config.network_parameters['dropout'] = 0
             config.network_parameters['channels'] = [64, 128, 256, 512]
             config.network_parameters['strides'] =  [2, 2, 2]
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "INSTANCE"
-            config.network_parameters['bias'] = 1
+            config.network_parameters['bias'] = True
             config.save['liver_checkpoint'] = 'liver_cp'
+            config.transforms['test_transform'] = "2DUnet_transform"
+            config.transforms['post_transform'] = "2DUnet_transform"
         elif mode == 'sliding_window':
             config.dataset['prediction']="test cases/sample_volume"
             config.training['batch_size'] = 1
@@ -401,14 +377,14 @@ class LiverSegmentation(Engine):
           os.mkdir(temp_path)
         # Write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number, :, :]
+            volume_slice = img_volume_array[slice_number, :, :]
             # Delete extension from filename
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]
             volume_png_path = os.path.join(
                                     temp_path, 
                                     volume_file_name + "_" + str(slice_number)
                                     ) + ".png"
-            cv2.imwrite(volume_png_path, volume_silce)
+            cv2.imwrite(volume_png_path, volume_slice)
         # Predict slices individually then reconstruct 3D prediction
         self.network.eval()
         with torch.no_grad():
