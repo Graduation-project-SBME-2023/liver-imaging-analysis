@@ -12,11 +12,10 @@ from flask import Flask, render_template, request, send_file, jsonify, make_resp
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation
 from liver_imaging_analysis.engine.utils import gray_to_colored, animate
 from visualize_tumors import visualize_tumor, parameters
-# import pdfkit
+import pdfkit
 plt.switch_backend("Agg")
 gc.collect()
 torch.cuda.empty_cache()
-
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
@@ -26,10 +25,7 @@ liver_model = liver_segmentation.LiverSegmentation()
 liver_model.load_checkpoint("Liver-Segmentation-Website/models_checkpoints/liver_cp")
 lesion_model = lesion_segmentation.LesionSegmentation()
 
-
-
 sum_longest = 0  # global variable
-
 
 @app.route("/")
 def index():
@@ -38,7 +34,6 @@ def index():
     """
     return render_template("index_2.html")
 
-
 @app.route("/about")
 def about():
     """
@@ -46,18 +41,16 @@ def about():
     """
     return render_template("about.html")
 
-
 @app.route("/infer", methods=["POST"])
 def success():
     """
     Start segmentation , create and display the gifs
     """
-
     if request.method == "POST":
         nifti_file = request.files["file"]
         save_location = nifti_file.filename
         save_location = save_folder + save_location
-        # nifti_file.save(save_location)
+        nifti_file.save(save_location)
         # volume, prediction = liver_model.predict_with_lesions(
         #     save_location, network_lesions
         # )
@@ -116,8 +109,6 @@ def tumor_analysis():
     """
     parsing Tumor analysis
     """
-
-    
     sum_longest_diameter = 0
 
     for item in parameters:
@@ -166,16 +157,16 @@ def report():
     return render_template("form.html")
 
 
-# @app.route('/pdf')
-# def pdf():
-#     rendered = render_template('pdf.html' ,out_arr=data_arr, longest_diam=sum_longest)
-#     config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
-#     pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
+@app.route('/pdf')
+def pdf():
+    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=sum_longest)
+    config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
+    pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
 
-#     response = make_response(pdf)
-#     response.headers['Content-Type'] = 'application/pdf'
-#     response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
-#     return response
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
+    return response
 
 if __name__ == "__main__":
     app.debug = True
