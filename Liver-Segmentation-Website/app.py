@@ -12,11 +12,10 @@ from flask import Flask, render_template, request, send_file, jsonify, make_resp
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation
 from liver_imaging_analysis.engine.utils import gray_to_colored, animate
 from visualize_tumors import visualize_tumor, parameters
-# import pdfkit
+import pdfkit
 plt.switch_backend("Agg")
 gc.collect()
 torch.cuda.empty_cache()
-
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
@@ -26,10 +25,7 @@ liver_model = liver_segmentation.LiverSegmentation()
 liver_model.load_checkpoint("Liver-Segmentation-Website/models_checkpoints/liver_cp")
 lesion_model = lesion_segmentation.LesionSegmentation()
 
-
-
 sum_longest = 0  # global variable
-
 
 @app.route("/")
 def index():
@@ -38,7 +34,6 @@ def index():
     """
     return render_template("index_2.html")
 
-
 @app.route("/about")
 def about():
     """
@@ -46,13 +41,11 @@ def about():
     """
     return render_template("about.html")
 
-
 @app.route("/infer", methods=["POST"])
 def success():
     """
     Start segmentation , create and display the gifs
     """
-
     if request.method == "POST":
         nifti_file = request.files["file"]
         save_location = nifti_file.filename
@@ -116,8 +109,6 @@ def tumor_analysis():
     """
     parsing Tumor analysis
     """
-
-    
     sum_longest_diameter = 0
 
     for item in parameters:
