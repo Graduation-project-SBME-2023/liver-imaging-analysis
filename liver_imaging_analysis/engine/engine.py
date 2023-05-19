@@ -306,7 +306,6 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = torch.load(path)
-<<<<<<< HEAD
         if ('state_dict' in checkpoint.keys()): #dict checkpoint
             self.network.load_state_dict(checkpoint['state_dict'])
             if ('optimizer' in checkpoint.keys()):
@@ -315,14 +314,6 @@ class Engine:
                 self.scheduler.load_state_dict(checkpoint['scheduler'])
         else: #weights only
             self.network.load_state_dict(checkpoint)
-=======
-        self.network.load_state_dict(checkpoint['state_dict'])
-        if ('optimizer' in checkpoint.keys()):
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-        if ('scheduler' in checkpoint.keys()):
-            self.scheduler.load_state_dict(checkpoint['scheduler'])
-
->>>>>>> e5acd9f7eec41739cb516b14083cc2183b97b59c
 
     def compile_status(self):
         """

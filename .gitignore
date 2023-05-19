@@ -25,8 +25,4 @@ Liver Segmentation4Res_0.06loss_0.92Score
 test cases
 model.pt
 liver_cp_sliding_window
-<<<<<<< HEAD
 lobe_cp
-=======
-lobe_cp
->>>>>>> e5acd9f7eec41739cb516b14083cc2183b97b59c

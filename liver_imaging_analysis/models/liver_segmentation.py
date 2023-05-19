@@ -41,40 +41,6 @@ from monai.handlers.utils import from_engine
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
-<<<<<<< HEAD
-=======
-
-def set_configs(mode='2D'):
-    if mode == '2D':
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.dataset['prediction']="test cases/sample_image"
-        config.training['batch_size']=8
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  4
-        config.network_parameters['norm']= "INSTANCE"
-        config.network_parameters['bias']= 1
-        config.save['liver_checkpoint']= 'liver_cp'
-        config.transforms['mode']= "3D"
-
-    elif mode == 'sliding_window':
-        config.dataset['prediction']="test cases/sample_volume"
-        config.training['batch_size']=1
-        config.training['scheduler_parameters']={"step_size":20, "gamma":0.5, "verbose":False}
-        config.network_parameters['dropout']= 0
-        config.network_parameters['channels']= [64, 128, 256, 512]
-        config.network_parameters['spatial_dims']= 3
-        config.network_parameters['strides']=  [2, 2, 2]
-        config.network_parameters['num_res_units']=  6
-        config.network_parameters['norm']= "BATCH"
-        config.network_parameters['bias']= False
-        config.save['liver_checkpoint']= 'liver_cp_sliding_window'
-        config.transforms['mode']= "3D"
-        config.transforms['test_transform']= "3DUnet_transform"
-        config.transforms['post_transform']= "3DUnet_transform"
-    
->>>>>>> e5acd9f7eec41739cb516b14083cc2183b97b59c
     
 class LiverSegmentation(Engine):
     """
