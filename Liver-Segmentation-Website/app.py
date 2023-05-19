@@ -57,22 +57,22 @@ def success():
         nifti_file = request.files["file"]
         save_location = nifti_file.filename
         save_location = save_folder + save_location
-        # nifti_file.save(save_location)
-        # volume, prediction = liver_model.predict_with_lesions(
-        #     save_location, network_lesions
-        # )
+        nifti_file.save(save_location)
+        volume, prediction = liver_model.predict_with_lesions(
+            save_location, network_lesions
+        )
 
-        # visualize_tumor(save_location,prediction,mode='contour')
-        # visualize_tumor(save_location,prediction,mode='box')
-        # visualize_tumor(save_location,prediction,mode='zoom')
+        visualize_tumor(save_location,prediction,mode='contour')
+        visualize_tumor(save_location,prediction,mode='box')
+        visualize_tumor(save_location,prediction,mode='zoom')
 
-        # overlay_3D , original_3D = gray_to_colored(volume,prediction)        
-        # animate(original_3D ,"Liver-Segmentation-Website/static/axial/OriginalGif.gif",2)
-        # animate(overlay_3D,"Liver-Segmentation-Website/static/axial/OverlayGif.gif",2)
-        # animate(original_3D ,"Liver-Segmentation-Website/static/coronal/OriginalGif.gif",1)
-        # animate(overlay_3D,"Liver-Segmentation-Website/static/coronal/OverlayGif.gif",1)
-        # animate(original_3D ,"Liver-Segmentation-Website/static/sagittal/OriginalGif.gif",0)
-        # animate(overlay_3D,"Liver-Segmentation-Website/static/sagittal/OverlayGif.gif",0)
+        overlay_3D , original_3D = gray_to_colored(volume,prediction)        
+        animate(original_3D ,"Liver-Segmentation-Website/static/axial/OriginalGif.gif",2)
+        animate(overlay_3D,"Liver-Segmentation-Website/static/axial/OverlayGif.gif",2)
+        animate(original_3D ,"Liver-Segmentation-Website/static/coronal/OriginalGif.gif",1)
+        animate(overlay_3D,"Liver-Segmentation-Website/static/coronal/OverlayGif.gif",1)
+        animate(original_3D ,"Liver-Segmentation-Website/static/sagittal/OriginalGif.gif",0)
+        animate(overlay_3D,"Liver-Segmentation-Website/static/sagittal/OverlayGif.gif",0)
 
         return render_template(
             "inference.html",
@@ -166,16 +166,16 @@ def report():
     return render_template("form.html")
 
 
-# @app.route('/pdf')
-# def pdf():
-#     rendered = render_template('pdf.html' ,out_arr=data_arr, longest_diam=sum_longest)
-#     config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
-#     pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
+@app.route('/pdf')
+def pdf():
+    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=sum_longest)
+    config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
+    pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
 
-#     response = make_response(pdf)
-#     response.headers['Content-Type'] = 'application/pdf'
-#     response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
-#     return response
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
+    return response
 
 if __name__ == "__main__":
     app.debug = True
