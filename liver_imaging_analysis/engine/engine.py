@@ -5,7 +5,6 @@ a module contains the fixed structure of the core of our code
 import os
 import random
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
-from liver_imaging_analysis.engine import losses
 from liver_imaging_analysis.engine import models
 import numpy as np
 import torch
@@ -124,9 +123,9 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "dice_loss" : losses.DiceLoss,
+            # "dice_loss" : losses.DiceLoss,
             "monai_dice" : monaiDiceLoss,
-            "bce_dice" : losses.BCEDiceLoss,
+            # "bce_dice" : losses.BCEDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
 
