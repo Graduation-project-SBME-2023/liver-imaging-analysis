@@ -75,9 +75,9 @@ class LesionSegmentation(Engine):
         config.network_parameters['channels'] = [64, 128, 256, 512]
         config.network_parameters["out_channels"] = 1
         config.network_parameters['strides'] =  [2, 2, 2]
-        config.network_parameters['num_res_units'] =  0
-        config.network_parameters['norm'] = "INSTANCE"
-        config.network_parameters['bias'] = True
+        config.network_parameters['num_res_units'] =  2
+        config.network_parameters['norm'] = "BATCH"
+        config.network_parameters['bias'] = False
         config.save['lesion_checkpoint'] = 'lesion_cp'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
@@ -151,8 +151,8 @@ class LesionSegmentation(Engine):
                         ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
-                        a_min=0,
-                        a_max=164,
+                        a_min=-135,
+                        a_max=215,
                         b_min=0.0,
                         b_max=1.0,
                         clip=True,
@@ -244,8 +244,8 @@ class LesionSegmentation(Engine):
                         ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
-                        a_min=0,
-                        a_max=164,
+                        a_min=-135,
+                        a_max=215,
                         b_min=0.0,
                         b_max=1.0,
                         clip=True,

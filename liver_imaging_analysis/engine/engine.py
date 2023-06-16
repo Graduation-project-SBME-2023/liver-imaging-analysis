@@ -5,8 +5,6 @@ a module contains the fixed structure of the core of our code
 import os
 import random
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
-from liver_imaging_analysis.engine import losses
-from liver_imaging_analysis.engine import models
 import numpy as np
 import torch
 import torch.optim.lr_scheduler
@@ -105,9 +103,6 @@ class Engine:
                 parameters of network, if exist.
         """
         networks = {
-            "3DUNet" : models.UNet3D,
-            "3DResNet" : models.ResidualUNet3D,
-            "2DUNet" : models.UNet2D,
             "monai_2DUNet" : monai.networks.nets.UNet,
         }
         return networks[network_name](**kwargs)
@@ -124,9 +119,7 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "dice_loss" : losses.DiceLoss,
             "monai_dice" : monaiDiceLoss,
-            "bce_dice" : losses.BCEDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -305,7 +298,7 @@ class Engine:
             The path of the checkpoint to be loaded.
             Default path is the one specified in config.
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location = torch.device(self.device))
         if ('state_dict' in checkpoint.keys()): #dict checkpoint
             self.network.load_state_dict(checkpoint['state_dict'])
             if ('optimizer' in checkpoint.keys()):

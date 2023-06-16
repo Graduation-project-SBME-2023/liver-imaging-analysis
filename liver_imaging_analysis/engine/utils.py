@@ -15,8 +15,7 @@ import SimpleITK as sitk
 from monai.transforms import ScaleIntensityRange
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
-from config import config
-
+from liver_imaging_analysis.engine.config import config
 from monai.transforms import AsDiscrete
 
 rc("animation", html="html5")
