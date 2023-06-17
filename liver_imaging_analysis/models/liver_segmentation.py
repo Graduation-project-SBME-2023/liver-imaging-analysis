@@ -292,7 +292,12 @@ class LiverSegmentation(Engine):
                         allow_missing_keys = True
                         ),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
+                    ForegroundMaskD(
+                        Keys.LABEL, 
+                        threshold = 0.5, 
+                        invert = True, 
+                        allow_missing_keys=True
+                        ),
                     ToTensorD(Keys.all(), allow_missing_keys = True),  
                 ]
             ),
