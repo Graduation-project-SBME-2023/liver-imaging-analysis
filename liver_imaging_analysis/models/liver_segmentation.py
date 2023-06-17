@@ -568,6 +568,16 @@ def segment_liver_sliding_window(*args):
     liver_prediction=liver_model.predict(volume_path=args[0])
     return liver_prediction
 
+def segment_liver_mri(*args):
+    """
+    a function used to segment the liver of a 3d volume using a 2D liver model
+
+    """
+    set_seed()
+    liver_model = LiverSegmentation(mode = 'MRI')
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    liver_prediction=liver_model.predict(volume_path=args[0])
+    return liver_prediction
 
 def train_liver(*args):
     """
