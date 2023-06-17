@@ -57,7 +57,7 @@ class LiverSegmentation(Engine):
     def __init__(self, mode = "2D"):
         self.set_configs(mode)
         super().__init__()
-        if mode == '3D':
+        if mode in ['3D', 'MRI']:
             self.predict = self.predict_2dto3d
         elif mode == 'sliding_window':
             self.predict = self.predict_sliding_window
@@ -70,6 +70,7 @@ class LiverSegmentation(Engine):
             mode: str
                 chooses the specified set of configs.
         """
+        
         if mode in ['2D', '3D']:
             config.dataset['prediction'] = "test cases/sample_image"
             config.training['batch_size'] = 8
@@ -98,6 +99,25 @@ class LiverSegmentation(Engine):
             config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
             config.transforms['test_transform'] = "3DUnet_transform"
             config.transforms['post_transform'] = "3DUnet_transform"
+        elif mode == 'MRI':
+            config.dataset['prediction'] = "test cases/sample_image"
+            config.training['batch_size'] = 12
+            config.training['scheduler_parameters'] = {
+                                                        "step_size" : 20,
+                                                        "gamma" : 0.5, 
+                                                        "verbose" : True
+                                                        }
+            config.network_parameters['dropout'] = 0.35
+            config.network_parameters['channels'] = [64, 128, 256, 512]
+            config.network_parameters['strides'] =  [2, 2, 2]
+            config.network_parameters['num_res_units'] =  6
+            config.network_parameters['norm'] = "INSTANCE"
+            config.network_parameters['bias'] = True
+            config.save['liver_checkpoint'] = 'mri_cp'
+            config.transforms['train_transform'] = "mri_transform"
+            config.transforms['test_transform'] = "mri_transform"
+            config.transforms['post_transform'] = "mri_transform"
+
     
     def get_pretraining_transforms(self, transform_name):
         """
@@ -166,6 +186,43 @@ class LiverSegmentation(Engine):
                     ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
+            "mri_transform": Compose(
+                [
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    RandZoomd(
+                        Keys.all(),
+                        prob = 0.5, 
+                        min_zoom = 0.8, 
+                        max_zoom = 1.2, 
+                        allow_missing_keys = True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob = 0.5, 
+                        spatial_axis = 1, 
+                        allow_missing_keys = True
+                        ),
+                    RandRotated(
+                        Keys.all(), 
+                        range_x = 1.5, 
+                        range_y = 0, 
+                        range_z = 0, 
+                        prob = 0.5, 
+                        allow_missing_keys = True
+                        ),
+                    RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),  
+                ]
+            ),
             "custom_transform": Compose(
                 [
                     # Add your stack of transforms here
@@ -224,6 +281,21 @@ class LiverSegmentation(Engine):
                     ToTensorD(Keys.all(), allow_missing_keys=True),
                 ]
             ),
+            "mri_transform": Compose(
+                [
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),  
+                ]
+            ),
             "custom_transform": Compose(
                 [
                     # Add your stack of transforms here
@@ -246,26 +318,31 @@ class LiverSegmentation(Engine):
                 Stack of selected transforms.
         """
 
-        transforms= {
-
-        '3DUnet_transform': Compose(
-            [
-                ActivationsD(Keys.PRED,sigmoid=True),
-                AsDiscreteD(Keys.PRED,threshold=0.5),
-                FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),   
-            ]
-        ),
-
-        '2DUnet_transform': Compose(
-            [
-                ActivationsD(Keys.PRED,sigmoid=True),
-                AsDiscreteD(Keys.PRED,threshold=0.5),
-                FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),   
-            ]
-        )
-
+        transforms = {
+            '3DUnet_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED,sigmoid = True),
+                    AsDiscreteD(Keys.PRED,threshold = 0.5),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),   
+                ]
+            ),
+            '2DUnet_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED,sigmoid = True),
+                    AsDiscreteD(Keys.PRED,threshold = 0.5),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),   
+                ]
+            ),
+            'mri_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED,sigmoid = True),
+                    AsDiscreteD(Keys.PRED,threshold = 0.5),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),   
+                ]
+            )
         } 
         return transforms[transform_name] 
 
