@@ -13,7 +13,7 @@ import numpy as np
 from monai.transforms import ScaleIntensityRange
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
-from config import config
+from liver_imaging_analysis.engine.config import config
 
 from monai.transforms import AsDiscrete
 
