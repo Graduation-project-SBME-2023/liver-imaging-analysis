@@ -106,94 +106,89 @@ class LesionSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     OrientationD(
                         Keys.all(), 
-                        axcodes="LAS", 
-                        allow_missing_keys=True
+                        axcodes = "LAS", 
+                        allow_missing_keys = True
                         ),
                     ResizeD(
                         Keys.all(), 
                         resize_size, 
-                        mode=("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys=True
+                        mode = ("trilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
                         ),
                     RandFlipd(
                         Keys.all(), 
-                        prob=0.5, 
-                        spatial_axis=1, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        spatial_axis = 1, 
+                        allow_missing_keys = True
                         ),
                     RandRotated(
                         Keys.all(),
-                        range_x=0.1,
-                        range_y=0.1,
-                        range_z=0.1,
-                        prob=0.5,
-                        keep_size=True,
-                        allow_missing_keys=True,
+                        range_x = 0.1,
+                        range_y = 0.1,
+                        range_z = 0.1,
+                        prob = 0.5,
+                        keep_size = True,
+                        allow_missing_keys = True,
                     ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
                     #Transformations
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(), 
                         resize_size, 
-                        mode=("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys=True
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
                         ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
-                        a_min=0,
-                        a_max=164,
-                        b_min=0.0,
-                        b_max=1.0,
-                        clip=True,
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0.0,
+                        b_max = 1.0,
+                        clip = True,
                     ),
                     #Augmentations
                     RandZoomd(
                         Keys.all(), 
-                        prob=0.5, 
-                        min_zoom=0.8, 
-                        max_zoom=1.2, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        min_zoom = 0.8, 
+                        max_zoom = 1.2, 
+                        allow_missing_keys = True
                         ),
                     RandFlipd(
                         Keys.all(), 
-                        prob=0.5, 
-                        spatial_axis=1, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        spatial_axis = 1, 
+                        allow_missing_keys = True
                         ),
                     RandFlipd(
                         Keys.all(), 
-                        prob=0.5, 
-                        spatial_axis=0, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        spatial_axis = 0, 
+                        allow_missing_keys = True
                         ),
                     RandRotated(
                         Keys.all(), 
-                        range_x=1.5, 
-                        range_y=0, 
-                        range_z=0, 
-                        prob=0.5, 
-                        allow_missing_keys=True
+                        range_x = 1.5, 
+                        range_y = 0, 
+                        range_z = 0, 
+                        prob = 0.5, 
+                        allow_missing_keys = True
                         ),
-                    RandAdjustContrastd(Keys.IMAGE, prob=0.5),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
-                ]
-            ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
+                    RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
         }
@@ -214,50 +209,45 @@ class LesionSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     OrientationD(
                         Keys.all(), 
-                        axcodes="LAS", 
-                        allow_missing_keys=True
+                        axcodes = "LAS", 
+                        allow_missing_keys = True
                         ),
                     ResizeD(
                         Keys.all(), 
                         resize_size, 
-                        mode=("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys=True
+                        mode = ("trilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
                         ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
                     #Transformations
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     # ResizeD(
                     #     Keys.all(), 
                     #     resize_size, 
-                    #     mode=("bilinear", "nearest", "nearest"), 
-                    #     allow_missing_keys=True
+                    #     mode = ("bilinear", "nearest", "nearest"), 
+                    #     allow_missing_keys = True
                     #     ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
-                        a_min=-135,
-                        a_max=215,
-                        b_min=0.0,
-                        b_max=1.0,
-                        clip=True,
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0.0,
+                        b_max = 1.0,
+                        clip = True,
                     ),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
-                ]
-            ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
         }
@@ -285,7 +275,6 @@ class LesionSegmentation(Engine):
                 FillHolesD(Keys.PRED),
                 RemoveSmallObjectsD(Keys.PRED, min_size = 5),
                 KeepLargestConnectedComponentD(Keys.PRED, num_components = 10),   
-
             ]
         )
         } 

@@ -75,7 +75,7 @@ class LobeSegmentation(Engine):
         config.network_parameters['spatial_dims'] = 2
         config.network_parameters['channels'] = [64, 128, 256, 512, 1024]
         config.network_parameters["out_channels"] = 10
-        config.network_parameters['strides'] =  [2 ,2, 2, 2]
+        config.network_parameters['strides'] = [2 ,2, 2, 2]
         config.network_parameters['num_res_units'] =  6
         config.network_parameters['norm'] = "INSTANCE"
         config.network_parameters['bias'] = True
@@ -111,7 +111,7 @@ class LobeSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -146,7 +146,7 @@ class LobeSegmentation(Engine):
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
                     # Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
@@ -192,11 +192,6 @@ class LobeSegmentation(Engine):
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
-                ]
-            ),
         }
         return transforms[transform_name]
 
@@ -215,7 +210,7 @@ class LobeSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -240,7 +235,7 @@ class LobeSegmentation(Engine):
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
                     #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
@@ -254,11 +249,6 @@ class LobeSegmentation(Engine):
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     AsDiscreteD(Keys.LABEL, to_onehot = 10, allow_missing_keys = True),
                     ToTensorD(Keys.all(), allow_missing_keys = True),
-                ]
-            ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
                 ]
             ),
         }
