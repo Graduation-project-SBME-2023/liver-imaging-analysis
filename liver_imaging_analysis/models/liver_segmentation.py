@@ -73,13 +73,20 @@ class LiverSegmentation(Engine):
         if mode in ['2D', '3D']:
             config.dataset['prediction'] = "test cases/sample_image"
             config.training['batch_size'] = 8
+            config.training['scheduler_parameters'] = {
+                                                        "step_size":20,
+                                                        "gamma":0.5, 
+                                                        "verbose":False
+                                                        }
             config.network_parameters['dropout'] = 0
             config.network_parameters['channels'] = [64, 128, 256, 512]
             config.network_parameters['strides'] =  [2, 2, 2]
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "INSTANCE"
-            config.network_parameters['bias'] = 1
+            config.network_parameters['bias'] = True
             config.save['liver_checkpoint'] = 'liver_cp'
+            config.transforms['test_transform'] = "2DUnet_transform"
+            config.transforms['post_transform'] = "2DUnet_transform"
         elif mode == 'sliding_window':
             config.dataset['prediction']="test cases/sample_volume"
             config.training['batch_size'] = 1
@@ -105,7 +112,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -114,61 +121,56 @@ class LiverSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    # OrientationD(keys, axcodes="LAS", allow_missing_keys=True),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    # OrientationD(keys, axcodes="LAS", allow_missing_keys = True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,
-                        threshold=0.5,
-                        invert=True,
-                        allow_missing_keys=True
+                        threshold = 0.5,
+                        invert = True,
+                        allow_missing_keys = True
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(), 
                         resize_size, 
                         mode=("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys=True
+                        allow_missing_keys = True
                         ),
                     RandZoomd(
                         Keys.all(),
-                        prob=0.5, 
-                        min_zoom=0.8, 
-                        max_zoom=1.2, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        min_zoom = 0.8, 
+                        max_zoom = 1.2, 
+                        allow_missing_keys = True
                         ),
                     RandFlipd(
                         Keys.all(),
-                        prob=0.5, 
-                        spatial_axis=1, 
-                        allow_missing_keys=True
+                        prob = 0.5, 
+                        spatial_axis = 1, 
+                        allow_missing_keys = True
                         ),
                     RandRotated(
                         Keys.all(),
-                        range_x=1.5, 
-                        range_y=0, 
-                        range_z=0, 
-                        prob=0.5, 
-                        allow_missing_keys=True
+                        range_x = 1.5, 
+                        range_y = 0, 
+                        range_z = 0, 
+                        prob = 0.5, 
+                        allow_missing_keys = True
                         ),
-                    RandAdjustContrastd(Keys.IMAGE, prob=0.25),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
-                    ForegroundMaskD(Keys.LABEL, threshold=0.5, invert=True),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
-                ]
-            ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
+                    RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
         }
@@ -180,7 +182,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -189,44 +191,39 @@ class LiverSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform": Compose(
+            "3DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
-                    # OrientationD(keys, axcodes="LAS", allow_missing_keys=True),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    # OrientationD(keys, axcodes = "LAS", allow_missing_keys = True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,
-                        threshold=0.5, 
-                        invert=True, 
-                        allow_missing_keys=True
+                        threshold = 0.5, 
+                        invert = True, 
+                        allow_missing_keys = True
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
-            "2DUnet_transform": Compose(
+            "2DUnet_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys=True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(),
                         resize_size,
-                        mode=("bilinear", "nearest", "nearest"),
-                        allow_missing_keys=True,
+                        mode = ("bilinear", "nearest", "nearest"),
+                        allow_missing_keys = True,
                     ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,
-                        threshold=0.5, 
-                        invert=True, 
-                        allow_missing_keys=True
+                        threshold = 0.5, 
+                        invert = True, 
+                        allow_missing_keys = True
                     ),
-                    ToTensorD(Keys.all(), allow_missing_keys=True),
-                ]
-            ),
-            "custom_transform": Compose(
-                [
-                    # Add your stack of transforms here
+                    ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
         }
@@ -239,7 +236,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the required set of transforms.
+                Name of the desired set of transforms.
 
         Return:
             Compose
@@ -248,19 +245,19 @@ class LiverSegmentation(Engine):
 
         transforms= {
 
-        '3DUnet_transform': Compose(
+        '3DUnet_transform' : Compose(
             [
-                ActivationsD(Keys.PRED,sigmoid=True),
-                AsDiscreteD(Keys.PRED,threshold=0.5),
+                ActivationsD(Keys.PRED,sigmoid = True),
+                AsDiscreteD(Keys.PRED,threshold = 0.5),
                 FillHolesD(Keys.PRED),
                 KeepLargestConnectedComponentD(Keys.PRED),   
             ]
         ),
 
-        '2DUnet_transform': Compose(
+        '2DUnet_transform' : Compose(
             [
-                ActivationsD(Keys.PRED,sigmoid=True),
-                AsDiscreteD(Keys.PRED,threshold=0.5),
+                ActivationsD(Keys.PRED,sigmoid = True),
+                AsDiscreteD(Keys.PRED,threshold = 0.5),
                 FillHolesD(Keys.PRED),
                 KeepLargestConnectedComponentD(Keys.PRED),   
             ]
@@ -288,25 +285,25 @@ class LiverSegmentation(Engine):
 
         dice_score=dice_metric(prediction.int(),label.int())[0].item()
         plot_2d_or_3d_image(
-            data=image,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Volume:dice_score:{dice_score}",
+            data = image,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Volume:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
-            data=label,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Mask:dice_score:{dice_score}",
+            data = label,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Mask:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
-            data=prediction,
-            step=0,
-            writer=summary_writer,
-            frame_dim=-1,
-            tag=f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
+            data = prediction,
+            step = 0,
+            writer = summary_writer,
+            frame_dim = -1,
+            tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
 
     def per_epoch_callback(
@@ -370,14 +367,14 @@ class LiverSegmentation(Engine):
           os.mkdir(temp_path)
         # Write volume slices as 2d png files 
         for slice_number in range(number_of_slices):
-            volume_silce = img_volume_array[slice_number, :, :]
+            volume_slice = img_volume_array[slice_number, :, :]
             # Delete extension from filename
             volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]
             volume_png_path = os.path.join(
                                     temp_path, 
                                     volume_file_name + "_" + str(slice_number)
                                     ) + ".png"
-            cv2.imwrite(volume_png_path, volume_silce)
+            cv2.imwrite(volume_png_path, volume_slice)
         # Predict slices individually then reconstruct 3D prediction
         self.network.eval()
         with torch.no_grad():
@@ -392,9 +389,9 @@ class LiverSegmentation(Engine):
                 )
             predict_loader = MonaiLoader(
                 predict_set,
-                batch_size=self.batch_size,
-                num_workers=0,
-                pin_memory=False,
+                batch_size = self.batch_size,
+                num_workers = 0,
+                pin_memory = False,
             )
             prediction_list = []
             for batch in predict_loader:
@@ -405,7 +402,7 @@ class LiverSegmentation(Engine):
         batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
         # to (1,channel,length,width,batch) 
-        batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
+        batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim = 0) 
         # Apply post processing transforms
         batch = self.post_process(batch,Keys.PRED)
         # Delete temporary folder
@@ -429,14 +426,14 @@ class LiverSegmentation(Engine):
         with torch.no_grad():
             predict_files = [{Keys.IMAGE : volume_path}] 
             predict_set = Dataset(
-                            data=predict_files, 
-                            transform=self.test_transform
+                            data = predict_files, 
+                            transform = self.test_transform
                             )
             predict_loader = MonaiLoader(
                                 predict_set,
-                                batch_size=self.batch_size,
-                                num_workers=0,
-                                pin_memory=False,
+                                batch_size = self.batch_size,
+                                num_workers = 0,
+                                pin_memory = False,
                             )
             prediction_list = []
             for batch in predict_loader:
@@ -451,7 +448,7 @@ class LiverSegmentation(Engine):
                 # Apply post processing transforms
                 batch = self.post_process(batch,Keys.PRED)    
                 prediction_list.append(batch[Keys.PRED])
-            prediction_list = torch.cat(prediction_list, dim=0)
+            prediction_list = torch.cat(prediction_list, dim = 0)
         return prediction_list
     
 
@@ -464,7 +461,7 @@ def segment_liver(*args):
     set_seed()
     liver_model = LiverSegmentation(mode = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict(config.dataset['prediction'])
+    liver_prediction = liver_model.predict(config.dataset['prediction'])
     return liver_prediction
 
 
@@ -476,7 +473,7 @@ def segment_liver_3d(*args):
     set_seed()
     liver_model = LiverSegmentation(mode = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict(volume_path=args[0])
+    liver_prediction = liver_model.predict(volume_path=args[0])
     return liver_prediction
 
 
@@ -488,7 +485,7 @@ def segment_liver_sliding_window(*args):
     set_seed()
     liver_model = LiverSegmentation(mode = 'sliding_window')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict(volume_path=args[0])
+    liver_prediction=liver_model.predict(volume_path = args[0])
     return liver_prediction
 
 
@@ -507,10 +504,10 @@ def train_liver(*args):
         model.test(model.test_dataloader, callback=False)
         )
     model.fit(
-        evaluate_epochs=1,
-        batch_callback_epochs=100,
-        save_weight=True,
+        evaluate_epochs = 1,
+        batch_callback_epochs = 100,
+        save_weight = True,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(config.save["potential_checkpoint"])
-    print("final test loss:", model.test(model.test_dataloader, callback=False))
+    print("final test loss:", model.test(model.test_dataloader, callback = False))
