@@ -184,7 +184,7 @@ class Overlay:
     Used to visualize the mask overlayed on the volume and saves the output as GIF.
     """
 
-    def __init__(self, volume_path, mask_path, output_name, mask2_path=None, alpha=0.2):
+    def __init__(self, volume, mask, mask2_path = None, alpha = 0.2):
         """
         Initializes the variables needed in the class.
 
@@ -194,15 +194,12 @@ class Overlay:
             The path of the volume to be animated.
         mask_path : str
             The path of the mask to be overlaid on the volume and animated.
-        output_name : str
-            The name of the generated GIF overlay.
         alpha : float, optional
             The opacity of the mask. (Default: 0.2)
         """
-        self.volume_path = volume_path
-        self.mask_path = mask_path
+        self.volume = volume
+        self.mask = mask
         self.alpha = alpha
-        self.output_name = output_name
         self.mask2_path = mask2_path
 
     def gray_to_colored(self):
@@ -216,19 +213,18 @@ class Overlay:
         def normalize(arr):
             return 255 * (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-        volume = nib.load(self.volume_path).get_fdata()
-        mask = nib.load(self.mask_path).get_fdata()
+        
         if self.mask2_path is not None:
             mask2 = nib.load(self.mask2_path).get_fdata()
         else:
             mask2 = None
         mask_label = []
-        masks_number = np.unique(mask)[1:]
+        masks_number = np.unique(self.mask)[1:]
         if mask2 is not None:
             mask_label2 = []
             masks_number2 = np.unique(mask2)[1:0]
         self.dest = np.stack(
-            (normalize(volume).astype(np.uint8),) * 3, axis=-1
+            (normalize(self.volume).astype(np.uint8),) * 3, axis=-1
         )  # stacked array of volume
 
         colors = get_colors()
@@ -237,7 +233,7 @@ class Overlay:
             masks_number
         ):  # a loop to iterate over each label in the mask and perform weighted add for each
             # label with a unique color for each one
-            mask_label.append(mask == label)
+            mask_label.append(self.mask == label)
             mask_label[i] = np.stack((mask_label[i],) * 3, axis=-1)
             mask_label[i] = np.multiply(
                 (mask_label[i].astype(np.uint8) * 255), colors[i]
@@ -258,32 +254,54 @@ class Overlay:
                     self.dest, 1, mask_label2[i], self.alpha, 0.0
                 )
 
-    def animate(self):
+    def animate(self , output_filename, view ):
         """
         Animates the overlay and saves the output as GIF
 
+        Parameters
+        ----------
+        view : int
+            integer value to select the view of the slicing of the 3D volume where (0 -> sagittal , 1 -> coronal , 2 -> axial)
+        
+        output_filename : str
+            The name of the generated GIF.
+
         """
-        fig = plt.figure()
+        fig = plt.figure(facecolor='black' , figsize=(3,3))
+        plt.axis('off')
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        ax = plt.axes([0,0,1,1], frameon=False)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
         ims = []
-        for i in range(
-            self.dest.shape[2]
-        ):  # generate an animation over the slices of the array
-            plt.axis("off")
-            im = plt.imshow(self.dest[:, :, i], animated=True)
-            ims.append([im])
+
+        if view == 0:
+            for i in range( self.dest.shape[view]):  # generate an animation over the slices of the array
+                im = plt.imshow(self.dest[i, :, :], animated=True)
+                ims.append([im])
+
+        elif view == 1:
+            for i in range( self.dest.shape[view]):  # generate an animation over the slices of the array
+                im = plt.imshow(self.dest[:, i, :], animated=True)
+                ims.append([im])
+
+        elif view == 2:
+            for i in range( self.dest.shape[view]):  # generate an animation over the slices of the array
+                im = plt.imshow(self.dest[:, :, i], animated=True)
+                ims.append([im])
 
         ani = animation.ArtistAnimation(
             fig, ims, interval=200, blit=True, repeat_delay=100
         )
-        ani.save(self.output_name, dpi=300, writer=PillowWriter(fps=5))
+        ani.save(output_filename, dpi=300, writer=PillowWriter(fps=5))
 
-    def generate_animation(self):
+    def generate_animation(self, output_filename, view):
         """
         Used directly to generate and save the overlay animation.
 
         """
         self.gray_to_colored()
-        self.animate()
+        self.animate(output_filename,view)
 
 
 class VolumeSlicing:

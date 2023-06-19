@@ -10,8 +10,9 @@ import torch
 import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation
-# from liver_imaging_analysis.engine.utils import gray_to_colored, animate
+from liver_imaging_analysis.engine.utils import Overlay
 from visualize_tumors import visualize_tumor, parameters
+import nibabel as nib
 # import pdfkit
 plt.switch_backend("Agg")
 gc.collect()
@@ -20,10 +21,11 @@ torch.cuda.empty_cache()
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 save_folder = "Liver-Segmentation-Website/static/img/"
+liver_model, lesion_model  = lesion_segmentation.create_models()
 
-liver_model = liver_segmentation.LiverSegmentation()
-liver_model.load_checkpoint("Liver-Segmentation-Website/models_checkpoints/liver_cp")
-lesion_model = lesion_segmentation.LesionSegmentation()
+
+
+
 
 sum_longest = 0  # global variable
 
@@ -41,32 +43,39 @@ def about():
     """
     return render_template("about.html")
 
-@app.route("/infer", methods=["POST"])
+@app.route("/infer", methods=["GET", "POST"])
 def success():
     """
     Start segmentation , create and display the gifs
     """
-    if request.method == "POST":
-        nifti_file = request.files["file"]
-        save_location = nifti_file.filename
-        save_location = save_folder + save_location
-        nifti_file.save(save_location)
-        volume, prediction = liver_model.predict_with_lesions(
-            save_location, network_lesions
+    if request.method == "GET":
+        return render_template(
+            "inference.html",
         )
+    elif request.method == "POST":
+        nifti_file = request.files["file"]
+        volume_location = nifti_file.filename
+        volume_location = save_folder + volume_location
+        nifti_file.save(volume_location)
 
-        visualize_tumor(save_location,prediction,mode='contour')
-        visualize_tumor(save_location,prediction,mode='box')
-        visualize_tumor(save_location,prediction,mode='zoom')
+        volume = nib.load(volume_location).get_fdata()
+        prediction = lesion_segmentation.segment_lesion_3d(volume_location , liver_model , lesion_model)
 
-        overlay_3D , original_3D = gray_to_colored(volume,prediction)        
-        animate(original_3D ,"Liver-Segmentation-Website/static/axial/OriginalGif.gif",2)
-        animate(overlay_3D,"Liver-Segmentation-Website/static/axial/OverlayGif.gif",2)
-        animate(original_3D ,"Liver-Segmentation-Website/static/coronal/OriginalGif.gif",1)
-        animate(overlay_3D,"Liver-Segmentation-Website/static/coronal/OverlayGif.gif",1)
-        animate(original_3D ,"Liver-Segmentation-Website/static/sagittal/OriginalGif.gif",0)
-        animate(overlay_3D,"Liver-Segmentation-Website/static/sagittal/OverlayGif.gif",0)
 
+        original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
+        original_volume.generate_animation("Liver-Segmentation-Website/static/axial/OriginalGif.gif",2)
+        original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/OriginalGif.gif",1)
+        original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/OriginalGif.gif",0)
+
+        segmented_volume = Overlay( volume, prediction[0][0] ,mask2_path = None, alpha = 0.2)
+        segmented_volume.generate_animation("Liver-Segmentation-Website/static/axial/OverlayGif.gif",2)
+        segmented_volume.generate_animation("Liver-Segmentation-Website/static/coronal/OverlayGif.gif",1)
+        segmented_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/OverlayGif.gif",0)
+
+       
+        visualize_tumor(volume_location,prediction[0][0],mode='contour')
+        visualize_tumor(volume_location,prediction[0][0],mode='box')
+        visualize_tumor(volume_location,prediction[0][0],mode='zoom')
         return render_template(
             "inference.html",
         )
@@ -150,7 +159,7 @@ def report():
             "report.html",
             headings=analysis_headings,
             data=parameters,
-            longest_diam=sum_longest,
+            longest_diam='%.3f'% sum_longest,
             patient_data=patient_data,
         )
 

@@ -14,7 +14,7 @@ from monai.transforms import (
 )
 
 
-# parameters = [[12, 1, 2], [33, 4, 5], [44, 7, 8]]
+
 parameters = []
 
 def visualize_tumor(volume_path,mask_path,mode):

@@ -78,7 +78,7 @@ class LesionSegmentation(Engine):
         config.network_parameters['num_res_units'] =  0
         config.network_parameters['norm'] = "INSTANCE"
         config.network_parameters['bias'] = True
-        config.save['lesion_checkpoint'] = 'lesion_cp'
+        config.save['lesion_checkpoint'] = '/Users/mn3n3/Documents/GP/liver-imaging-analysis/Liver-Segmentation-Website/models_checkpoints/lesion_segmentation_checkpoint'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
                                                 "batch" : True,
@@ -525,24 +525,32 @@ def segment_lesion(*args):
     return liver_lesion_prediction
 
 
-def segment_lesion_3d(*args):
+def segment_lesion_3d(volume_path , liver_model , lesion_model):
     """
     A function used to segment the liver lesions
     of a 3d volume using the liver and the lesion models.
+    """
+   
+    liver_prediction = liver_model.predict(volume_path=volume_path)
+    lesion_prediction = lesion_model.predict(
+                            volume_path = volume_path,
+                            liver_mask = liver_prediction[0].permute(3,0,1,2)
+                            )
+    lesion_prediction = lesion_prediction*liver_prediction #no liver -> no lesion
+    liver_lesion_prediction = lesion_prediction+liver_prediction #lesion label is 2
+    return liver_lesion_prediction
+
+def create_models ():
+    """
+    TODO
     """
     set_seed()
     liver_model = LiverSegmentation(mode = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation(mode = '3D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path=args[0])
-    lesion_prediction = lesion_model.predict(
-                            volume_path = args[0],
-                            liver_mask = liver_prediction[0].permute(3,0,1,2)
-                            )
-    lesion_prediction = lesion_prediction*liver_prediction #no liver -> no lesion
-    liver_lesion_prediction = lesion_prediction+liver_prediction #lesion label is 2
-    return liver_lesion_prediction
+    return liver_model , lesion_model
+
 
 
 
