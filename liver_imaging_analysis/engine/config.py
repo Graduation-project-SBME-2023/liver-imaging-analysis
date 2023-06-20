@@ -9,7 +9,8 @@ class Config:
     def __init__(self) -> None:
         """Init for the class."""
         with open(
-            "liver_imaging_analysis/config/configs.json"
+            "configs.json"
+            
         ) as json_path:
             config_dict = json.load(json_path)
 
