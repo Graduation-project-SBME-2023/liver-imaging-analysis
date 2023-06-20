@@ -13,6 +13,7 @@ from liver_imaging_analysis.models import liver_segmentation, lesion_segmentatio
 from liver_imaging_analysis.engine.utils import Overlay
 from visualize_tumors import visualize_tumor, parameters
 import nibabel as nib
+import monai
 # import pdfkit
 plt.switch_backend("Agg")
 gc.collect()
@@ -57,25 +58,27 @@ def success():
         volume_location = nifti_file.filename
         volume_location = save_folder + volume_location
         nifti_file.save(volume_location)
-
         volume = nib.load(volume_location).get_fdata()
         prediction = lesion_segmentation.segment_lesion_3d(volume_location , liver_model , lesion_model)
 
+        visualize_tumor(volume_location,prediction[0][0],mode='contour')
+        visualize_tumor(volume_location,prediction[0][0],mode='box')
+        visualize_tumor(volume_location,prediction[0][0],mode='zoom')
 
+        transform = monai.transforms.Resize((256, 256, 256), mode = "nearest")
+        volume = transform(volume[None]).squeeze(0)
+        prediction = transform(prediction[0][0][None]).squeeze(0)
+        
         original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/axial/OriginalGif.gif",2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/OriginalGif.gif",1)
         original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/OriginalGif.gif",0)
 
-        segmented_volume = Overlay( volume, prediction[0][0] ,mask2_path = None, alpha = 0.2)
+        segmented_volume = Overlay( volume, prediction ,mask2_path = None, alpha = 0.2)
         segmented_volume.generate_animation("Liver-Segmentation-Website/static/axial/OverlayGif.gif",2)
         segmented_volume.generate_animation("Liver-Segmentation-Website/static/coronal/OverlayGif.gif",1)
         segmented_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/OverlayGif.gif",0)
 
-       
-        visualize_tumor(volume_location,prediction[0][0],mode='contour')
-        visualize_tumor(volume_location,prediction[0][0],mode='box')
-        visualize_tumor(volume_location,prediction[0][0],mode='zoom')
         return render_template(
             "inference.html",
         )

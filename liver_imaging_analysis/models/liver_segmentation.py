@@ -79,7 +79,7 @@ class LiverSegmentation(Engine):
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "INSTANCE"
             config.network_parameters['bias'] = 1
-            config.save['liver_checkpoint'] = 'liver_cp'
+            config.save['liver_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/liver_cp'
         elif mode == 'sliding_window':
             config.dataset['prediction']="test cases/sample_volume"
             config.training['batch_size'] = 1

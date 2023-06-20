@@ -78,7 +78,7 @@ class LesionSegmentation(Engine):
         config.network_parameters['num_res_units'] =  0
         config.network_parameters['norm'] = "INSTANCE"
         config.network_parameters['bias'] = True
-        config.save['lesion_checkpoint'] = '/Users/mn3n3/Documents/GP/liver-imaging-analysis/Liver-Segmentation-Website/models_checkpoints/lesion_segmentation_checkpoint'
+        config.save['lesion_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/lesion_segmentation_checkpoint'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
                                                 "batch" : True,
