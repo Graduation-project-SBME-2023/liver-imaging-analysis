@@ -1,10 +1,15 @@
 {
-    "device": "cuda",
+    "device": "cpu",
     "dataset": {
         "mode":"2D",
-        "training": "/content/Temp2D/Train/",
-        "testing": "/content/Temp2D/Test/",
-        "unittest": "/content/Temp2D/Test/"
+        "training": "Temp2D/Train/",
+        "testing": "Temp2D/Test/",
+        "unittest": "Temp2D/Test/"
+
+    },
+    "visualization":{
+        "volume":"D:/GP/volume-0.nii",
+        "mask":"D:/GP/segmentation-0.nii"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
@@ -14,35 +19,43 @@
         "out_channels": 1,
         "spatial_dims":2, 
         "channels": [64, 128, 256, 512],
-        "strides": [2, 2, 2]
+        "strides": [2, 2, 2],
+        "num_res_units":4, 
+        "bias":1,
+        "norm":"INSTANCE",
+        "dropout":0.4
     },
     "training": {
-        "epochs": 1,
-        "batch_size": 16,
+        "epochs": 100,
+        "batch_size": 12,
         "train_valid_split": 0,
         "optimizer": "Adam",
         "optimizer_parameters": {"lr": 0.01},
         "lr_scheduler":"StepLR",
-        "scheduler_parameters":{"step_size":100000, "gamma":0.5},
+        "scheduler_parameters":{"step_size":20, "gamma":0.5, "verbose":1},
         "loss_name": "monai_dice",
-        "loss_parameters": {"sigmoid":"1","batch":1},
+        "loss_parameters": {"sigmoid":"1","batch":1,"include_background":1},
         "metrics":"dice",
-        "metrics_parameters":{},
+        "metrics_parameters":{"ignore_empty":1,"include_background":1},
         "shuffle":1
     },
+
+
     "transforms": {
         "transformation_size": [512, 512],
         "img_key": "image",
         "label_key": "label",
+        "pred_key": "pred",
         "train_transform": "2DUnet_transform",
-        "test_transform": "2DUnet_transform"
+        "test_transform": "2DUnet_transform",
+        "post_transform": "2DUnet_transform"
     },
     "save": {
-        "volume_png_path": "/content/Temp2D/volume/",
-        "mask_png_path": "/content/Temp2D/mask/",
-        "model_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/model_checkpoint",
-        "potential_checkpoint": "/content/drive/MyDrive/liver-imaging-analysis/engine/potential_checkpoint",
-        "tensorboard": "/content/drive/MyDrive/liver-imaging-analysis/engine/runs/"
+        "volume_png_path": "Temp2D/volume/",
+        "mask_png_path": "Temp2D/mask/",
+        "model_checkpoint": "model_checkpoint",
+        "potential_checkpoint": "potential_checkpoint",
+        "tensorboard": "runs/"
     },
     "seed": 0
 }
