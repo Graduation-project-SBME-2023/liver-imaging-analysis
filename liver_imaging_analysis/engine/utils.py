@@ -2,6 +2,7 @@
 a module that contains supplementary methods used at the beginning/ending of the pipeline
 """
 import os
+import random
 from itertools import permutations
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -151,9 +152,10 @@ def get_colors(numbers=[1, 0.5, 0]):
     colors: list
         list with all possible permutations of rgb values
     """
-
+    random.seed(2)
     perm = permutations(numbers, 3)
     colors = [color for color in perm]
+    random.shuffle(colors)
     return colors
 
 
