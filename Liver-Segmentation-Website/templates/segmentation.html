@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block content %}
+
+
+
+<br>
+<br>
+<br>
+<br>
+
+<div style="position: relative;">    
+    <div class="box">
+        <select id="mySelect" onchange="myFunction">
+            <option value="2">Axial</option>
+            <option value="1">Coronal</option>
+            <option value="0">Sagittal</option>
+        </select>
+    </div>
+</div>
+
+
+<br>
+<br>
+
+
+<script type="text/javascript" src="./static/libgif.js"></script>
+<script type="text/javascript" src="./static/rubbable.js"></script>
+
+
+<script>
+    var node;
+    var clone;
+    var sup1;
+    var sup2;
+    let gifWrapper,clonedGifWrapper,center;
+
+</script>
+
+<!-- <div class="container p-5">   -->
+
+
+
+    
+
+
+    <div class="row">
+        <div class="col">
+            <center id="center">
+                
+
+                <div  style="margin-top: 5px;">
+                    <a href="javascript:;" class="btn btn-dark my-1" id="pause">Pause</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="play">Play</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="forward">Step forward</a> |
+                    <a href="javascript:;" class="btn btn-dark my-1"id="backward">Step back</a>
+                </div>
+                <br >
+                <br >
+                <a  href="/TumorRoute" id="TumorRoute" "> Press to visualize tumors</a>
+            
+                
+                <!-- <div class="gif_wrapper" id="gif_wrapper" style="width: 800px; display: flex; margin-top: 15px;"> -->
+                <div class="gif_wrapper" id="gif_wrapper" >
+                    <div class="column">
+                       <p style="color: black;">Overlay</p>
+                       <img id="overlay" src="static\axial\liver_lesion.gif" alt="this slowpoke moves" class="controled_image" />
+                    </div>
+                    <div class="column">
+                        <p style="color: black;">Original</p>
+                        <img   id="oringinal" src="static\axial\original.gif" alt="this slowpoke moves" class="controled_image" />
+                    </div>
+                    <div class="column">
+                        <p style="color: black;">lobes</p>
+                        <img   id="lobes" src="static\axial\lobes.gif" alt="this slowpoke moves" class="controled_image" />
+                    </div>
+                </div>
+            </center>
+        </div>
+    </div>
+
+</div> 
+
+
+<script>
+    gifWrapper = document.getElementById("gif_wrapper");
+    center = document.getElementById("center");
+    clonedGifWrapper = gifWrapper.cloneNode(true);
+    sup1 = new SuperGif({ gif: document.getElementById('overlay') } );
+    sup1.load();
+    sup2 = new SuperGif({ gif: document.getElementById('oringinal') } );
+    sup2.load();
+    sup3 = new SuperGif({ gif: document.getElementById('lobes') } );
+    sup3.load();
+    const selectElement = document.querySelector('#mySelect');
+    async function myFunction(e) {
+        const choosenVal = e.target.value
+        const response = await fetch(`/views?view=${choosenVal}`, {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'},
+        });
+        const data = await response.json();
+        gifWrapper.remove()
+        gifWrapper = clonedGifWrapper.cloneNode(true);
+        center.appendChild(gifWrapper)
+        const orignal_image = document.querySelector('#oringinal');
+        const overlay_image = document.querySelector('#overlay');
+        const lobes_image = document.querySelector('#lobes');
+        orignal_image.src= data[1];
+        overlay_image.src=data[0];
+        lobes_image.src=data[2];
+        sup1 = new SuperGif({ gif: document.getElementById('overlay') } );
+        sup1.load();
+        sup2 = new SuperGif({ gif: document.getElementById('oringinal') } );
+        sup2.load();
+        sup3 = new SuperGif({ gif: document.getElementById('lobes') } );
+        sup3.load();
+
+    }
+    selectElement.addEventListener('change',myFunction );
+
+    const pauseElement = document.querySelector('#pause');
+    function pausHandler(params) {
+        sup1.pause();sup2.pause(); sup3.pause(); return false; 
+    }
+    pauseElement.addEventListener('mousedown',pausHandler );
+
+    const playElement = document.querySelector('#play');
+    function playHandler(params) {
+        sup1.play();sup2.play();sup3.play(); return false;
+    }
+    playElement.addEventListener('mousedown',playHandler );
+
+    const forwardElement = document.querySelector('#forward');
+    function forwardHandler(params) {
+        sup1.move_relative(1);sup2.move_relative(1);sup3.move_relative(1); return false;
+    }
+    forwardElement.addEventListener('mousedown',forwardHandler );
+
+    const backwardElement = document.querySelector('#backward');
+    function backwardHandler(params) {
+        sup1.move_relative(-1);sup2.move_relative(-1); sup3.move_relative(-1); return false;
+    }
+    backwardElement.addEventListener('mousedown',backwardHandler );
+
+
+</script>
+
+
+{% endblock %}
+

@@ -138,7 +138,7 @@ body{
     text-decoration: underline rgb(0, 0, 0);
     /* text-shadow: 2px 2px 8px #ffffff;; */
 }
-.gif_wrapper p{
+/* .gif_wrapper p{
     display: flex;
     color: white;
     padding: 5px;
@@ -147,7 +147,20 @@ body{
     text-align: center;
     font-size: larger;
     font-family: 'Gloock', serif;
-}
+} */
+
+.column {
+    float: left;
+    width: 30%;
+    /* padding: 500px; */
+    display: flex;
+  }
+  
+  /* Clear floats after image containers */
+  /* .gif_wrapper::after {
+    content: "";
+    clear: both;
+  } */
 
 body {
     font-family: sans-serif;

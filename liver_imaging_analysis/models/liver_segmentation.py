@@ -84,7 +84,7 @@ class LiverSegmentation(Engine):
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "INSTANCE"
             config.network_parameters['bias'] = True
-            config.save['liver_checkpoint'] = 'liver_cp'
+            config.save['liver_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/liver_cp'
             config.transforms['test_transform'] = "2DUnet_transform"
             config.transforms['post_transform'] = "2DUnet_transform"
         elif mode == 'sliding_window':

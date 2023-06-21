@@ -152,7 +152,7 @@ def get_colors(numbers=[1, 0.5, 0]):
         list with all possible permutations of rgb values
     """
 
-    perm = permutations(numbers)
+    perm = permutations(numbers, 3)
     colors = [color for color in perm]
     return colors
 
@@ -227,7 +227,7 @@ class Overlay:
             (normalize(self.volume).astype(np.uint8),) * 3, axis=-1
         )  # stacked array of volume
 
-        colors = get_colors()
+        colors = get_colors([1, .66 ,.33, 0])
 
         for i, label in enumerate(
             masks_number
@@ -293,7 +293,7 @@ class Overlay:
         ani = animation.ArtistAnimation(
             fig, ims, interval=200, blit=True, repeat_delay=100
         )
-        ani.save(output_filename, dpi=300, writer=PillowWriter(fps=5))
+        ani.save(output_filename, dpi=300, writer=PillowWriter(fps=20))
 
     def generate_animation(self, output_filename, view):
         """

@@ -79,7 +79,7 @@ class LobeSegmentation(Engine):
         config.network_parameters['num_res_units'] =  6
         config.network_parameters['norm'] = "INSTANCE"
         config.network_parameters['bias'] = True
-        config.save['lobe_checkpoint'] = 'lobe_cp'
+        config.save['lobe_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/lobe_cp'
         config.training['loss_parameters'] = { 
                                                 "softmax" : True, 
                                                 "batch" : True, 
@@ -275,7 +275,7 @@ class LobeSegmentation(Engine):
                 AsDiscreteD(Keys.PRED, argmax = True),
                 FillHolesD(Keys.PRED),
                 KeepLargestConnectedComponentD(Keys.PRED),
-                AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
+                # AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
             ]
         )
         } 

@@ -78,7 +78,7 @@ class LesionSegmentation(Engine):
         config.network_parameters['num_res_units'] =  2
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = False
-        config.save['lesion_checkpoint'] = 'lesion_cp'
+        config.save['lesion_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/lesion_cp'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
                                                 "batch" : True,
@@ -533,17 +533,6 @@ def segment_lesion_3d(volume_path , liver_model , lesion_model):
     lesion_prediction = lesion_prediction*liver_prediction #no liver -> no lesion
     liver_lesion_prediction = lesion_prediction+liver_prediction #lesion label is 2
     return liver_lesion_prediction
-
-def create_models ():
-    """
-    TODO
-    """
-    set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model = LesionSegmentation(mode = '3D')
-    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    return liver_model , lesion_model
 
 
 
