@@ -28,6 +28,7 @@ h5 a:hover{
 
 
 
+
 h1{
 font-size: 70px;
 font-weight: 600;
@@ -138,16 +139,7 @@ body{
     text-decoration: underline rgb(0, 0, 0);
     /* text-shadow: 2px 2px 8px #ffffff;; */
 }
-/* .gif_wrapper p{
-    display: flex;
-    color: white;
-    padding: 5px;
-    margin-bottom: 5px;
-    margin-left: 45px;
-    text-align: center;
-    font-size: larger;
-    font-family: 'Gloock', serif;
-} */
+
 
 .column {
     float: left;
@@ -156,11 +148,6 @@ body{
     display: flex;
   }
   
-  /* Clear floats after image containers */
-  /* .gif_wrapper::after {
-    content: "";
-    clear: both;
-  } */
 
 body {
     font-family: sans-serif;

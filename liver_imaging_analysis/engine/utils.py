@@ -269,7 +269,8 @@ class Overlay:
             The name of the generated GIF.
 
         """
-        fig = plt.figure(facecolor='black' , figsize=(3,3))
+        fig = plt.figure(facecolor='black' , figsize=(1,1) )
+        # fig = plt.figure(facecolor='black' , figsize=(3,3))
         plt.axis('off')
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
         ax = plt.axes([0,0,1,1], frameon=False)

@@ -1,51 +1,8 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
-
-<div>
-    <style scoped> 
-        .container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Method 2: */
-/* .container {
-	display: grid;
-	place-items: center
-} */
-
-/* Method 3: */
-/* .center-div {
-	margin: auto;
-} */
-
-/* Method 4: */
-/* .center-div {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-} */
-</style>
-    <h1>  Patient Information</h1>
-    <ul>
-      {% for patient_data in patient_data %}
-      <li> 
-        <strong>{{ patient_data[0] }}</strong>
-        <span>{{ patient_data[1] }}</span>
-   
-      </li>
-      {%endfor%}
-   
-    </ul>
-</div>
-
-
-
-<div>
-    <style scoped>
+    <style >
+        
     table {
       font-family: arial, sans-serif;
       border-collapse: collapse;
@@ -64,9 +21,20 @@
     tr:nth-child(odd) {
       background-color: #c187d9;
     }
-    </style>
-    </div>
-<div class="container">
+</style>
+
+<div class="container" >
+    <h1>  Patient Information</h1>
+    <ul>
+      {% for patient_data in patient_data %}
+      <li> 
+        <strong>{{ patient_data[0] }}</strong>
+        <span>{{ patient_data[1] }}</span>
+   
+      </li>
+      {%endfor%}
+   
+    </ul>
     <div class="row">
         <div class="col"></div>
         <div class="col"></div>

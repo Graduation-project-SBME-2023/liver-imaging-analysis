@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 import nibabel as nib
 import monai
-import pdfkit
+# import pdfkit
 
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
@@ -23,9 +23,9 @@ lobes_params = [["right",'not done' , 'not done'],
                 ["left",'not done','not done'],
                 ["caudate",'not done','not done'],
                 ["quadrate",'not done','not done']]
-lobes_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/lobes.PNG"
-segmented_slice_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/liver_slice.png"
-
+lobes_img_path = "Liver-Segmentation-Website/static/images/lobes.PNG"
+segmented_slice_path = "Liver-Segmentation-Website/static/images/liver_slice.png"
+data = []
 
 plt.switch_backend("Agg")
 gc.collect()
@@ -111,8 +111,9 @@ def success():
     Start segmentation , create and display the gifs
     """
     if request.method == "GET":
+        global data
         return render_template(
-            "segmentation.html",
+            "segmentation.html", data=data
         )
     elif request.method == "POST":
         file = request.files["file"]
@@ -156,6 +157,7 @@ def success():
             max_axis = max(item[0], item[1])
             longest_diameter_sum += max_axis
 
+        # global data
         data = {"Data": parameters, "sum_longest": longest_diameter_sum}
         # return render_template("visualization.html", data=data)
 
@@ -255,7 +257,7 @@ def report():
 def pdf():
     if len(parameters)>0:
         flag = True
-        tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_0.png"
+        tumor_img_path = "Liver-Segmentation-Website/static/zoom/tumor_0.png"
     else:
         flag = False
         tumor_img_path = ""
