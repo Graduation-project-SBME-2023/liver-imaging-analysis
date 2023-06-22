@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 import nibabel as nib
 import monai
-# import pdfkit
+import pdfkit
 
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
@@ -131,7 +131,7 @@ def success():
         volume = transform(volume[None]).squeeze(0)
         liver_lesion = transform(liver_lesion[None]).squeeze(0)
         lobes = transform(lobes[None]).squeeze(0)
-        
+
         original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
@@ -149,8 +149,18 @@ def success():
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
         lobes_overlay.generate_slice(lobes_img_path)
 
+        global longest_diameter_sum
+        longest_diameter_sum = 0
+
+        for item in parameters:
+            max_axis = max(item[0], item[1])
+            longest_diameter_sum += max_axis
+
+        data = {"Data": parameters, "sum_longest": longest_diameter_sum}
+        # return render_template("visualization.html", data=data)
+
         return render_template(
-            "segmentation.html",
+            "segmentation.html", data=data
         )
 
 
@@ -189,23 +199,6 @@ def show_views():
     return jsonify(path_overlay, path_original, path_lobes)
 
 
-@app.route("/TumorRoute")
-def tumor_analysis():
-    """
-    parsing Tumor analysis
-    """
-
-    global longest_diameter_sum
-    longest_diameter_sum = 0
-
-    for item in parameters:
-        max_axis = max(item[0], item[1])
-        longest_diameter_sum += max_axis
-
-    data = {"Data": parameters, "sum_longest": longest_diameter_sum}
-    return render_template("visualization.html", data = data)
-
-
 @app.route("/report", methods=["GET", "POST"])
 def report():
     """
@@ -213,6 +206,13 @@ def report():
     """
 
     if request.method == "POST":
+        if len(parameters) > 0:
+            flag = True
+            tumor_img_path = "../static/zoom/tumor_0.png"
+        else:
+            flag = False
+            tumor_img_path = ""
+
         name = request.form.get("name")
         age = request.form.get("age")
         phone_number = request.form.get("phone")
@@ -223,6 +223,8 @@ def report():
             ["Phone number", phone_number],
             ["Gender", gender],
         ]
+        global patient_info
+        patient_info = [name,age,phone_number,gender]
 
         analysis_headings = (
             "Lesion",
@@ -236,7 +238,15 @@ def report():
             data = parameters,
             longest_diam = '%.3f'% longest_diameter_sum,
             patient_data = patient_data,
+            my_flag=flag,
+            tumor_path=tumor_img_path,
+            num_lesions=len(parameters),
+            liver_vol="not done",
+            liver_att="not done",
+            lobes=lobes_params,
+            lobes_path="../static/images/lobes.PNG",
         )
+
 
     return render_template("form.html")
 
@@ -249,7 +259,7 @@ def pdf():
     else:
         flag = False
         tumor_img_path = ""
-    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=sum_longest, my_flag = flag, tumor_path = tumor_img_path,
+    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=longest_diameter_sum, my_flag = flag, tumor_path = tumor_img_path,
                                num_lesions = len(parameters), liver_vol= "not done", liver_att="not done",
                                lobes = lobes_params, lobes_path = lobes_img_path, liver_slice = segmented_slice_path,
                                patient_data = patient_info )
