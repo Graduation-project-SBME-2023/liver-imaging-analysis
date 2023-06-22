@@ -305,6 +305,24 @@ class Overlay:
         self.gray_to_colored()
         self.animate(output_filename,view)
 
+    def generate_slice(self, save_path):
+        slice_index = self.dest.shape[2]/3*2.5
+        slice_index = int(slice_index)
+        print(f"dest shape:{self.dest.shape}")
+        new_vol = self.dest.transpose((2, 0, 1,3))
+        slice_data = new_vol[slice_index,:,:] # needs to rearrange dims
+        # Create a PNG image of the slice data using matplotlib
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(slice_data)
+        plt.axis('off')
+
+        # Save the PNG image to a specific location
+        fig.savefig(save_path, bbox_inches='tight', pad_inches=0)
+
+        # Close the figure to free up memory
+        plt.close(fig)
+
 
 class VolumeSlicing:
     """

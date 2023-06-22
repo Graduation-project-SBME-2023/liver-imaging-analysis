@@ -18,6 +18,14 @@ from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.utils import Overlay
 from visualize_tumors import visualize_tumor, parameters
 
+# assume lobes
+lobes_params = [["right",'not done' , 'not done'],
+                ["left",'not done','not done'],
+                ["caudate",'not done','not done'],
+                ["quadrate",'not done','not done']]
+lobes_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/lobes.PNG"
+segmented_slice_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/liver_slice.png"
+
 
 plt.switch_backend("Agg")
 gc.collect()
@@ -133,11 +141,13 @@ def success():
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
+        liver_lesion_overlay.generate_slice(segmented_slice_path)
 
         lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
+        lobes_overlay.generate_slice(lobes_img_path)
 
         return render_template(
             "segmentation.html",
@@ -231,16 +241,25 @@ def report():
     return render_template("form.html")
 
 
-# @app.route('/pdf')
-# def pdf():
-#     rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=longest_diameter_sum)
-#     config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
-#     pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
+@app.route('/pdf')
+def pdf():
+    if len(parameters)>0:
+        flag = True
+        tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_0.png"
+    else:
+        flag = False
+        tumor_img_path = ""
+    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=sum_longest, my_flag = flag, tumor_path = tumor_img_path,
+                               num_lesions = len(parameters), liver_vol= "not done", liver_att="not done",
+                               lobes = lobes_params, lobes_path = lobes_img_path, liver_slice = segmented_slice_path,
+                               patient_data = patient_info )
+    config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
+    pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
 
-#     response = make_response(pdf)
-#     response.headers['Content-Type'] = 'application/pdf'
-#     response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
-#     return response
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
+    return response
 
 if __name__ == "__main__":
     app.debug = True

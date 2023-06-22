@@ -69,38 +69,89 @@
 <div class="container">
     <div class="row">
         <div class="col"></div>
+        <div class="col"></div>
         <div class="col-8">
             <div class="card my-3" id="report-card">
-                <div class="card-header" align="center" style="font-family: 'Tinos', serif;font-size:40px;">
-                  Lesions analysis Report
+                <div class="card-header" align="center" style="font-family: 'Tinos', serif;font-size:30px;">
+                  Analysis Report
                 </div>
                 <div class="card-body">
-                <table>
+                  <h2 style="font-family: 'Tinos', serif;font-size:30px;">
+                    General Details
+                  </h2>
+                  <table>
                     <tr>
-                        {% for header in headings %}
-                        <th> {{ header }}</th>
-                        {%endfor%}
+                      <td>Liver Volume: {{liver_vol}}</td>
+                      <td>Liver attenuation value: {{liver_att}}</td>
+                      <td>Lesions: {{num_lesions}}</td>
                     </tr>
-                    {% for row in data %}
-                    <tr>
-                        
-                        <td>{{loop.index0 + 1}}</td>
-                        <td>{{row[0]}}</td>
-                        <td>{{row[1]}}</td>
-                        <td>{{row[2]}}</td>
-                        
-                    </tr>
-                    {%endfor%}
-                </table>
+                  </table>
+                  <h2 style="font-family: 'Tinos', serif;font-size:30px;">
+                    Lesions
+                  </h2>
+                  <h4 style="font-family: 'Tinos', serif;font-size:18px;">
+                    Lesions' Details
+                  </h4>
+                  <table>
+                      <tr>
+                          {% for header in headings %}
+                          <th> {{ header }}</th>
+                          {%endfor%}
+                      </tr>
+                      {% for row in data %}
+                      <tr>
+                          
+                          <td>{{loop.index0 + 1}}</td>
+                          <td>{{row[0]}}</td>
+                          <td>{{row[1]}}</td>
+                          <td>{{row[2]}}</td>
+                          
+                      </tr>
+                      {%endfor%}
+                  </table>
                   <h5> Sum of longest diameters: {{longest_diam}} mm </h5>
+                  <h4 style="font-family: 'Tinos', serif;font-size:18px;">
+                    Lesions' Visualization
+                  </h4>
+                  {% if my_flag %}
+                  <img src="{{ tumor_path }}" alt="My Image" style="max-width:100%;">
+                  {% else %}
+                      <p>No Lesions To Show</p>
+                  {% endif %}
+                  <!-- lobes -->
+                  <h2 style="font-family: 'Tinos', serif;font-size:30px;">
+                    Lobes
+                  </h2>
+                  <h4 style="font-family: 'Tinos', serif;font-size:18px;">
+                    Lobes' Details
+                  </h4>
+                  <table>
+                      <tr>
+                        <th> Lobe</th>
+                        <th> Lobe Volume</th>
+                        <th> Lobe Attenuation</th>
+                      </tr>
+                      {% for lobes_in in lobes %}
+                      <tr>
+                        <td>Lesion {{lobes_in[0]}}</td>
+                        <td>{{ lobes_in[1]}}</td>
+                        <td>{{lobes_in[2]}}</td>
+                      </tr>
+                    {%endfor%}
+                  </table>
+                  <h4 style="font-family: 'Tinos', serif;font-size:18px;">
+                    Lobes Visualization
+                  </h4>
+                  <img class="card_img" src="{{ lobes_path }}" alt="My Image" style="max-width:100%;">
                   <div>
                     <a class="btn btn-dark my-2" href="/pdf" id="dark1">Download as pdf</a>
-                </div>
+                  </div>
                 </div>
             </div>
         </div>
-        <div class="col"></div>
+        
     </div>
+    
 </div>
 
 
