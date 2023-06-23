@@ -80,18 +80,30 @@
     </div>
     <div class="second">
       <br>
-      <table style="border: solid 1px #587daa;">
-        <tr>
-          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            General Details
-          </th>
-        </tr>
-      </table>
+      <p style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        General Details
+      </p>
       <table style="border: solid 1px #becbdc;">
         <tr>
-          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Liver Volume: {{liver_vol}}</td>
-          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Liver attenuation value: {{liver_att}}</td>
-          <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">Lesions: {{num_lesions}}</td>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Liver Volume 
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Spleen Volume 
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Spleen Attenuation 
+          </th>
+          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+            Liver/Spleen Attenuation Ratio 
+          </th>
+        </tr>
+
+        <tr>
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Liver Volume"]}}</td>
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Volume"]}}</td>
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Attenuation"]}}</td>
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Liver/Spleen Attenuation Ratio"]}}</td>
         </tr>
       
       </table>
@@ -120,26 +132,26 @@
             Lesion Number
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Longest Diameter
+            Major Axis
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Shortest Diameter
+            Minor Axis
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
             Volume
           </th>
         </tr>
-        {% for in_arr in out_arr %}
+        {% for lesion, info in rep["Lesions Information"].items() %}
         <tr>
-          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">Lesion {{loop.index}}</td>
-          <td style="width:24%; font-weight:400; border:none;">{{ in_arr[0]}}</td>
-          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">{{in_arr[1]}}</td>
-          <td style="width:24% ; font-weight:400; border: none ;">{{in_arr[2]}}</td>
+          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">Lesion {{lesion}}</td>
+          <td style="width:24%; font-weight:400; border:none;">{{ info["Major Axis"] }}</td>
+          <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">{{ info["Minor Axis"] }}</td>
+          <td style="width:24% ; font-weight:400; border: none ;">{{ info["Volume"] }}</td>
         </tr>
        {%endfor%}
       </table>
       <h5 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
-        Sum of longest diameters: {{longest_diam}}
+        Sum of longest diameters: {{rep["Sum Of Longest Diameters"]}}
       </h5>
       <br>
       <br>
@@ -157,30 +169,33 @@
         Lobes
       </h2>
       <br>
+      <!-- Lobes Start -->
       <h4 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
         Lobes' Details
       </h4>
       <br>
-      <table style="border: solid 1px #587daa;">
-        <tr>
-          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Lobe
-          </th>
-          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Lobe Volume
-          </th>
-          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Lobe attenuation
-          </th>
-        </tr>
-        {% for lobes_in in lobes %}
+      <table>
+        <thead>
           <tr>
-            <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">Lesion {{lobes_in[0]}}</td>
-            <td style="width:24%; font-weight:400; border:none;">{{ lobes_in[1]}}</td>
-            <td style="width:24% ; background-color:#becbdc; font-weight:400; border: none ;">{{lobes_in[2]}}</td>
+            <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Lobe</th>
+            <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Volume</th>
+            <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Attenuation Ratio</th>
           </tr>
-        {%endfor%}
+        </thead>
+        <tbody>
+          {% for lobe, data in rep["Each Lobe/Spleen Attenuation Ratio"].items() %}
+          <tr>
+            <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">{{ lobe }}</td>
+            <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">{{ rep["Each Lobe Volume"][lobe] }}</td>
+            <td style="width:33% ; background-color:#becbdc; font-weight:400; border: none ;">{{ data }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
       </table>
+      <br>
+      <h5 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
+        LSVR Metric : {{rep["LSVR Metric"]}}
+      </h5>
       <br>
       <h4 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
         Lobes Visualization
