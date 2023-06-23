@@ -17,6 +17,7 @@ from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
 from config import config
 import json
+import openai
 
 from monai.transforms import AsDiscrete
 
@@ -546,20 +547,94 @@ def transform_to_hu(path=config.visualization["volume"]):
     return HU_data
 
 
+def stringify_dictionary(dictionary, indent=""):
+    result = ""
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            result += f"{indent}{key}:\n"
+            result += stringify_dictionary(value, indent + "  ")
+        else:
+            result += f"{indent}{key}: {value}\n"
+    return result
+
+
+def generate_report(calculations_dict, max_retries=5):
+
+    calculations=stringify_dictionary(calculations_dict)
+    key = "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"
+    openai.api_key = key
+
+    delimiter = "####"
+
+    instruction = f"""You are an expert liver radiologist. You will be provided a text with patient vital calculations,\
+your role is to analyze the patient calculations, diagnose the patient, and generate a detailed report describing the health status \
+of the patient and describing his current health conditions and diagnose him. The text will contain important calculations described below \
+like liver volume volume in cm3 , spleen volume in cm3 , lesions volume in cm3 and dimensions mm, lobes volume in cm3 and attenuation ratio with spleen. and LSVR metric which is \
+designed to measure the change of shape of liver. Also some diagnosis guidelines will be provided below to help .
+
+Guidelines:-
+-If Liver volume is larger than 1671 this is an indication for liver enlargement
+-If Spleen volume is larger than 300 this is an indication for spleen enlargement and cirhosis
+-If Liver/Spleen attenuation ratio is less than 1, this is an indication for fatty liver diseases like NAFLD or NASH.
+-If the lesions diameter is largen than 10 or and volume are large, this is an indication for malignant tumor.
+-If the Lobe/Spleen attenuation is less than 1, this is an indication for excess fat in the lobe.
+-If the LSVR metric is higher than 0.24, this is an indication for Liver Cirrhosis.
+
+You must follow the following instructions in the report
+Instructions:-
+-You shouldn't stick to these guidelines only, make more diagnosis beyond these guidelines to cover everything.
+-Don't mention a lot of numbers in the report, focus more on giving an overview of the patient status and making diagnosis, \
+and decisions about the patient health conditions.
+-Analyze carefully the calculations and make an expert diagnosis and generate expert detailed report
+
+Note that the calculations will be delimited by four hashtags, i.e {delimiter}.
+"""
+    
+    message = f"""I will provide the patient calculation, analyze them carefully and diagnose the patient. 
+Make sure you follow the instructions well and make an accurate diagnosis, don't mention a lot of numbers in the report
+
+Calculations : {calculations}
+
+Patient Report :
+"""
+
+    retries = 0
+    tokens = 0
+    while True:
+        try:
+            response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                    {"role": "system", "content": instruction},
+                    {"role": "user", "content": message}
+                ],
+                temperature=0.15
+            )
+
+            tokens = response['usage']['total_tokens']
+            result = response['choices'][0]['message']['content']
+            return result, tokens
+        except:
+            if retries>=max_retries:
+                return None, tokens
+            else:
+                retries+=1
+
 class Report:
     
-    def __init__(self,volume,liver_mask=None,lesions_mask=None,lobes_mask=None,spleen_mask=None):
+    def __init__(self,volume,mask=None,lobes_mask=None,spleen_mask=None):
+
         self.volume=volume
         self.volume_hu_transformed=transform_to_hu()
-        self.liver_mask=liver_mask
-        self.lesions_mask=lesions_mask
+        self.liver_mask=np.where(mask == 1, 1, 0)
+        self.lesions_mask=np.where(mask == 2, 1, 0)
         self.lobes_mask=lobes_mask
         self.spleen_mask=spleen_mask
         self.x, self.y, self.z = find_pix_dim()
 
     def liver_analysis(self):
 
-        self.liver_volume=np.unique(self.liver_mask, return_counts=True)[1][1]*self.x*self.y*self.z
+        self.liver_volume=np.unique(self.liver_mask, return_counts=True)[1][1]*self.x*self.y*self.z/1000
         
         self.liver_attenuation=mask_average(self.volume_hu_transformed,self.liver_mask)
     
@@ -569,24 +644,33 @@ class Report:
     def lobes_analysis(self):
         values,total_pixels=np.unique(self.lobes_mask ,return_counts=True)
         values,total_pixels=values[1:],total_pixels[1:]
-        self.lobes_volumes=total_pixels*self.x*self.y*self.z
+        self.lobes_volumes=total_pixels*self.x*self.y*self.z/1000
+        
         self.lobes_average = [mask_average(volume=self.volume_hu_transformed, mask=np.where(self.lobes_mask==i, 1, 0)) 
                                 for i in values]
-        self.metric="SOON"
+        self.metric=np.sum(self.lobes_volumes[:3])/np.sum(self.lobes_volumes[3:])
 
     def spleen_analysis(self):
-        self.spleen_volume=np.unique(self.spleen_mask, return_counts=True)[1][1]*self.x*self.y*self.z
+        self.spleen_volume=np.unique(self.spleen_mask, return_counts=True)[1][1]*self.x*self.y*self.z/1000
         self.spleen_attenuation=mask_average(self.volume_hu_transformed,self.spleen_mask)
     
     def build_report(self):
-        self.lesions_analysis()
-        self.lobes_analysis()
-        self.spleen_analysis()
+  
         report = {}
+
+        if(self.spleen_mask is not None):
+            self.spleen_analysis()
+            report["Spleen Volume"]=self.spleen_volume
+            report["Spleen Attenuation"]= self.spleen_attenuation  
+
         if(self.liver_mask is not None):
             self.liver_analysis()
-            report["liver_volume"]= self.liver_volume
-            report["liver_attenuation"]= self.liver_attenuation
+            report["Liver Volume"]= self.liver_volume
+            if(self.spleen_mask is not None):
+                report["Liver/Spleen Attenuation Ratio"]= self.liver_attenuation/self.spleen_attenuation  
+            else:
+                report["Liver Attenuation"]= self.liver_attenuation
+
 
         if(self.lesions_mask is not None):
             self.lesions_analysis()
@@ -594,22 +678,31 @@ class Report:
             for i,calc in enumerate(self.lesions_calculations):
                 if(calc[0]>calc[1]):
 
-                    lesions[f"Lesion Number {i}"]={"Major Axis":calc[0], "Minor Axis":calc[1], "Volume":calc[2]}
+                    lesions[f"{i}"]={"Major Axis":calc[0], "Minor Axis":calc[1], "Volume":calc[2]}
                 else:
                     lesions[f"{i}"]={"Major Axis":calc[1], "Minor Axis":calc[0], "Volume":calc[2]}
-            report["lesions"]=lesions
+            report["Lesions Information"]=lesions
 
         if(self.lobes_mask is not None):
             self.lobes_analysis()
-            report["lobes_volumes"]= self.lobes_volumes
-            report["lobes_average"]= self.lobes_average
-            report["metric"]=self.metric
+            lobes_volume={}
+            lobes_attenuation={}
 
-        if(self.spleen_mask is not None):
+            for i,volume in enumerate(self.lobes_volumes):
+                lobes_volume[f" Lobe {i+1} "]= volume
+            if(self.spleen_mask is not None):
+                for i,attenuation in enumerate(self.lobes_average):
+                    lobes_attenuation[f" Lobe {i+1} "]= attenuation/self.spleen_attenuation
+            else:
+                for i,attenuation in enumerate(self.lobes_average):
+                    lobes_attenuation[f" Lobe {i+1} "]= attenuation                  
 
-            report["spleen_volume"]=self.spleen_volume,
-            report["spleen_attenuation"]= self.spleen_attenuation        
+            report["Each Lobe Volume"]= lobes_volume
+            report["Each Lobe/Spleen Attenuation Ratio"]= lobes_attenuation
+            report["LSVR Metric"]=self.metric
 
+            msg,tokens=generate_report(report)
+            report["msg"]=msg
         with open("report.json", "w") as json_file:
             json.dump(report, json_file)
         return report

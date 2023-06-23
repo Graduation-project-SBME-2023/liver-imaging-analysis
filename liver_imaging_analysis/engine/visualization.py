@@ -111,7 +111,7 @@ def major_axis_recursive(volume, mask, mode="volume",plot=True):
         if mode == "volume":
             idx = calculate_largest_tumor(largest_tumor[0])
             major,minor=major_axes(volume[:, :, idx], largest_tumor[0][:, :, idx], ax,plot)
-            calculations.append([major*x,minor*y,total_pixels*x*y*z])
+            calculations.append([major*x,minor*y,total_pixels*x*y*z/1000])
             if plot:
                 contours = find_contours(largest_tumor[0][:, :, idx], 0)
                 for contour in contours:
