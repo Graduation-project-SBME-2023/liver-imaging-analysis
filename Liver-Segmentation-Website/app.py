@@ -10,22 +10,23 @@ import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 import nibabel as nib
 import monai
-# import pdfkit
+import pdfkit
 
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
 from liver_imaging_analysis.engine.config import config
-from liver_imaging_analysis.engine.utils import Overlay
+from liver_imaging_analysis.engine.utils import Overlay, Report
 from visualize_tumors import visualize_tumor, parameters
 import json
 
-with open('Liver-Segmentation-Website/static/report.json') as f:
-    report_json = json.load(f)
+
+# with open('Liver-Segmentation-Website/static/report.json') as f:
+#     report_json = json.load(f)
 
 
 # paths
-lobes_img_path = "Liver-Segmentation-Website/static/images/lobes.PNG"
-segmented_slice_path = "Liver-Segmentation-Website/static/images/liver_slice.png"
+lobes_img_path = "static/images/lobes.PNG"
+segmented_slice_path = "static/images/liver_slice.png"
 
 plt.switch_backend("Agg")
 gc.collect()
@@ -121,9 +122,14 @@ def success():
         volume_location = save_folder + volume_filename
         file.save(volume_location)
 
+
         volume = nib.load(volume_location).get_fdata()
         liver_lesion , lobes  = segment_3d(volume_location)
-        
+
+        global report_json
+        report = Report(volume, mask=liver_lesion, lobes_mask=lobes)
+        report_json = report.build_report()
+
         visualize_tumor(volume_location, liver_lesion, mode='contour')
         visualize_tumor(volume_location, liver_lesion, mode='box')
         visualize_tumor(volume_location, liver_lesion, mode='zoom')
@@ -132,23 +138,23 @@ def success():
         volume = transform(volume[None]).squeeze(0)
         liver_lesion = transform(liver_lesion[None]).squeeze(0)
         lobes = transform(lobes[None]).squeeze(0)
-        
+
         original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
         original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
-        
+
         liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
-        liver_lesion_overlay.generate_slice(segmented_slice_path)
-        
+        liver_lesion_overlay.generate_slice("Liver-Segmentation-Website/static/images/liver_slice.png")
+
         lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
-        lobes_overlay.generate_slice(lobes_img_path)
+        lobes_overlay.generate_slice("Liver-Segmentation-Website/static/images/lobes.PNG")
 
         global longest_diameter_sum
         longest_diameter_sum = 0
@@ -158,8 +164,7 @@ def success():
             longest_diameter_sum += max_axis
 
         # global data
-        
-        data = {"Data": parameters, "sum_longest": '%.3f'% longest_diameter_sum}
+        data = {"Data": parameters, "sum_longest": longest_diameter_sum}
 
 
         return render_template(
@@ -211,7 +216,7 @@ def report():
     if request.method == "POST":
         if len(report_json['Lesions Information']) > 0:
             flag = True
-            tumor_img_path = "static/zoom/tumor_1.png"
+            tumor_img_path = "../static/zoom/tumor_1.png"
         else:
             flag = False
             tumor_img_path = ""
