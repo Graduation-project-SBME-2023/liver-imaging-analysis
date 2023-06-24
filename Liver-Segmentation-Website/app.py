@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 import nibabel as nib
 import monai
-import pdfkit
+# import pdfkit
 
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
@@ -123,7 +123,7 @@ def success():
 
         volume = nib.load(volume_location).get_fdata()
         liver_lesion , lobes  = segment_3d(volume_location)
-
+        
         visualize_tumor(volume_location, liver_lesion, mode='contour')
         visualize_tumor(volume_location, liver_lesion, mode='box')
         visualize_tumor(volume_location, liver_lesion, mode='zoom')
@@ -132,18 +132,18 @@ def success():
         volume = transform(volume[None]).squeeze(0)
         liver_lesion = transform(liver_lesion[None]).squeeze(0)
         lobes = transform(lobes[None]).squeeze(0)
-
+        
         original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
         original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
-
+        
         liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
         liver_lesion_overlay.generate_slice(segmented_slice_path)
-
+        
         lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
@@ -158,7 +158,8 @@ def success():
             longest_diameter_sum += max_axis
 
         # global data
-        data = {"Data": parameters, "sum_longest": longest_diameter_sum}
+        
+        data = {"Data": parameters, "sum_longest": '%.3f'% longest_diameter_sum}
 
 
         return render_template(
@@ -210,7 +211,7 @@ def report():
     if request.method == "POST":
         if len(report_json['Lesions Information']) > 0:
             flag = True
-            tumor_img_path = "../static/zoom/tumor_1.png"
+            tumor_img_path = "static/zoom/tumor_1.png"
         else:
             flag = False
             tumor_img_path = ""
