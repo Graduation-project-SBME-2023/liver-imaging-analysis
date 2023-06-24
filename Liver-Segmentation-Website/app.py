@@ -17,15 +17,15 @@ from liver_imaging_analysis.models import liver_segmentation, lesion_segmentatio
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.utils import Overlay
 from visualize_tumors import visualize_tumor, parameters
+import json
 
-# assume lobes
-lobes_params = [["right",'not done' , 'not done'],
-                ["left",'not done','not done'],
-                ["caudate",'not done','not done'],
-                ["quadrate",'not done','not done']]
+with open('Liver-Segmentation-Website/static/report.json') as f:
+    report_json = json.load(f)
+
+
+# paths
 lobes_img_path = "Liver-Segmentation-Website/static/images/lobes.PNG"
 segmented_slice_path = "Liver-Segmentation-Website/static/images/liver_slice.png"
-data = []
 
 plt.switch_backend("Agg")
 gc.collect()
@@ -123,7 +123,7 @@ def success():
 
         volume = nib.load(volume_location).get_fdata()
         liver_lesion , lobes  = segment_3d(volume_location)
-
+        
         visualize_tumor(volume_location, liver_lesion, mode='contour')
         visualize_tumor(volume_location, liver_lesion, mode='box')
         visualize_tumor(volume_location, liver_lesion, mode='zoom')
@@ -132,18 +132,18 @@ def success():
         volume = transform(volume[None]).squeeze(0)
         liver_lesion = transform(liver_lesion[None]).squeeze(0)
         lobes = transform(lobes[None]).squeeze(0)
-
+        
         original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
         original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
         original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
-
+        
         liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
         liver_lesion_overlay.generate_slice(segmented_slice_path)
-
+        
         lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
@@ -158,8 +158,9 @@ def success():
             longest_diameter_sum += max_axis
 
         # global data
-        data = {"Data": parameters, "sum_longest": longest_diameter_sum}
-        # return render_template("visualization.html", data=data)
+        
+        data = {"Data": parameters, "sum_longest": '%.3f'% longest_diameter_sum}
+
 
         return render_template(
             "segmentation.html", data=data
@@ -208,9 +209,9 @@ def report():
     """
 
     if request.method == "POST":
-        if len(parameters) > 0:
+        if len(report_json['Lesions Information']) > 0:
             flag = True
-            tumor_img_path = "../static/zoom/tumor_0.png"
+            tumor_img_path = "static/zoom/tumor_1.png"
         else:
             flag = False
             tumor_img_path = ""
@@ -228,25 +229,13 @@ def report():
         global patient_info
         patient_info = [name,age,phone_number,gender]
 
-        analysis_headings = (
-            "Lesion",
-            "axis_1",
-            "axis_2",
-            "Volume",
-        )
         return render_template(
             "report.html",
-            headings = analysis_headings,
-            data = parameters,
-            longest_diam = '%.3f'% longest_diameter_sum,
-            patient_data = patient_data,
+            patient_data=patient_data,
             my_flag=flag,
             tumor_path=tumor_img_path,
-            num_lesions=len(parameters),
-            liver_vol="not done",
-            liver_att="not done",
-            lobes=lobes_params,
-            lobes_path="../static/images/lobes.PNG",
+            lobes_path=lobes_img_path,
+            rep=report_json
         )
 
 
@@ -255,15 +244,18 @@ def report():
 
 @app.route('/pdf')
 def pdf():
-    if len(parameters)>0:
+    if len(report_json['Lesions Information'])>0:
         flag = True
-        tumor_img_path = "Liver-Segmentation-Website/static/zoom/tumor_0.png"
+        tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_1.png"
     else:
         flag = False
         tumor_img_path = ""
-    rendered = render_template('pdf.html' ,out_arr=parameters, longest_diam=longest_diameter_sum, my_flag = flag, tumor_path = tumor_img_path,
-                               num_lesions = len(parameters), liver_vol= "not done", liver_att="not done",
-                               lobes = lobes_params, lobes_path = lobes_img_path, liver_slice = segmented_slice_path,
+    lobes_img_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/lobes.PNG"
+    segmented_slice_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/liver_slice.png"
+    rendered = render_template('pdf.html' ,rep = report_json,
+                               longest_diam=longest_diameter_sum, my_flag = flag,
+                               tumor_path = tumor_img_path, lobes_path = lobes_img_path_global,
+                               liver_slice = segmented_slice_path_global,
                                patient_data = patient_info )
     config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
     pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})

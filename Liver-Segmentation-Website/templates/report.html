@@ -50,9 +50,24 @@
             </h2>
             <table>
               <tr>
-                <td>Liver Volume: {{liver_vol}}</td>
-                <td>Liver attenuation value: {{liver_att}}</td>
-                <td>Lesions: {{num_lesions}}</td>
+                <th>
+                  Liver Volume
+                </th>
+                <th>
+                  Spleen Volume
+                </th>
+                <th>
+                  Spleen Attenuation
+                </th>
+                <th>
+                  Liver/Spleen Attenuation Ratio
+                </th>
+              </tr>
+              <tr>
+                <td>{{rep["Liver Volume"]}}</td>
+                <td>{{rep["Spleen Volume"]}}</td>
+                <td>{{rep["Spleen Attenuation"]}}</td>
+                <td>{{rep["Liver/Spleen Attenuation Ratio"]}}</td>
               </tr>
             </table>
             <h2 style="font-family: 'Tinos', serif;font-size:30px;">
@@ -63,22 +78,29 @@
             </h4>
             <table>
                 <tr>
-                    {% for header in headings %}
-                    <th> {{ header }}</th>
-                    {%endfor%}
+                  <th>
+                    Lesion Number
+                  </th>
+                  <th>
+                    Major Axis
+                  </th>
+                  <th>
+                    Minor Axis
+                  </th>
+                  <th>
+                    Volume
+                  </th>
                 </tr>
-                {% for row in data %}
+                {% for lesion, info in rep["Lesions Information"].items() %}
                 <tr>
-                    
-                    <td>{{loop.index0 + 1}}</td>
-                    <td>{{row[0]}}</td>
-                    <td>{{row[1]}}</td>
-                    <td>{{row[2]}}</td>
-                    
+                  <td>Lesion {{lesion}}</td>
+                  <td>{{ info["Major Axis"] }}</td>
+                  <td>{{ info["Minor Axis"] }}</td>
+                  <td>{{ info["Volume"] }}</td>
                 </tr>
                 {%endfor%}
             </table>
-            <h5> Sum of longest diameters: {{longest_diam}} mm </h5>
+            <h5> Sum of longest diameters: {{rep["Sum Of Longest Diameters"]}} mm </h5>
             <h4 style="font-family: 'Tinos', serif;font-size:18px;">
               Lesions' Visualization
             </h4>
@@ -98,20 +120,33 @@
                 <tr>
                   <th> Lobe</th>
                   <th> Lobe Volume</th>
-                  <th> Lobe Attenuation</th>
+                  <th> Attenuation Ratio</th>
                 </tr>
-                {% for lobes_in in lobes %}
+                {% for lobe, data in rep["Each Lobe/Spleen Attenuation Ratio"].items() %}
                 <tr>
-                  <td>Lesion {{lobes_in[0]}}</td>
-                  <td>{{ lobes_in[1]}}</td>
-                  <td>{{lobes_in[2]}}</td>
+                  <td>{{ lobe }}</td>
+                  <td>{{ rep["Each Lobe Volume"][lobe] }}</td>
+                  <td>{{ data }}</td>
                 </tr>
-              {%endfor%}
+                {% endfor %}
             </table>
+            <h5 style="font-family: 'Tinos', serif;font-size:18px;">
+              LSVR Metric : {{rep["LSVR Metric"]}}
+            </h5>
             <h4 style="font-family: 'Tinos', serif;font-size:18px;">
               Lobes Visualization
             </h4>
-            <img class="card_img" src="{{ lobes_path }}" alt="My Image" style="max-width:100%;">
+            <!-- <img class="card_img" src="{{ lobes_path }}" alt="My Image" style="max-width:100%;"> -->
+            <img class="card_img" src="../static/images/lobes.PNG" alt="My Image" style="max-width:100%;">
+            <div>
+              <br>
+              <h2 style="font-weight:bolder; font-family: 'Tinos', serif; ">
+                Patient Report
+              </h2>
+              <p style="font-family: 'Tinos', serif;">
+                {{rep["msg"]}}
+              </p>
+            </div>
             <div>
               <a class="btn btn-dark my-2" href="/pdf" id="dark1">Download as pdf</a>
             </div>
