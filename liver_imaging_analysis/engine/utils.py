@@ -40,19 +40,19 @@ def progress_bar(progress, total):
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
-def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
+def liver_isolate_crop(volumes_path, masks_path, new_volumes_path, new_masks_path):
     """
-        A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
-        Parameters
-        ----------
-        volumes_path: str
-            the directory of the 3d volumes
-        masks_path: str
-            the directory of the 3d masks
-        new_volumes_path: str
-            the save directory of the cropped liver volume
-        new_masks_path: str
-            the save directory of the cropped lesions mask
+    A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
+    Parameters
+    ----------
+    volumes_path: str
+        the directory of the 3d volumes
+    masks_path: str
+        the directory of the 3d masks
+    new_volumes_path: str
+        the save directory of the cropped liver volume
+    new_masks_path: str
+        the save directory of the cropped lesions mask
     """
     volume_files = natsort.natsorted(
         os.listdir(volumes_path)
@@ -61,43 +61,45 @@ def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
     for i in range(len(volume_files)):
         volume_path = os.path.join(volumes_path, volume_files[i])
         mask_path = os.path.join(masks_path, mask_files[i])
-        volume=nib.load(volume_path)
-        mask=nib.load(mask_path)
-        volume_array=volume.get_fdata()
-        mask_array=mask.get_fdata() 
-        min_slice=0
-        max_slice=0
-        for j in range (mask_array.shape[2]):
-          if(len(np.unique(mask_array[:,:,j]))!=1):
-            min_slice=j
-            break
-        for k in range (mask_array.shape[2]-1,-1,-1):
-          if(len(np.unique(mask_array[:,:,k]))!=1):
-            max_slice=k
-            break
-        volume_array=volume_array[:,:,min_slice:max_slice+1]
-        mask_array=mask_array[:,:,min_slice:max_slice+1]
+        volume = nib.load(volume_path)
+        mask = nib.load(mask_path)
+        volume_array = volume.get_fdata()
+        mask_array = mask.get_fdata()
+        min_slice = 0
+        max_slice = 0
+        for j in range(mask_array.shape[2]):
+            if len(np.unique(mask_array[:, :, j])) != 1:
+                min_slice = j
+                break
+        for k in range(mask_array.shape[2] - 1, -1, -1):
+            if len(np.unique(mask_array[:, :, k])) != 1:
+                max_slice = k
+                break
+        volume_array = volume_array[:, :, min_slice : max_slice + 1]
+        mask_array = mask_array[:, :, min_slice : max_slice + 1]
 
-        new_volume=nib.Nifti1Image(
+        new_volume = nib.Nifti1Image(
             np.where(
-            (mask_array.astype(int)>0.5).astype(int)==1,
-            volume_array.astype(int),
-            volume_array.astype(int).min()),#replace all nonliver voxels with background intensity
+                (mask_array.astype(int) > 0.5).astype(int) == 1,
+                volume_array.astype(int),
+                volume_array.astype(int).min(),
+            ),  # replace all nonliver voxels with background intensity
             affine=volume.affine,
-            header=volume.header
-            )
-        new_mask=nib.Nifti1Image(
-            (mask_array.astype(int)>1.5).astype(int),#new mask contains lesions only
+            header=volume.header,
+        )
+        new_mask = nib.Nifti1Image(
+            (mask_array.astype(int) > 1.5).astype(
+                int
+            ),  # new mask contains lesions only
             affine=mask.affine,
-            header=mask.header
-            )
+            header=mask.header,
+        )
 
-
-        nii_volume_path = (os.path.join(new_volumes_path, volume_files[i]))
-        nii_mask_path = (os.path.join(new_masks_path, mask_files[i]))
+        nii_volume_path = os.path.join(new_volumes_path, volume_files[i])
+        nii_mask_path = os.path.join(new_masks_path, mask_files[i])
         new_volume.to_filename(nii_volume_path)  # Save as NiBabel file
         new_mask.to_filename(nii_mask_path)  # Save as NiBabel file
-        
+
 
 def get_batch_names(batch, key):
     """
@@ -446,9 +448,8 @@ class Visualization:
         idx (int): If not None, it represents the index of a specific slice in the volume to execute code on.
             If None, the code will be executed for all slices and all tumors.
         """
-        from visualization import visualize_tumor           # to avoid cyclic importing
+        from visualization import visualize_tumor  # to avoid cyclic importing
 
-        
         volume = nib.load(config.visualization["volume"]).get_fdata()
         volume = ScaleIntensityRange(
             a_min=-135,
@@ -458,30 +459,34 @@ class Visualization:
             clip=True,
         )(volume)
         mask = nib.load(config.visualization["mask"]).get_fdata()
-        mask = AsDiscrete(threshold=1.5)(mask)  
+        mask = AsDiscrete(threshold=1.5)(mask)
 
-        calculations=visualize_tumor(volume=volume, mask=mask, idx=idx, mode=mode,plot=plot)
+        calculations = visualize_tumor(
+            volume=volume, mask=mask, idx=idx, mode=mode, plot=plot
+        )
         return calculations
+
 
 visualization = Visualization()
 
-def concatenate_masks(mask1,mask2,volume):
-    """
-        a function to merge two masks and use them to supress all other regions of the volume
-        except the concatenated ROI
 
-        Parameters
-        ----------
-        mask1: np array
-            array contains first mask data
-        mask2: np array
-            array contains second mask data
-        volume: np array
-            array contains the original volume data
-        Return
-        ----------
-        vol: array
-            the volume with specified ROI values only
+def concatenate_masks(mask1, mask2, volume):
+    """
+    a function to merge two masks and use them to supress all other regions of the volume
+    except the concatenated ROI
+
+    Parameters
+    ----------
+    mask1: np array
+        array contains first mask data
+    mask2: np array
+        array contains second mask data
+    volume: np array
+        array contains the original volume data
+    Return
+    ----------
+    vol: array
+        the volume with specified ROI values only
     """
     assert mask1.shape == mask2.shape == volume.shape, "Input shapes do not match"
 
@@ -489,42 +494,43 @@ def concatenate_masks(mask1,mask2,volume):
     conc = np.logical_or(mask1, mask2).astype(np.uint8)
     # Multiply the binary mask with the original volume to obtain the segmented parts
 
-    vol=np.where(
-            conc==1,
-            volume,
-            volume.min()),#replace all nonliver voxels with background intensity    print(np.unique(vol))
+    vol = (
+        np.where(conc == 1, volume, volume.min()),
+    )  # replace all nonliver voxels with background intensity    print(np.unique(vol))
     return vol
 
-def mask_average(volume,mask):
+
+def mask_average(volume, mask):
     """
-        a function to find the average value of a specific ROI in volume
-        Parameters
-        ----------
-        volume: np array
-            array contains the volume data
-        mask: np array
-            array contains the mask data ( ROI )
-        Return
-        ----------
-        average: float
-            the average value of the ROI
+    a function to find the average value of a specific ROI in volume
+    Parameters
+    ----------
+    volume: np array
+        array contains the volume data
+    mask: np array
+        array contains the mask data ( ROI )
+    Return
+    ----------
+    average: float
+        the average value of the ROI
     """
-    masked=np.multiply(volume,mask)
-    masked=masked[masked!=0]
-    average=masked.mean()
+    masked = np.multiply(volume, mask)
+    masked = masked[masked != 0]
+    average = masked.mean()
     return average
+
 
 def transform_to_hu(path=config.visualization["volume"]):
     """
-        a function to transform the input nfti to its Hounsfield values
-        Parameters
-        ----------
-        path: string
-            the path of the input nfti file
-        Return
-        ----------
-        HU_data: numpy array
-            the array contains the data of input volume calibrated to Hounsfield 
+    a function to transform the input nfti to its Hounsfield values
+    Parameters
+    ----------
+    path: string
+        the path of the input nfti file
+    Return
+    ----------
+    HU_data: numpy array
+        the array contains the data of input volume calibrated to Hounsfield
     """
 
     nifti_img = nib.load(path)
@@ -533,21 +539,32 @@ def transform_to_hu(path=config.visualization["volume"]):
     img_data = nifti_img.get_fdata()
 
     # Get the slope and intercept values for the Hounsfield unit (HU) calculation
-    slope=nifti_img.dataobj.slope
-    intercept=nifti_img.dataobj.inter
-    print(slope,intercept)
+    slope = nifti_img.dataobj.slope
+    intercept = nifti_img.dataobj.inter
+    print(slope, intercept)
     # Calculate the HU values for each voxel in the image
     HU_data = (img_data * slope) + intercept
 
     # Print the minimum and maximum HU values in the image
     print(f"Minimum HU value: {HU_data.min()}")
     print(f"Maximum HU value: {HU_data.max()}")
-    print(img_data.min(),img_data.max())
+    print(img_data.min(), img_data.max())
 
     return HU_data
 
 
 def stringify_dictionary(dictionary, indent=""):
+    """
+    Recursively converts a dictionary into a string representation.
+
+    Args:
+        dictionary (dict): The dictionary to be converted into a string.
+        indent (str, optional): The indentation string used for formatting. Defaults to "".
+
+    Returns:
+        str: The string representation of the dictionary.
+
+    """
     result = ""
     for key, value in dictionary.items():
         if isinstance(value, dict):
@@ -559,8 +576,19 @@ def stringify_dictionary(dictionary, indent=""):
 
 
 def generate_report(calculations_dict, max_retries=5):
+    """
+    Creates an AI generated detailed report describing the patient health status based on the calculated clinical parameters
 
-    calculations=stringify_dictionary(calculations_dict)
+    Args:
+        calculations_dict (dict): The dictionary that contains the patient clinical parameters
+        max_retries (int): Maximum server retry attempts.
+
+    Return:
+        result (string): The Patient AI Generated Report
+        tokens (int): The consumed tokens
+
+    """
+    calculations = stringify_dictionary(calculations_dict)
     key = "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"
     openai.api_key = key
 
@@ -589,7 +617,7 @@ and decisions about the patient health conditions.
 
 Note that the calculations will be delimited by four hashtags, i.e {delimiter}.
 """
-    
+
     message = f"""I will provide the patient calculation, analyze them carefully and diagnose the patient. 
 Make sure you follow the instructions well and make an accurate diagnosis, don't mention a lot of numbers in the report
 
@@ -603,106 +631,197 @@ Patient Report :
     while True:
         try:
             response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
+                model="gpt-3.5-turbo",
+                messages=[
                     {"role": "system", "content": instruction},
-                    {"role": "user", "content": message}
+                    {"role": "user", "content": message},
                 ],
-                temperature=0.15
+                temperature=0.15,
             )
 
-            tokens = response['usage']['total_tokens']
-            result = response['choices'][0]['message']['content']
+            tokens = response["usage"]["total_tokens"]
+            result = response["choices"][0]["message"]["content"]
             return result, tokens
         except:
-            if retries>=max_retries:
+            if retries >= max_retries:
                 return None, tokens
             else:
-                retries+=1
+                retries += 1
+
 
 class Report:
-    
-    def __init__(self,volume,mask=None,lobes_mask=None,spleen_mask=None):
+    """
+    A class used to calculate all the patient vital clinical parameters based on the segmentation masks
+    and generate a detailed report for the patient health condition.
 
-        self.volume=volume
-        self.volume_hu_transformed=transform_to_hu()
-        self.liver_mask=np.where(mask == 1, 1, 0)
-        self.lesions_mask=np.where(mask == 2, 1, 0)
-        self.lobes_mask=lobes_mask
-        self.spleen_mask=spleen_mask
+    Attributes:
+        volume (ndarray): The volume of the patient abdomen scan.
+        volume_hu_transformed (ndarray): The volume transformed to Hounsfield units.
+        liver_mask (ndarray): The liver mask array. labeled as 0 for background , 1 for liver
+        lesions_mask (ndarray): The lesions mask array.  labeled as 0 for background , 1 for lesions
+        lobes_mask (ndarray): The lobes mask array.
+        spleen_mask (ndarray): The spleen mask array.
+        x (float): The X-dimension pixel dimension.
+        y (float): The Y-dimension pixel dimension.
+        z (float): The Z-dimension pixel dimension.
+
+    Methods:
+        liver_analysis(): Performs liver analysis and calculate liver parameters.
+        lesions_analysis(): Performs lesions analysis and calculate lesions parameters.
+        lobes_analysis(): Performs lobes analysis and calculate lobes parameters.
+        spleen_analysis(): Performs spleen analysis and calculate spleen parameters.
+        build_report(): Builds the report by calling all analysis functions and saves the report to a JSON file.
+
+
+    """
+
+    def __init__(self, volume, mask=None, lobes_mask=None, spleen_mask=None):
+        """
+        Initializes a Report instance with the given volume and masks.
+
+        Args:
+            volume (ndarray): The volume of the patient abdomen scan.
+            mask (ndarray, optional): The liver mask array of patient,labeled as 0 for background, 1 for liver, 2 for lesions.
+            lobes_mask (ndarray, optional): The lobes mask array.
+            spleen_mask (ndarray, optional): The spleen mask array.
+
+        """
+
+        self.volume = volume
+        self.volume_hu_transformed = transform_to_hu()
+        self.liver_mask = np.where(mask == 1, 1, 0)
+        self.lesions_mask = np.where(mask == 2, 1, 0)
+        self.lobes_mask = lobes_mask
+        self.spleen_mask = spleen_mask
         self.x, self.y, self.z = find_pix_dim()
 
     def liver_analysis(self):
+        """
+        Performs liver analysis by calculating the liver volume in cm3 and attenuation.
+        """
+        self.liver_volume = (
+            np.unique(self.liver_mask, return_counts=True)[1][1]
+            * self.x
+            * self.y
+            * self.z
+            / 1000
+        )
 
-        self.liver_volume=np.unique(self.liver_mask, return_counts=True)[1][1]*self.x*self.y*self.z/1000
-        
-        self.liver_attenuation=mask_average(self.volume_hu_transformed,self.liver_mask)
-    
+        self.liver_attenuation = mask_average(
+            self.volume_hu_transformed, self.liver_mask
+        )
+
     def lesions_analysis(self):
-        self.lesions_calculations=visualization.visualization_mode(mode="contour",plot=False)
+        """
+        Performs lesions analysis by calculating the volume in cm3 and principle axes in mm for each lesion.
+        """
+        self.lesions_calculations = visualization.visualization_mode(
+            mode="contour", plot=False
+        )
 
     def lobes_analysis(self):
-        values,total_pixels=np.unique(self.lobes_mask ,return_counts=True)
-        values,total_pixels=values[1:],total_pixels[1:]
-        self.lobes_volumes=total_pixels*self.x*self.y*self.z/1000
-        
-        self.lobes_average = [mask_average(volume=self.volume_hu_transformed, mask=np.where(self.lobes_mask==i, 1, 0)) 
-                                for i in values]
-        self.metric=np.sum(self.lobes_volumes[:3])/np.sum(self.lobes_volumes[3:])
+        """
+        Performs lobes analysis by calculating the volume in cm3 and attenuation for each lobe. In addition, LSVR Metric
+        which is a measure for the change in the geomtry of the liver.
+        """
+        values, total_pixels = np.unique(self.lobes_mask, return_counts=True)
+        values, total_pixels = values[1:], total_pixels[1:]
+        self.lobes_volumes = total_pixels * self.x * self.y * self.z / 1000
+
+        self.lobes_average = [
+            mask_average(
+                volume=self.volume_hu_transformed,
+                mask=np.where(self.lobes_mask == i, 1, 0),
+            )
+            for i in values
+        ]
+        self.metric = np.sum(self.lobes_volumes[:3]) / np.sum(self.lobes_volumes[3:])
 
     def spleen_analysis(self):
-        self.spleen_volume=np.unique(self.spleen_mask, return_counts=True)[1][1]*self.x*self.y*self.z/1000
-        self.spleen_attenuation=mask_average(self.volume_hu_transformed,self.spleen_mask)
-    
+        """
+        Performs spleen analysis by calculating the spleen volume in cm3 and attenuation.
+
+        """
+        self.spleen_volume = (
+            np.unique(self.spleen_mask, return_counts=True)[1][1]
+            * self.x
+            * self.y
+            * self.z
+            / 1000
+        )
+        self.spleen_attenuation = mask_average(
+            self.volume_hu_transformed, self.spleen_mask
+        )
+
     def build_report(self):
-  
+        """
+        Builds the report by calling the analysis functions, aggregating various analysis results and saves it to a JSON file.
+
+        Returns:
+            dict: The generated report with analysis information.
+
+        """
+
         report = {}
 
-        if(self.spleen_mask is not None):
+        if self.spleen_mask is not None:
             self.spleen_analysis()
-            report["Spleen Volume"]=self.spleen_volume
-            report["Spleen Attenuation"]= self.spleen_attenuation  
+            report["Spleen Volume"] = self.spleen_volume
+            report["Spleen Attenuation"] = self.spleen_attenuation
 
-        if(self.liver_mask is not None):
+        if self.liver_mask is not None:
             self.liver_analysis()
-            report["Liver Volume"]= self.liver_volume
-            if(self.spleen_mask is not None):
-                report["Liver/Spleen Attenuation Ratio"]= self.liver_attenuation/self.spleen_attenuation  
+            report["Liver Volume"] = self.liver_volume
+            if self.spleen_mask is not None:
+                report["Liver/Spleen Attenuation Ratio"] = (
+                    self.liver_attenuation / self.spleen_attenuation
+                )
             else:
-                report["Liver Attenuation"]= self.liver_attenuation
+                report["Liver Attenuation"] = self.liver_attenuation
 
-
-        if(self.lesions_mask is not None):
+        if self.lesions_mask is not None:
             self.lesions_analysis()
-            lesions={}
-            for i,calc in enumerate(self.lesions_calculations):
-                if(calc[0]>calc[1]):
+            lesions = {}
+            for i, calc in enumerate(self.lesions_calculations):
+                if calc[0] > calc[1]:
 
-                    lesions[f"{i}"]={"Major Axis":calc[0], "Minor Axis":calc[1], "Volume":calc[2]}
+                    lesions[f"{i}"] = {
+                        "Major Axis": calc[0],
+                        "Minor Axis": calc[1],
+                        "Volume": calc[2],
+                    }
                 else:
-                    lesions[f"{i}"]={"Major Axis":calc[1], "Minor Axis":calc[0], "Volume":calc[2]}
-            report["Lesions Information"]=lesions
+                    lesions[f"{i}"] = {
+                        "Major Axis": calc[1],
+                        "Minor Axis": calc[0],
+                        "Volume": calc[2],
+                    }
+            report["Lesions Information"] = lesions
 
-        if(self.lobes_mask is not None):
+        if self.lobes_mask is not None:
             self.lobes_analysis()
-            lobes_volume={}
-            lobes_attenuation={}
+            lobes_volume = {}
+            lobes_attenuation = {}
 
-            for i,volume in enumerate(self.lobes_volumes):
-                lobes_volume[f" Lobe {i+1} "]= volume
-            if(self.spleen_mask is not None):
-                for i,attenuation in enumerate(self.lobes_average):
-                    lobes_attenuation[f" Lobe {i+1} "]= attenuation/self.spleen_attenuation
+            for i, volume in enumerate(self.lobes_volumes):
+                lobes_volume[f" Lobe {i+1} "] = volume
+            if self.spleen_mask is not None:
+                for i, attenuation in enumerate(self.lobes_average):
+                    lobes_attenuation[f" Lobe {i+1} "] = (
+                        attenuation / self.spleen_attenuation
+                    )
             else:
-                for i,attenuation in enumerate(self.lobes_average):
-                    lobes_attenuation[f" Lobe {i+1} "]= attenuation                  
+                for i, attenuation in enumerate(self.lobes_average):
+                    lobes_attenuation[f" Lobe {i+1} "] = attenuation
 
-            report["Each Lobe Volume"]= lobes_volume
-            report["Each Lobe/Spleen Attenuation Ratio"]= lobes_attenuation
-            report["LSVR Metric"]=self.metric
+            report["Each Lobe Volume"] = lobes_volume
+            report["Each Lobe/Spleen Attenuation Ratio"] = lobes_attenuation
+            report["LSVR Metric"] = self.metric
 
-            msg,tokens=generate_report(report)
-            report["msg"]=msg
+            msg, tokens = generate_report(report)
+            report["msg"] = msg
+
         with open("report.json", "w") as json_file:
             json.dump(report, json_file)
+
         return report
