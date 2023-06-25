@@ -3,12 +3,14 @@ a module contains the implemented preprocessing classes
 
 """
 import os
-
+from scipy.ndimage.morphology import binary_closing
 import cv2 as cv
+import torch
 import numpy as np
-from liver_imaging_analysis.config import config
+from liver_imaging_analysis.engine.config import config
 from monai.transforms import LoadImage
 from liver_imaging_analysis.engine.dataloader import Keys
+from monai.utils import ensure_tuple
 
 class LoadImageLocally(LoadImage):
     """
@@ -55,4 +57,83 @@ class LoadImageLocally(LoadImage):
                 )  # /Temp2D/volume/volume-0_0.png
 
             d[key] = image
+        return d
+
+
+class ClosingD:
+    '''
+    A MONAI-like dictionary-based transform that applies morphological closing.
+    Morphological closing consists of applying dilation followed by erosion 
+    using the same structuring element. Usually used to fill small gaps in binary masks.
+    Can be used individually or in a Compose stack of transforms.
+
+    See also
+    ----------
+    .. [1] https://en.wikipedia.org/wiki/Closing_%28morphology%29
+    .. [2] https://en.wikipedia.org/wiki/Mathematical_morphology
+
+    '''
+    def __init__(self, keys, iters = 1, struct = None):
+        '''
+        Initialize the structuring element, number of closing iterations, 
+        and keys of corresponding masks to apply morphological closing to.
+
+        Parameters
+        ----------
+        keys : tuple
+            keys of the corresponding items to apply morphological closing to.
+        iters : int, optional
+            The dilation step of the closing, then the erosion step are each
+            repeated `iterations` times (one, by default). If iterations is
+            less than 1, each operations is repeated until the result does
+            not change anymore. Only an integer of iterations is accepted.
+        struct : array_like, optional
+            Structuring element used for the closing. Non-zero elements are
+            considered True. If no structuring element is provided an element
+            is generated with a square connectivity equal to one (i.e., only
+            nearest neighbors are connected to the center, diagonally-connected
+            elements are not considered neighbors).
+        '''
+        self.keys = ensure_tuple(keys)
+        self.iters = iters
+        self.struct = struct
+
+    def closing(self, mask):
+        '''
+        Applies morphological closing to a pytorch tensor. Expects a channel first shape.
+
+        Parameters
+        ----------
+        mask : tensor
+            binary mask to apply morphological closing to.
+
+        Returns
+        -------
+        tensor
+            resultant mask after applying closing to the input by the structuring element.
+        '''
+        device = mask.get_device()
+        dtype = mask.dtype
+        mask = mask.cpu().to(torch.uint8)[0] # remove channel dim
+        mask = binary_closing(mask, iterations = self.iters, structure = self.struct)
+        mask = torch.tensor(mask).to(device).unsqueeze(dim = 0).to(dtype)
+        return mask
+
+    def __call__(self, data):
+        """
+        Applies closing to the corresponding masks of the object initialized keys.
+
+        Parameters
+        ----------
+        data : dict
+            a dictionary containing the binary mask to apply morphological closing to.
+            
+        Returns
+        -------
+        dict
+            resultant dictionary after applying closing to the corresponding masks.
+        """
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.closing(d[key])
         return d
