@@ -14,7 +14,7 @@ import SimpleITK as sitk
 first_tumor = False  # to add plot titles for first tumor only not on every plot
 
 
-def visualize_tumor(volume, mask, idx=None, mode='contour'):
+def visualize_tumor(volume, mask, idx=None, mode='contour',plot=True):
     """
     Initiate the tumor visualization based on the chosen mode and whether to calculate the tumor
     for the whole volume or a specific slice.
@@ -34,17 +34,19 @@ def visualize_tumor(volume, mask, idx=None, mode='contour'):
             - 'zoom': Zooms in and draws the major axis and contours on the tumor.
 
     """
-    fig, ax = plt.subplots()
-    ax.axes.get_yaxis().set_visible(False)
-    ax.axes.get_xaxis().set_visible(False)
+    if(plot):
+        fig, ax = plt.subplots()
+        ax.axes.get_yaxis().set_visible(False)
+        ax.axes.get_xaxis().set_visible(False)
+    calculations=[]
     if mode == "contour":
 
         if idx is not None:
 
-            major_axis_recursive(volume[:, :, idx], mask[:, :, idx], mode="slice")
+            calculations=major_axis_recursive(volume[:, :, idx], mask[:, :, idx], mode="slice",plot=plot)
 
         else:
-            major_axis_recursive(volume, mask)
+            calculations=major_axis_recursive(volume, mask,mode="volume",plot=plot)
 
     if mode == "box":
         if idx is not None:
@@ -65,10 +67,12 @@ def visualize_tumor(volume, mask, idx=None, mode='contour'):
 
         else:
             plot_tumor_volume(volume, mask)
-    fig.show()
+    if(plot):
+        fig.show()
+    else:
+        return calculations
 
-
-def major_axis_recursive(volume, mask, mode="volume"):
+def major_axis_recursive(volume, mask, mode="volume",plot=True):
     """
     Calls the 'major_axis' function independently for each tumor in the volume.
 
@@ -85,44 +89,53 @@ def major_axis_recursive(volume, mask, mode="volume"):
           and each tumor is plotted individually in the slice with the largest volume.
         If 'slice', the code is performed on all tumors in a specific slice.
     """
-
     global first_tumor
     first_tumor = True
-    fig, ax = plt.subplots()
-
+    if plot:
+        fig, ax = plt.subplots()
+    else:
+        ax=""
 
 #    It removes all tumors in the volume/slice except the largest one and then calls the 'major_axis' function for it.
 #    This process is repeated until all tumors have been processed.
+
+    calculations=[]
+    x,y,z = find_pix_dim() 
 
     while np.unique(mask).any() == 1:
 
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
+        total_pixels = np.unique(largest_tumor[0], return_counts=True)[1][1]
         if mode == "volume":
             idx = calculate_largest_tumor(largest_tumor[0])
-
-            major_axes(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
-
-            contours = find_contours(largest_tumor[0][:, :, idx], 0)
-            for contour in contours:
-                ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
-            plt.show()
-            fig, ax = plt.subplots()
+            major,minor=major_axes(volume[:, :, idx], largest_tumor[0][:, :, idx], ax,plot)
+            calculations.append([major*x,minor*y,total_pixels*x*y*z/1000])
+            if plot:
+                contours = find_contours(largest_tumor[0][:, :, idx], 0)
+                for contour in contours:
+                    ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
+                plt.show()
+                fig, ax = plt.subplots()
 
         elif mode == "slice":
-            major_axes(volume, largest_tumor[0], ax)
 
+            major,minor=major_axes(volume, largest_tumor[0], ax,plot)
+            calculations.append([major*x,minor*y,total_pixels*x*y*z])
             contours = find_contours(mask, 0)
             for contour in contours:
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
 
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
-    plt.show()
+    if(plot):
+        plt.show()
+    print(calculations)
+    return calculations
 
 
-def major_axes(volume_slice, mask_slice, ax):
+def major_axes(volume_slice, mask_slice, ax,plot=True):
     """
     Calculates the major axes length for each tumor in a given slice and draws them on the tumors.
 
@@ -176,73 +189,81 @@ def major_axes(volume_slice, mask_slice, ax):
 
     # the total diameter is the difference in these distances
     (x,y,z,) = find_pix_dim() 
-    print("Distance along major axis:", (dmax_1 - dmin_1) * x)
-    print("Distance along minor axis:", (dmax_2 - dmin_2) * y)
+    distance_major=(dmax_1 - dmin_1) 
+    distance_minor=(dmax_2 - dmin_2) 
+    # if(distance_major>distance_minor):
+    #     dmax_1,dmax_2=dmax_2,dmax_1
+    #     dmin_1,dmin_2=dmin_2,dmin_1
+    #     # com_y,com_x=com_x,com_y
+
+    print("Distance along major axis:", distance_major*x )
+    print("Distance along minor axis:",distance_minor*y )
 
     # display
     # fig, ax = plt.subplots(1,1,figsize=(5,5))
     # ax.imshow(arr, interpolation=None, cmap=plt.cm.Greys_r)
-    ax.imshow(volume_slice, cmap="gray")
+    if(plot):
+        ax.imshow(volume_slice, cmap="gray")
 
-    if first_tumor:  
+        if first_tumor:  
 
-        ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99, label="Center")
-    else:
-        ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99)
+            ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99, label="Center")
+        else:
+            ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99)
 
-    ax.plot(
-        (com_y, com_y + dmax_1 * pc1_y),
-        (com_x, com_x + dmax_1 * pc1_x),
-        linestyle="dashed",
-        lw=1,
-        c="b",
-    )
-
-    if first_tumor:
         ax.plot(
-            (com_y, com_y + dmin_1 * pc1_y),
-            (com_x, com_x + dmin_1 * pc1_x),
-            lw=1,
-            c="b",
-            linestyle="dashed",
-            label="Major Axis",
-        )
-    else:
-        ax.plot(
-            (com_y, com_y + dmin_1 * pc1_y),
-            (com_x, com_x + dmin_1 * pc1_x),
+            (com_y, com_y + dmax_1 * pc1_y),
+            (com_x, com_x + dmax_1 * pc1_x),
             linestyle="dashed",
             lw=1,
             c="b",
         )
-    ax.plot(
-        (com_y, com_y + dmax_2 * pc2_y),
-        (com_x, com_x + dmax_2 * pc2_x),
-        linestyle="dashed",
-        lw=1,
-        c="g",
-    )
 
-    if first_tumor:
+        if first_tumor:
+            ax.plot(
+                (com_y, com_y + dmin_1 * pc1_y),
+                (com_x, com_x + dmin_1 * pc1_x),
+                lw=1,
+                c="b",
+                linestyle="dashed",
+                label="Major Axis",
+            )
+        else:
+            ax.plot(
+                (com_y, com_y + dmin_1 * pc1_y),
+                (com_x, com_x + dmin_1 * pc1_x),
+                linestyle="dashed",
+                lw=1,
+                c="b",
+            )
         ax.plot(
-            (com_y, com_y + dmin_2 * pc2_y),
-            (com_x, com_x + dmin_2 * pc2_x),
+            (com_y, com_y + dmax_2 * pc2_y),
+            (com_x, com_x + dmax_2 * pc2_x),
+            linestyle="dashed",
             lw=1,
             c="g",
-            linestyle="dashed",
-            label="Minor Axis",
-        )
-    else:
-        ax.plot(
-            (com_y, com_y + dmin_2 * pc2_y),
-            (com_x, com_x + dmin_2 * pc2_x),
-            lw=1,
-            linestyle="dashed",
-            c="g",
         )
 
-    ax.legend(fontsize="small")
+        if first_tumor:
+            ax.plot(
+                (com_y, com_y + dmin_2 * pc2_y),
+                (com_x, com_x + dmin_2 * pc2_x),
+                lw=1,
+                c="g",
+                linestyle="dashed",
+                label="Minor Axis",
+            )
+        else:
+            ax.plot(
+                (com_y, com_y + dmin_2 * pc2_y),
+                (com_x, com_x + dmin_2 * pc2_x),
+                lw=1,
+                linestyle="dashed",
+                c="g",
+            )
 
+        ax.legend(fontsize="small")
+    return distance_major,distance_minor
 
 def get_bounding_box(mask_slice, crop_margin=0):
     """
