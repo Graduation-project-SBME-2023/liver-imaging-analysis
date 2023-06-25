@@ -1,7 +1,6 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
-from liver_imaging_analysis.engine.preprocessing import ClosingD
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
     Compose,
@@ -251,7 +250,7 @@ class LiverSegmentation(Engine):
                 ActivationsD(Keys.PRED,sigmoid = True),
                 AsDiscreteD(Keys.PRED,threshold = 0.5),
                 FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),
+                KeepLargestConnectedComponentD(Keys.PRED),   
             ]
         ),
 
@@ -260,8 +259,7 @@ class LiverSegmentation(Engine):
                 ActivationsD(Keys.PRED,sigmoid = True),
                 AsDiscreteD(Keys.PRED,threshold = 0.5),
                 FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),
-                ClosingD(Keys.PRED, iters = 4)
+                KeepLargestConnectedComponentD(Keys.PRED),   
             ]
         )
 
