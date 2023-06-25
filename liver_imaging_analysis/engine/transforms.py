@@ -1,5 +1,5 @@
 """
-a module contains the implemented preprocessing classes
+a module contains the implemented transformation classes
 
 """
 import os
