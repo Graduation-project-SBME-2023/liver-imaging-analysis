@@ -61,6 +61,7 @@ class LiverSegmentation(Engine):
             self.predict = self.predict_2dto3d
         elif mode == 'sliding_window':
             self.predict = self.predict_sliding_window
+            self.test = self.test_sliding_window
 
     def set_configs(self, mode):
         """
@@ -74,9 +75,9 @@ class LiverSegmentation(Engine):
             config.dataset['prediction'] = "test cases/sample_image"
             config.training['batch_size'] = 8
             config.training['scheduler_parameters'] = {
-                                                        "step_size":20,
-                                                        "gamma":0.5, 
-                                                        "verbose":False
+                                                        "step_size" : 20,
+                                                        "gamma" : 0.5, 
+                                                        "verbose" : False
                                                         }
             config.network_parameters['dropout'] = 0
             config.network_parameters['channels'] = [64, 128, 256, 512]
@@ -88,12 +89,12 @@ class LiverSegmentation(Engine):
             config.transforms['test_transform'] = "2DUnet_transform"
             config.transforms['post_transform'] = "2DUnet_transform"
         elif mode == 'sliding_window':
-            config.dataset['prediction']="test cases/sample_volume"
+            config.dataset['prediction'] = "test cases/sample_volume"
             config.training['batch_size'] = 1
             config.training['scheduler_parameters'] = {
-                                                        "step_size":20,
-                                                        "gamma":0.5, 
-                                                        "verbose":False
+                                                        "step_size" : 20,
+                                                        "gamma" : 0.5, 
+                                                        "verbose" : False
                                                         }
             config.network_parameters['dropout'] = 0
             config.network_parameters['channels'] = [64, 128, 256, 512]
@@ -103,6 +104,9 @@ class LiverSegmentation(Engine):
             config.network_parameters['norm'] = "BATCH"
             config.network_parameters['bias'] = False
             config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
+            config.transforms['sw_batch_size'] = 4
+            config.transforms['roi_size'] = (96,96,64)
+            config.transforms['overlap'] = 0.25
             config.transforms['test_transform'] = "3DUnet_transform"
             config.transforms['post_transform'] = "3DUnet_transform"
     
@@ -404,7 +408,7 @@ class LiverSegmentation(Engine):
         # to (1,channel,length,width,batch) 
         batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim = 0) 
         # Apply post processing transforms
-        batch = self.post_process(batch,Keys.PRED)
+        batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
@@ -441,16 +445,75 @@ class LiverSegmentation(Engine):
                 # Predict by sliding window
                 batch[Keys.PRED] = sliding_window_inference(
                                         batch[Keys.IMAGE], 
-                                        (96,96,64), 
-                                        4, 
-                                        self.network
+                                        config.transforms['roi_size'], 
+                                        config.transforms['sw_batch_size'], 
+                                        self.network,
+                                        config.transforms['overlap']
                                         )
                 # Apply post processing transforms
-                batch = self.post_process(batch,Keys.PRED)    
+                batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
         return prediction_list
-    
+
+
+    def test_sliding_window(self, dataloader = None, callback = False):
+        """
+        calculates loss on input dataset
+
+        Parameters
+        ----------
+        dataloader: dict
+                Iterator of the dataset to evaluate on.
+                If not specified, the test_dataloader will be used.
+        callback: bool
+                Flag to call per_batch_callback or not. Default is False.
+
+        Returns
+        -------
+        float
+            the averaged loss calculated during testing
+        float
+            the averaged metric calculated during testing
+        """
+        if dataloader is None: #test on test set by default
+            dataloader = self.test_dataloader
+        num_batches = len(dataloader)
+        test_loss = 0
+        test_metric = 0
+        self.network.eval()
+        with torch.no_grad():
+            for batch_num,batch in enumerate(dataloader):
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
+                batch[Keys.PRED] = sliding_window_inference(
+                                        batch[Keys.IMAGE], 
+                                        config.transforms['roi_size'], 
+                                        config.transforms['sw_batch_size'], 
+                                        self.network,
+                                        config.transforms['overlap']
+                                        )
+                test_loss += self.loss(
+                    batch[Keys.PRED],
+                    batch[Keys.LABEL]
+                    ).item()
+                #Apply post processing transforms on prediction
+                batch = self.post_process(batch)
+                self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                if callback:
+                  self.per_batch_callback(
+                      batch_num,
+                      batch[Keys.IMAGE],
+                      batch[Keys.LABEL],
+                      batch[Keys.PRED]
+                      )
+            test_loss /= num_batches
+            # aggregate the final metric result
+            test_metric = self.metrics.aggregate()
+            # reset the status for next computation round
+            self.metrics.reset()
+        return test_loss, test_metric
+        
 
 def segment_liver(*args):
     """
