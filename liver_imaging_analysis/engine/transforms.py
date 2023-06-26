@@ -8,7 +8,7 @@ import cv2 as cv
 import torch
 import numpy as np
 from liver_imaging_analysis.engine.config import config
-from monai.transforms import LoadImage
+from monai.transforms import LoadImage, MapTransform
 from liver_imaging_analysis.engine.dataloader import Keys
 from monai.utils import ensure_tuple
 
@@ -60,7 +60,7 @@ class LoadImageLocally(LoadImage):
         return d
 
 
-class ClosingD:
+class MorphologicalClosingd(MapTransform):
     '''
     A MONAI-like dictionary-based transform that applies morphological closing.
     Morphological closing consists of applying dilation followed by erosion 
@@ -73,7 +73,7 @@ class ClosingD:
     .. [2] https://en.wikipedia.org/wiki/Mathematical_morphology
 
     '''
-    def __init__(self, keys, iters = 1, struct = None):
+    def __init__(self, keys, channels = None, iters = 1, struct = None, allow_missing_keys = False):
         '''
         Initialize the structuring element, number of closing iterations, 
         and keys of corresponding masks to apply morphological closing to.
@@ -81,7 +81,10 @@ class ClosingD:
         Parameters
         ----------
         keys : tuple
-            keys of the corresponding items to apply morphological closing to.
+            Keys of the corresponding items to apply morphological closing to.
+        channels : list
+            Sequence of channels to apply morphological closing to. 
+            If not provided, morphological closing will be applied to all channels.
         iters : int, optional
             The dilation step of the closing, then the erosion step are each
             repeated `iterations` times (one, by default). If iterations is
@@ -93,30 +96,37 @@ class ClosingD:
             is generated with a square connectivity equal to one (i.e., only
             nearest neighbors are connected to the center, diagonally-connected
             elements are not considered neighbors).
+        allow_missing_keys : bool
+            don't raise exception if key is missing, deactivated by default.
         '''
-        self.keys = ensure_tuple(keys)
+        super().__init__(keys, allow_missing_keys)
         self.iters = iters
         self.struct = struct
+        self.channels = channels
 
-    def closing(self, mask):
+    def closing(self, mask, channels):
         '''
-        Applies morphological closing to a pytorch tensor. Expects a channel first shape.
+        Applies morphological closing to a pytorch tensor. Expects a channel-first shape.
 
         Parameters
         ----------
         mask : tensor
-            binary mask to apply morphological closing to.
+            channels first binary mask to apply morphological closing to.
+        channels : list
+            Sequence of channels to apply morphological closing to.
 
         Returns
         -------
         tensor
             resultant mask after applying closing to the input by the structuring element.
         '''
+        channels = self.channels if self.channels is not None else range(mask.shape[0])
         device = mask.get_device()
         dtype = mask.dtype
-        mask = mask.cpu().to(torch.uint8)[0] # remove channel dim
-        mask = binary_closing(mask, iterations = self.iters, structure = self.struct)
-        mask = torch.tensor(mask).to(device).unsqueeze(dim = 0).to(dtype)
+        for channel in channels:
+            current_channel = mask.cpu().to(torch.uint8)[channel] # remove channel dim
+            current_channel = binary_closing(current_channel, iterations = self.iters, structure = self.struct)
+            mask[channel] = torch.tensor(current_channel).to(device).to(dtype)
         return mask
 
     def __call__(self, data):
@@ -134,6 +144,6 @@ class ClosingD:
             resultant dictionary after applying closing to the corresponding masks.
         """
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.closing(d[key])
+        for key in self.key_iterator(d):
+            d[key] = self.closing(d[key], self.channels)
         return d
