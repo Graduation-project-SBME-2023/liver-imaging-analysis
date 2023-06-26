@@ -1,7 +1,6 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
-from liver_imaging_analysis.engine.transforms import ClosingD
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
     Compose,
@@ -24,45 +23,48 @@ from monai.transforms import (
     RemoveSmallObjectsD,
     FillHolesD,
     ScaleIntensityRanged,
+    EnsureTyped,
+    Spacingd,
+    Invertd,
+    AsDiscreted,
+    Activationsd
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
 import os
 from monai.data import DataLoader as MonaiLoader
-from monai.data import Dataset, decollate_batch
+from monai.data import Dataset
 import torch
 import numpy as np
-from monai.transforms import ToTensor
 import SimpleITK
 import cv2
 import shutil
 import natsort
-from monai.handlers.utils import from_engine
+import nibabel as nib
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric=DiceMetric(ignore_empty=True,include_background=True)
-    
-class LiverSegmentation(Engine):
+dice_metric = DiceMetric(ignore_empty = True, include_background = False)
+
+class SpleenSegmentation(Engine):
     """
-    A class used for the liver segmentation task. Inherits from Engine.
+    A class used for the spleen segmentation task. Inherits from Engine.
 
     Args:
         mode: str
             determines the mode of inference. 
             Expects "2D" for slice inference, "3D" for volume inference,
             or "sliding_window" for sliding window inference.
-            Default is "2D"
+            Default is "sliding_window"
     """
 
-    def __init__(self, mode = "2D"):
+    def __init__(self, mode = "sliding_window"):
         self.set_configs(mode)
         super().__init__()
         if mode == '3D':
             self.predict = self.predict_2dto3d
         elif mode == 'sliding_window':
             self.predict = self.predict_sliding_window
-            self.test = self.test_sliding_window
 
     def set_configs(self, mode):
         """
@@ -76,9 +78,9 @@ class LiverSegmentation(Engine):
             config.dataset['prediction'] = "test cases/sample_image"
             config.training['batch_size'] = 8
             config.training['scheduler_parameters'] = {
-                                                        "step_size" : 20,
-                                                        "gamma" : 0.5, 
-                                                        "verbose" : False
+                                                        "step_size":20,
+                                                        "gamma":0.5, 
+                                                        "verbose":False
                                                         }
             config.network_parameters['dropout'] = 0
             config.network_parameters['channels'] = [64, 128, 256, 512]
@@ -86,31 +88,33 @@ class LiverSegmentation(Engine):
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "INSTANCE"
             config.network_parameters['bias'] = True
-            config.save['liver_checkpoint'] = 'liver_cp'
+            config.save['spleen_checkpoint'] = 'spleen_cp_2d'
             config.transforms['test_transform'] = "2DUnet_transform"
             config.transforms['post_transform'] = "2DUnet_transform"
         elif mode == 'sliding_window':
-            config.dataset['prediction'] = "test cases/sample_volume"
+            config.dataset['prediction']="test cases/sample_volume"
             config.training['batch_size'] = 1
+
             config.training['scheduler_parameters'] = {
-                                                        "step_size" : 20,
-                                                        "gamma" : 0.5, 
-                                                        "verbose" : False
+                                                        "step_size":20,
+                                                        "gamma":0.5, 
+                                                        "verbose":False
                                                         }
             config.network_parameters['dropout'] = 0
-            config.network_parameters['channels'] = [64, 128, 256, 512]
+            config.network_parameters["out_channels"] = 2
+            config.network_parameters['channels'] = [16, 32, 64, 128, 256]
             config.network_parameters['spatial_dims'] = 3
-            config.network_parameters['strides'] =  [2, 2, 2]
-            config.network_parameters['num_res_units'] =  6
+            config.network_parameters['strides'] =  [2, 2, 2, 2]
+            config.network_parameters['num_res_units'] =  2
             config.network_parameters['norm'] = "BATCH"
-            config.network_parameters['bias'] = False
-            config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
+            config.network_parameters['bias'] = True
+            config.save['spleen_checkpoint'] = 'spleen_cp'
             config.transforms['sw_batch_size'] = 4
-            config.transforms['roi_size'] = (96,96,64)
+            config.transforms['roi_size'] = (96, 96, 96)
             config.transforms['overlap'] = 0.25
             config.transforms['test_transform'] = "3DUnet_transform"
             config.transforms['post_transform'] = "3DUnet_transform"
-    
+
     def get_pretraining_transforms(self, transform_name):
         """
         Gets a stack of preprocessing transforms to be used on the training data.
@@ -126,31 +130,47 @@ class LiverSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
+            "3DUnet_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    # OrientationD(keys, axcodes="LAS", allow_missing_keys = True),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(
-                        Keys.LABEL,
-                        threshold = 0.5,
-                        invert = True,
+                    OrientationD(
+                        Keys.all(), 
+                        axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    Spacingd(
+                        Keys.all(), 
+                        pixdim = [1.5, 1.5, 2.0], 
+                        mode = ("bilinear"), 
+                        allow_missing_keys = True
+                        ),
+                    ScaleIntensityRanged(
+                        Keys.all(),
+                        a_min = -57,
+                        a_max = 164,
+                        b_min = 0,
+                        b_max = 1,
+                        clip = True, 
+                        allow_missing_keys = True
+                    ),
+                    EnsureTyped(Keys.all(), allow_missing_keys = True),
                 ]
             ),
             "2DUnet_transform" : Compose(
                 [
+                    # Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(), 
                         resize_size, 
-                        mode=("bilinear", "nearest", "nearest"), 
+                        mode = ("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    AsDiscreteD(Keys.LABEL, to_onehot = 10),
+                    # Augmentations
                     RandZoomd(
                         Keys.all(),
                         prob = 0.5, 
@@ -159,22 +179,27 @@ class LiverSegmentation(Engine):
                         allow_missing_keys = True
                         ),
                     RandFlipd(
-                        Keys.all(),
+                        Keys.all(), 
                         prob = 0.5, 
                         spatial_axis = 1, 
                         allow_missing_keys = True
                         ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob = 0.5, 
+                        spatial_axis = 0, 
+                        allow_missing_keys = True
+                        ),
                     RandRotated(
-                        Keys.all(),
-                        range_x = 1.5, 
+                        Keys.all(), 
+                        range_x = 1.5,
                         range_y = 0, 
                         range_z = 0, 
                         prob = 0.5, 
                         allow_missing_keys = True
                         ),
-                    RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
+                    RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
+                    # Array to Tensor
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
@@ -187,7 +212,7 @@ class LiverSegmentation(Engine):
 
         Args:
              transform_name: str
-                Name of the desired set of transforms.
+                Name of the desire set of transforms.
 
         Return:
             Compose
@@ -196,38 +221,46 @@ class LiverSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
+            "3DUnet_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    # OrientationD(keys, axcodes = "LAS", allow_missing_keys = True),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(
-                        Keys.LABEL,
-                        threshold = 0.5, 
-                        invert = True, 
+                    OrientationD(
+                        Keys.all(), 
+                        axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    Spacingd(
+                        Keys.all(), 
+                        pixdim = [1.5, 1.5, 2.0], 
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    ScaleIntensityRanged(
+                        Keys.all(),
+                        a_min = -57,
+                        a_max = 164,
+                        b_min = 0,
+                        b_max = 1,
+                        clip = True, 
+                        allow_missing_keys = True
+                    ),
+                    EnsureTyped(Keys.all(), allow_missing_keys = True),
                 ]
             ),
             "2DUnet_transform" : Compose(
                 [
+                    #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
-                        Keys.all(),
-                        resize_size,
-                        mode = ("bilinear", "nearest", "nearest"),
-                        allow_missing_keys = True,
-                    ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(
-                        Keys.LABEL,
-                        threshold = 0.5, 
-                        invert = True, 
+                        Keys.all(), 
+                        resize_size, 
+                        mode = ("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
-                    ),
+                        ),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    AsDiscreteD(Keys.LABEL, to_onehot = 2, allow_missing_keys = True),
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
@@ -247,31 +280,36 @@ class LiverSegmentation(Engine):
             Compose
                 Stack of selected transforms.
         """
-
         transforms= {
-
-        '3DUnet_transform' : Compose(
-            [
-                ActivationsD(Keys.PRED,sigmoid = True),
-                AsDiscreteD(Keys.PRED,threshold = 0.5),
-                FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),   
-            ]
-        ),
-
-        '2DUnet_transform' : Compose(
-            [
-                ActivationsD(Keys.PRED,sigmoid = True),
-                AsDiscreteD(Keys.PRED,threshold = 0.5),
-                FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),
-                ClosingD(Keys.PRED, iters = 4)
-            ]
-        )
-
+            "3DUnet_transform": Compose(
+                [
+                    Invertd(
+                        Keys.PRED,
+                        transform = self.test_transform,
+                        orig_keys = Keys.IMAGE,
+                        meta_keys = Keys.PRED + "_meta_dict",
+                        orig_meta_keys = Keys.IMAGE + "_meta_dict",
+                        meta_key_postfix = "meta_dict",
+                        nearest_interp = False,
+                        to_tensor = True,
+                        device = self.device,
+                    ),
+                    Activationsd(Keys.PRED, softmax = True),
+                    AsDiscreted(Keys.PRED, argmax = True),
+                ]
+            ),
+            '2DUnet_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED, softmax = True),
+                    AsDiscreteD(Keys.PRED, argmax = True),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),
+                    AsDiscreteD(Keys.PRED, to_onehot = 2) # mandatory during training
+                ]
+            )
         } 
         return transforms[transform_name] 
-
+    
 
     def per_batch_callback(self, batch_num, image, label, prediction):
         """
@@ -284,12 +322,17 @@ class LiverSegmentation(Engine):
             image: tensor
                 original input image
             label: tensor
-                target liver mask
-            prediction:
-                predicted liver mask
+                target spleen mask
+            prediction: tensor
+                predicted spleen mask
         """
 
-        dice_score=dice_metric(prediction.int(),label.int())[0].item()
+        dice_metric(prediction.int(),label.int())
+        dice_score = dice_metric.aggregate().item()
+        if(label.shape[1] > 1):
+            label = torch.argmax(label, dim = 1, keepdim = True)
+        if(prediction.shape[1] > 1):
+            prediction = torch.argmax(prediction, dim = 1, keepdim = True)
         plot_2d_or_3d_image(
             data = image,
             step = 0,
@@ -311,9 +354,11 @@ class LiverSegmentation(Engine):
             frame_dim = -1,
             tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
+        dice_metric.reset()
+
 
     def per_epoch_callback(
-            self,
+            self, 
             epoch, 
             training_loss, 
             valid_loss, 
@@ -336,6 +381,7 @@ class LiverSegmentation(Engine):
             valid_metric: float
                 Metric calculated over the testing set.
         """
+
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
@@ -343,10 +389,11 @@ class LiverSegmentation(Engine):
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
+
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
-
-
+    
+    
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
         """
         Predicts the label of a 3D volume using a 2D network.
@@ -390,8 +437,8 @@ class LiverSegmentation(Engine):
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
-                data=predict_files, 
-                transform=self.test_transform
+                data = predict_files, 
+                transform = self.test_transform
                 )
             predict_loader = MonaiLoader(
                 predict_set,
@@ -404,17 +451,16 @@ class LiverSegmentation(Engine):
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 prediction_list.append(batch[Keys.PRED])
-            prediction_list = torch.cat(prediction_list, dim=0)
+            prediction_list = torch.cat(prediction_list, dim = 0)
         batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
         # to (1,channel,length,width,batch) 
         batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim = 0) 
         # Apply post processing transforms
-        batch = self.post_process(batch)
+        batch = self.post_process(batch,Keys.PRED)
         # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
-
 
     def predict_sliding_window(self, volume_path):
         """
@@ -448,119 +494,81 @@ class LiverSegmentation(Engine):
                 batch[Keys.PRED] = sliding_window_inference(
                                         batch[Keys.IMAGE], 
                                         config.transforms['roi_size'], 
-                                        config.transforms['sw_batch_size'], 
-                                        self.network,
-                                        config.transforms['overlap']
+                                        config.transforms['sw_batch_size'],      
+                                        self.network
                                         )
                 # Apply post processing transforms
-                batch = self.post_process(batch)    
+                batch = self.post_process(batch,Keys.PRED)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
         return prediction_list
+    
 
-
-    def test_sliding_window(self, dataloader = None, callback = False):
-        """
-        calculates loss on input dataset
-
-        Parameters
-        ----------
-        dataloader: dict
-                Iterator of the dataset to evaluate on.
-                If not specified, the test_dataloader will be used.
-        callback: bool
-                Flag to call per_batch_callback or not. Default is False.
-
-        Returns
-        -------
-        float
-            the averaged loss calculated during testing
-        float
-            the averaged metric calculated during testing
-        """
-        if dataloader is None: #test on test set by default
-            dataloader = self.test_dataloader
-        num_batches = len(dataloader)
-        test_loss = 0
-        test_metric = 0
-        self.network.eval()
-        with torch.no_grad():
-            for batch_num,batch in enumerate(dataloader):
-                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
-                batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
-                batch[Keys.PRED] = sliding_window_inference(
-                                        batch[Keys.IMAGE], 
-                                        config.transforms['roi_size'], 
-                                        config.transforms['sw_batch_size'], 
-                                        self.network,
-                                        config.transforms['overlap']
-                                        )
-                test_loss += self.loss(
-                    batch[Keys.PRED],
-                    batch[Keys.LABEL]
-                    ).item()
-                #Apply post processing transforms on prediction
-                batch = self.post_process(batch)
-                self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
-                if callback:
-                  self.per_batch_callback(
-                      batch_num,
-                      batch[Keys.IMAGE],
-                      batch[Keys.LABEL],
-                      batch[Keys.PRED]
-                      )
-            test_loss /= num_batches
-            # aggregate the final metric result
-            test_metric = self.metrics.aggregate()
-            # reset the status for next computation round
-            self.metrics.reset()
-        return test_loss, test_metric
-        
-
-def segment_liver(*args):
+def segment_spleen():
     """
-    a function used to segment the liver of 2D images using a 2D liver model
+    a function used to segment the spleen of 2D png dataset 
+    located in configs using a 2D spleen model 
 
+    Returns
+    ----------
+        tensor: predicted 2D spleen masks
     """
 
     set_seed()
-    liver_model = LiverSegmentation(mode = '2D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(config.dataset['prediction'])
-    return liver_prediction
+    spleen_model = SpleenSegmentation(mode = '2D')
+    spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
+    spleen_prediction = spleen_model.predict(config.dataset['prediction'])
+    return spleen_prediction
 
 
-def segment_liver_3d(*args):
+def segment_spleen_3d(volume_path):
     """
-    a function used to segment the liver of a 3d volume using a 2D liver model
+    a function used to segment the spleen of a 3d volume using a 2D spleen model
+
+    Parameters
+    ----------
+        volume_path: str
+            3D volume path, expects a nifti file.
+
+    Returns
+    ----------
+        tensor: predicted 3D spleen mask
+    """
+    set_seed()
+    spleen_model = SpleenSegmentation(mode = '3D')
+    spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
+    spleen_prediction = spleen_model.predict(volume_path = volume_path)
+    return spleen_prediction
+
+
+def segment_spleen_sliding_window(volume_path):
+    """
+    a function used to segment the spleen of a 3d volume 
+    using sliding window inference
+
+    Parameters
+    ----------
+        volume_path: str
+            3D volume path, expects a nifti file.
+
+    Returns
+    ----------
+        tensor: predicted 3D spleen mask
+    """
+    set_seed()
+    spleen_model = SpleenSegmentation(mode = 'sliding_window')
+    spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
+    spleen_prediction = spleen_model.predict(volume_path = volume_path)
+    return spleen_prediction
+
+
+def train_spleen():
+    """
+    a function used to start the training of spleen segmentation
 
     """
     set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path=args[0])
-    return liver_prediction
-
-
-def segment_liver_sliding_window(*args):
-    """
-    a function used to segment the liver of a 3d volume using a 2D liver model
-
-    """
-    set_seed()
-    liver_model = LiverSegmentation(mode = 'sliding_window')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction=liver_model.predict(volume_path = args[0])
-    return liver_prediction
-
-
-def train_liver(*args):
-    """
-    a function used to start the training of liver segmentation
-
-    """
-    set_seed()
-    model = LiverSegmentation(mode = '2D')
+    model = SpleenSegmentation(mode = '2D')
     model.load_data()
     model.data_status()
     model.load_checkpoint(config.save["potential_checkpoint"])

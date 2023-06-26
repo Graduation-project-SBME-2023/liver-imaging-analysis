@@ -15,12 +15,87 @@ import SimpleITK as sitk
 from monai.transforms import ScaleIntensityRange
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
+import cv2
 from liver_imaging_analysis.engine.config import config
 
 from monai.transforms import AsDiscrete
 
-rc("animation", html="html5")
+rc("animation", html = "html5")
 
+def concatenate_masks(mask1, mask2, volume):
+    """
+        a function to merge two masks and use them to supress 
+        all other regions of the volume except the concatenated ROI
+
+        Parameters
+        ----------
+        mask1: np array
+            array contains first mask data
+        mask2: np array
+            array contains second mask data
+        volume: np array
+            array contains the original volume data
+        Return
+        ----------
+        vol: array
+            the volume with specified ROI values only
+    """
+    assert mask1.shape == mask2.shape == volume.shape, "Input shapes do not match"
+    # Use logical OR to concatenate the masks and threshold the result to obtain a binary mask
+    conc = np.logical_or(mask1, mask2).astype(np.uint8)
+    # Multiply the binary mask with the original volume to obtain the segmented parts
+    vol=np.where(
+            conc == 1,
+            volume,
+            volume.min()
+            ),#replace all background voxels with background intensity
+    return vol
+
+def mask_average(volume, mask):
+    """
+        a function to find the average value of a specific ROI in volume
+        Parameters
+        ----------
+        volume: np array
+            array contains the volume data
+        mask: np array
+            array contains the mask data ( ROI )
+        Return
+        ----------
+        average: float
+            the average value of the ROI
+    """
+    masked = np.multiply(volume, mask)
+    masked = masked[masked != 0]
+    average = masked.mean()
+    return average
+
+def transform_to_hu(path):
+    """
+        a function to transform the input nfti to its Hounsfield values
+        Parameters
+        ----------
+        path: string
+            the path of the input nfti file
+        Return
+        ----------
+        HU_data: numpy array
+            the array contains the data of input volume calibrated to Hounsfield 
+    """
+    nifti_img = nib.load(path)
+    # Extract the image data as a numpy array
+    img_data = nifti_img.get_fdata()
+    # Get the slope and intercept values for the Hounsfield unit (HU) calculation
+    slope = nifti_img.dataobj.slope
+    intercept = nifti_img.dataobj.inter
+    print(slope, intercept)
+    # Calculate the HU values for each voxel in the image
+    HU_data = (img_data * slope) + intercept
+    # Print the minimum and maximum HU values in the image
+    print(f"Minimum HU value: {HU_data.min()}")
+    print(f"Maximum HU value: {HU_data.max()}")
+    print(img_data.min(), img_data.max())
+    return HU_data
 
 def progress_bar(progress, total):
     """
@@ -38,9 +113,15 @@ def progress_bar(progress, total):
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
-def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
+def liver_isolate_crop(
+        volumes_path,
+        masks_path,
+        new_volumes_path,
+        new_masks_path
+        ):
     """
-        A method to crop liver volumes and masks in z direction then isolate liver and lesions from abdomen
+        A method to crop liver volumes and masks in z direction 
+        then isolate liver and lesions from abdomen
         Parameters
         ----------
         volumes_path: str
@@ -59,38 +140,35 @@ def liver_isolate_crop(volumes_path,masks_path,new_volumes_path,new_masks_path):
     for i in range(len(volume_files)):
         volume_path = os.path.join(volumes_path, volume_files[i])
         mask_path = os.path.join(masks_path, mask_files[i])
-        volume=nib.load(volume_path)
-        mask=nib.load(mask_path)
-        volume_array=volume.get_fdata()
-        mask_array=mask.get_fdata() 
-        min_slice=0
-        max_slice=0
+        volume = nib.load(volume_path)
+        mask = nib.load(mask_path)
+        volume_array = volume.get_fdata()
+        mask_array = mask.get_fdata() 
+        min_slice = 0
+        max_slice = 0
         for j in range (mask_array.shape[2]):
-          if(len(np.unique(mask_array[:,:,j]))!=1):
-            min_slice=j
+          if(len(np.unique(mask_array[:, :, j])) != 1):
+            min_slice = j
             break
-        for k in range (mask_array.shape[2]-1,-1,-1):
-          if(len(np.unique(mask_array[:,:,k]))!=1):
-            max_slice=k
+        for k in range(mask_array.shape[2]-1, -1, -1):
+          if(len(np.unique(mask_array[:,:,k])) != 1):
+            max_slice = k
             break
-        volume_array=volume_array[:,:,min_slice:max_slice+1]
-        mask_array=mask_array[:,:,min_slice:max_slice+1]
-
-        new_volume=nib.Nifti1Image(
+        volume_array = volume_array[:, :, min_slice : max_slice + 1]
+        mask_array = mask_array[:, :, min_slice : max_slice + 1]
+        new_volume = nib.Nifti1Image(
             np.where(
-            (mask_array.astype(int)>0.5).astype(int)==1,
+            (mask_array.astype(int) > 0.5).astype(int) == 1,
             volume_array.astype(int),
-            volume_array.astype(int).min()),#replace all nonliver voxels with background intensity
-            affine=volume.affine,
-            header=volume.header
+            volume_array.astype(int).min()), # replace nonliver voxels with background intensity
+            affine = volume.affine,
+            header = volume.header
             )
-        new_mask=nib.Nifti1Image(
-            (mask_array.astype(int)>1.5).astype(int),#new mask contains lesions only
-            affine=mask.affine,
-            header=mask.header
+        new_mask = nib.Nifti1Image(
+            (mask_array.astype(int) > 1.5).astype(int), # new mask contains lesions only
+            affine = mask.affine,
+            header = mask.header
             )
-
-
         nii_volume_path = (os.path.join(new_volumes_path, volume_files[i]))
         nii_mask_path = (os.path.join(new_masks_path, mask_files[i]))
         new_volume.to_filename(nii_volume_path)  # Save as NiBabel file
