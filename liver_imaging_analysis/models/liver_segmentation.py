@@ -39,6 +39,8 @@ import cv2
 import shutil
 import natsort
 from monai.handlers.utils import from_engine
+import argparse
+import nibabel as nib
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -702,7 +704,7 @@ def train_liver(*args):
     model.load_checkpoint(config.save["potential_checkpoint"])
     print(
         "Initial test loss:", 
-        model.test(model.test_dataloader, callback=False)
+        model.test(model.test_dataloader, callback = False)
         )
     model.fit(
         evaluate_epochs = 1,
@@ -712,3 +714,83 @@ def train_liver(*args):
     # Evaluate on latest saved check point
     model.load_checkpoint(config.save["potential_checkpoint"])
     print("final test loss:", model.test(model.test_dataloader, callback = False))
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Liver Segmentation')
+    parser.add_argument(
+                '--modality', type = str, default = 'CT',
+                help = 'choose imaging modality from CT or MRI (default: CT)'
+                )
+    parser.add_argument(
+                '--inference', type = str, default = '3D',
+                help = 'choose inference mode: 2D, 3D, or sliding_window (default: 3D)'
+                )
+    parser.add_argument(
+                '--cp', type = bool, default = True,
+                help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--train', type = bool, default = False,
+                help = 'if True runs training loop (default: False)'
+                )
+    parser.add_argument(
+                '--epochs', type = int, default = 1,
+                help = 'number of epochs to train (default: 1)'
+                )
+    parser.add_argument(
+                '--eval_epochs', type = int, default = 1,
+                help = 'number of epochs to evaluate after (default: 1)'
+                )
+    parser.add_argument(
+                '--batch_callback', type = int, default = 100,
+                help = 'number of epochs to run batch callback after (default: 100)'
+                )
+    parser.add_argument(
+                '--save', type = bool, default = False,
+                help = 'if True save weights after training (default: False)'
+                )
+    parser.add_argument(
+                '--save_path', type = str, default = config.save["potential_checkpoint"],
+                help = 'path to save weights at if save is True (default: potential_checkpoint path)'
+                )
+    parser.add_argument(
+                '--test', type = bool, default = False,
+                help = 'if True runs separate testing loop (default: False)'
+                )
+    parser.add_argument(
+                '--predict', type = str, default = None,
+                help = 'predicts the volume at the provided path'
+                )
+    args = parser.parse_args()
+    model = LiverSegmentation(modality = args.modality, inference = args.inference)
+    if args.cp:
+        model.load_checkpoint(config.save["liver_checkpoint"])
+    if args.train: 
+        model.load_data() #dataset should be located at the config path
+        model.fit(
+            args.epochs, 
+            args.eval_epochs, 
+            args.batch_callback, 
+            args.save, 
+            args.save_path
+            )
+    if args.test:
+        if not args.train:
+            model.load_data() #dataset should be located at the config path
+        print(
+            "testing loss, metric:", 
+            model.test(model.test_dataloader)
+            )
+    if args.predict is not None:
+        prediction = model.predict(args.predict)
+        original_header = nib.load(args.predict).header
+        original_affine = nib.load(args.predict).affine
+        liver_volume = nib.Nifti1Image(
+                            prediction[0,0].cpu(), 
+                            affine = original_affine, 
+                            header = original_header
+                            )
+        nib.save(liver_volume, args.predict.split('.')[0] + '_prediction.nii')
+    print("Run Complete")
