@@ -504,10 +504,14 @@ class SpleenSegmentation(Engine):
         return prediction_list
     
 
-def segment_spleen(*args):
+def segment_spleen():
     """
-    a function used to segment the spleen of 2D images using a 2D spleen model
+    a function used to segment the spleen of 2D png dataset 
+    located in configs using a 2D spleen model 
 
+    Returns
+    ----------
+        tensor: predicted 2D spleen masks
     """
 
     set_seed()
@@ -517,32 +521,48 @@ def segment_spleen(*args):
     return spleen_prediction
 
 
-def segment_spleen_3d(*args):
+def segment_spleen_3d(volume_path):
     """
     a function used to segment the spleen of a 3d volume using a 2D spleen model
 
+    Parameters
+    ----------
+        volume_path: str
+            3D volume path, expects a nifti file.
+
+    Returns
+    ----------
+        tensor: predicted 3D spleen mask
     """
     set_seed()
     spleen_model = SpleenSegmentation(mode = '3D')
     spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
-    spleen_prediction = spleen_model.predict(volume_path=args[0])
+    spleen_prediction = spleen_model.predict(volume_path = volume_path)
     return spleen_prediction
 
 
-def segment_spleen_sliding_window(*args):
+def segment_spleen_sliding_window(volume_path):
     """
     a function used to segment the spleen of a 3d volume 
     using sliding window inference
 
+    Parameters
+    ----------
+        volume_path: str
+            3D volume path, expects a nifti file.
+
+    Returns
+    ----------
+        tensor: predicted 3D spleen mask
     """
     set_seed()
     spleen_model = SpleenSegmentation(mode = 'sliding_window')
     spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
-    spleen_prediction = spleen_model.predict(volume_path = args[0])
+    spleen_prediction = spleen_model.predict(volume_path = volume_path)
     return spleen_prediction
 
 
-def train_spleen(*args):
+def train_spleen():
     """
     a function used to start the training of spleen segmentation
 
