@@ -692,7 +692,7 @@ def segment_liver_mri(volume_path):
     liver_prediction = liver_model.predict(volume_path = volume_path)
     return liver_prediction
 
-def train_liver(*args):
+def train_liver():
     """
     a function used to start the training of liver segmentation
 
