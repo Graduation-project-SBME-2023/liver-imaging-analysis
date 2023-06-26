@@ -1,5 +1,5 @@
 {
-    "device": "cpu",
+    "device": "cuda",
     "dataset": {
         "mode":"2D",
         "training": "Temp2D/Train/",
@@ -8,8 +8,8 @@
 
     },
     "visualization":{
-        "volume":"D:/GP/volume-0.nii",
-        "mask":"D:/GP/segmentation-0.nii"
+        "volume":"volume-0.nii",
+        "mask":"segmentation-0.nii"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
@@ -39,8 +39,6 @@
         "metrics_parameters":{"ignore_empty":1,"include_background":1},
         "shuffle":1
     },
-
-
     "transforms": {
         "transformation_size": [512, 512],
         "img_key": "image",
