@@ -44,9 +44,12 @@
         "img_key": "image",
         "label_key": "label",
         "pred_key": "pred",
-        "train_transform": "2DUnet_transform",
-        "test_transform": "2DUnet_transform",
-        "post_transform": "2DUnet_transform"
+        "sw_batch_size": 2,
+        "roi_size": [192, 192, 32],
+        "overlap": 0.25,
+        "train_transform": "3DUnet_transform",
+        "test_transform": "3DUnet_transform",
+        "post_transform": "3DUnet_transform"
     },
     "save": {
         "volume_png_path": "Temp2D/volume/",
