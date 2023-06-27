@@ -589,7 +589,7 @@ def generate_report(calculations_dict, max_retries=5):
 
     """
     calculations = stringify_dictionary(calculations_dict)
-    key = "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"
+    key = "ENTER_YOU_API_KEY"
     openai.api_key = key
 
     delimiter = "####"
