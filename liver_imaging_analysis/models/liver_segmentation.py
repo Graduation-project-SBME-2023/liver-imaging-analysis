@@ -616,104 +616,104 @@ class LiverSegmentation(Engine):
         return test_loss, test_metric
         
 
-def segment_liver():
+def segment_liver(prediction_path, modality = 'CT', inference = '3D'):
     """
-    a function used to segment the liver of 2D ct images using a 2D liver model
-
-    Returns
-    ----------
-        tensor: predicted 2D liver masks
-    """
-
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(config.dataset['prediction'])
-    return liver_prediction
-
-
-def segment_liver_3d(volume_path):
-    """
-    a function used to segment the liver of a 3d ct volume using a 2D liver model
+    Segments the liver from an abdominal scan.
 
     Parameters
     ----------
-        volume_path: str
-            3D volume path, expects a nifti file.
-
+    prediciton_path : str
+        if inference is 2D, expects a directory containing a set of png images.
+        if inference is 3D or sliding_window, expects a path of a 3D nii volume.
+    modality : str
+        the type of imaging modality to be segmented.
+        expects 'CT' for CT images, or 'MRI' for MRI images.
+        Default is CT
+    inference : str
+        the type of inference to be used.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
     Returns
     ----------
-        tensor: predicted 3D liver mask
+        tensor : predicted liver segmentation
     """
+
     set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
+    liver_model = LiverSegmentation(modality, inference)
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path = volume_path)
+    liver_prediction = liver_model.predict(prediction_path)
     return liver_prediction
 
 
-def segment_liver_sliding_window(volume_path):
-    """
-    a function used to segment the liver of a 3d ct volume 
-    using sliding window inference
-
-    Parameters
-    ----------
-        volume_path: str
-            3D volume path, expects a nifti file.
-
-    Returns
-    ----------
-        tensor: predicted 3D liver mask
-
-    """
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = 'sliding_window')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path = volume_path)
-    return liver_prediction
-
-def segment_liver_mri(volume_path):
-    """
-    a function used to segment the liver of a 3d mri volume using a 2D liver model
-
-    Parameters
-    ----------
-        volume_path: str
-            3D volume path, expects a nifti file.
-
-    Returns
-    ----------
-        tensor: predicted 3D liver mask
-    """
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'MRI', inference = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path = volume_path)
-    return liver_prediction
-
-def train_liver():
-    """
-    a function used to start the training of liver segmentation
-
-    """
-    set_seed()
-    model = LiverSegmentation(modality = 'CT', inference = '2D')
-    model.load_data()
-    model.data_status()
-    model.load_checkpoint(config.save["potential_checkpoint"])
-    print(
-        "Initial test loss:", 
-        model.test(model.test_dataloader, callback = False)
-        )
-    model.fit(
+def train_liver(
+        modality = 'CT', 
+        inference = '3D', 
+        pretrained = True, 
+        cp_path = config.save["potential_checkpoint"],
+        epochs = config.training["epochs"], 
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
+        save_path = config.save["potential_checkpoint"],
+        test_batch_callback = False,
+        ):
+    """
+    Starts training of liver segmentation model.
+    modality : str
+        the type of imaging modality to be segmented.
+        expects 'CT' for CT images, or 'MRI' for MRI images.
+        Default is CT
+    inference : str
+        the type of inference to be used.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    pretrained : bool
+        if true, loads pretrained checkpoint. Default is True.
+    cp_path : str
+        determines the path of the checkpoint to be loaded 
+        if pretrained is true.
+        Default is the potential cp path in configs.
+    epochs : int
+        number of training epochs.
+        Default is the epochs defined in configs.
+    evaluate_epochs : int
+        The number of epochs to evaluate model after. Default is 1.
+    batch_callback_epochs : int
+        The frequency at which per_batch_callback will be called. 
+        Expects a number of epochs. Default is 100.
+    save_weight : bool
+        whether to save weights or not. Default is True.
+    save_path : str
+        the path to save weights at if save_weights is True.
+        Default is the potential cp path in configs.
+    test_batch_callback : bool
+        whether to call per_batch_callback during testing or not.
+        Default is False
+    """
+    set_seed()
+    model = LiverSegmentation(modality, inference)
+    model.load_data()
+    model.data_status()
+    if pretrained:
+        model.load_checkpoint(cp_path)
+    print(
+        "Initial test loss:", 
+        model.test(model.test_dataloader, callback = test_batch_callback)
+        )
+    model.fit(
+        epochs = epochs,
+        evaluate_epochs = evaluate_epochs,
+        batch_callback_epochs = batch_callback_epochs,
+        save_weight = save_weight,
+        save_path = save_path
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(config.save["potential_checkpoint"])
-    print("final test loss:", model.test(model.test_dataloader, callback = False))
+    print(
+        "Final test loss:", 
+        model.test(model.test_dataloader, callback = test_batch_callback)
+        )
 
 
 
@@ -730,6 +730,10 @@ if __name__ == '__main__':
     parser.add_argument(
                 '--cp', type = bool, default = True,
                 help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--cp_path', type = bool, default = config.save["potential_checkpoint"],
+                help = 'path of pretrained checkpoint (default: potential_checkpoint path)'
                 )
     parser.add_argument(
                 '--train', type = bool, default = False,
@@ -756,6 +760,10 @@ if __name__ == '__main__':
                 help = 'path to save weights at if save is True (default: potential_checkpoint path)'
                 )
     parser.add_argument(
+                '--test_callback', type = bool, default = False,
+                help = 'if True call batch callback during testing (default: False)'        
+                )
+    parser.add_argument(
                 '--test', type = bool, default = False,
                 help = 'if True runs separate testing loop (default: False)'
                 )
@@ -764,27 +772,33 @@ if __name__ == '__main__':
                 help = 'predicts the volume at the provided path'
                 )
     args = parser.parse_args()
-    model = LiverSegmentation(modality = args.modality, inference = args.inference)
-    if args.cp:
-        model.load_checkpoint(config.save["liver_checkpoint"])
     if args.train: 
-        model.load_data() #dataset should be located at the config path
-        model.fit(
-            args.epochs, 
-            args.eval_epochs, 
-            args.batch_callback, 
-            args.save, 
-            args.save_path
+        train_liver(
+            modality = args.modality, 
+            inference = args.inference, 
+            pretrained = args.cp, 
+            cp_path = args.cp_path,
+            epochs = args.epochs, 
+            evaluate_epochs = args.eval_epochs,
+            batch_callback_epochs = args.batch_callback,
+            save_weight = args.save,
+            save_path = args.save_path,
+            test_batch_callback = args.test_callback,
             )
     if args.test:
-        if not args.train:
-            model.load_data() #dataset should be located at the config path
+        model = LiverSegmentation(args.modality, args.inference)
+        model.load_data() #dataset should be located at the config path
         print(
             "testing loss, metric:", 
-            model.test(model.test_dataloader)
+            model.test(model.test_dataloader, args.test_callback)
             )
     if args.predict is not None:
-        prediction = model.predict(args.predict)
+        prediction = segment_liver(
+                        args.predict, 
+                        modality = args.modality, 
+                        inference = args.inference
+                        )
+        #save prediction as a nifti file
         original_header = nib.load(args.predict).header
         original_affine = nib.load(args.predict).affine
         liver_volume = nib.Nifti1Image(
@@ -793,4 +807,5 @@ if __name__ == '__main__':
                             header = original_header
                             )
         nib.save(liver_volume, args.predict.split('.')[0] + '_prediction.nii')
+        print('Prediction saved at', args.predict.split('.')[0] + '_prediction.nii')
     print("Run Complete")
