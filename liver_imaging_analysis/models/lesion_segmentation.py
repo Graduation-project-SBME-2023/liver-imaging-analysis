@@ -505,7 +505,7 @@ def segment_lesion(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation(mode = '2D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation(mode = '2D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
@@ -525,7 +525,7 @@ def segment_lesion_3d(*args):
     of a 3d volume using the liver and the lesion models.
     """
     set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation(mode = '3D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])

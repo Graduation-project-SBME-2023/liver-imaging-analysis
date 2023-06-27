@@ -775,7 +775,7 @@ def segment_lobe(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation(mode = '2D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lobe_model = LobeSegmentation(mode = '2D')
     lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
@@ -794,7 +794,7 @@ def segment_lobe_3d(*args):
     of a 3d volume using the liver and the lobes models.
     """
     set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lobe_model = LobeSegmentation(mode = '3D')
     lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
@@ -813,7 +813,7 @@ def segment_lobe_sliding_window(*args):
 
     """
     set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lobe_model = LobeSegmentation(mode = 'sliding_window')
     lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
