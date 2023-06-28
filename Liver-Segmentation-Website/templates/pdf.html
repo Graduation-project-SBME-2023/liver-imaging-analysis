@@ -65,7 +65,7 @@
       </p>
       <table>
         <tr>
-          <td style="width:20% ; background-color:#becbdc; font-weight:bold;">Name</td>
+          <td style="width:20% ; background-color:#becbdc; font-weight:bold;">Id</td>
           <td style="width:29%;">{{patient_data[0]}}</td>
           <td style="width:20% ; background-color:#becbdc; font-weight:bold;">Age</td>
           <td style="width:29%; color:black;">{{patient_data[1]}}</td>
@@ -86,24 +86,24 @@
       <table style="border: solid 1px #becbdc;">
         <tr>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Liver Volume 
+            Liver Volume (cm<sup>3</sup>)
           </th>
-          <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
+          <!-- <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
             Spleen Volume 
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
             Spleen Attenuation 
-          </th>
+          </th> -->
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Liver/Spleen Attenuation Ratio 
+            Liver Attenuation  
           </th>
         </tr>
 
         <tr>
           <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Liver Volume"]}}</td>
-          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Volume"]}}</td>
-          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Attenuation"]}}</td>
-          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Liver/Spleen Attenuation Ratio"]}}</td>
+          <!-- <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Volume"]}}</td>
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Spleen Attenuation"]}}</td> -->
+          <td style="background-color:#becbdc; font-weight:400; border: none ;">{{rep["Liver Attenuation"]}}</td>
         </tr>
       
       </table>
@@ -132,13 +132,13 @@
             Lesion Number
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Major Axis
+            Major Axis (mm)
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Minor Axis
+            Minor Axis (mm)
           </th>
           <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">
-            Volume
+            Volume (cm<sup>3</sup>)
           </th>
         </tr>
         {% for lesion, info in rep["Lesions Information"].items() %}
@@ -151,7 +151,7 @@
        {%endfor%}
       </table>
       <h5 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
-        Sum of longest diameters: {{rep["Sum Of Longest Diameters"]}}
+        Sum of longest diameters: {{rep["Sum Of Longest Diameters"]}} mm
       </h5>
       <br>
       <br>
@@ -160,6 +160,14 @@
       </h4>
       {% if my_flag %}
       <img src="{{ tumor_path }}" alt="My Image" >
+      <p style="margin-left:70px; font-family: Verdana, sans-serif; text-align:center;">
+        Lesion #2 zoomed in
+      </p>
+      <br>
+      <img src="C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/contour_grid.jpg" alt="All lesions" style="max-width:100%;">
+      <p style="margin-left:70px; font-family: Verdana, sans-serif; text-align:center;">
+          All lesions starting from lesion #1 (in top left corner) to lesion #{{rep["Lesions Information"]|length}} in bottom right
+      </p>
       {% else %}
           <p>No Lesions To Show</p>
       {% endif %}
@@ -178,7 +186,7 @@
         <thead>
           <tr>
             <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Lobe</th>
-            <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Volume</th>
+            <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Volume (cm<sup>3</sup>) </th>
             <th style="text-align: center; background-color:#587daa; color:white; font-weight:bolder; font-family: Verdana, sans-serif; border: none ;">Attenuation Ratio</th>
           </tr>
         </thead>
@@ -208,6 +216,9 @@
     <h1 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
       Patient Report
     </h1>
+    <h4 style="font-family: Verdana, sans-serif; margin-left:70px; color:red;">
+      Automatically generated by Gbt-3 model with known clinical guidelines.
+    </h4>
     <p style="font-family: Verdana, sans-serif; margin:7%;">
       {{rep["msg"]}}
     </p>

@@ -15,13 +15,13 @@ import pdfkit
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
 from liver_imaging_analysis.engine.config import config
-from liver_imaging_analysis.engine.utils import Overlay, Report
+from liver_imaging_analysis.engine.utils import Overlay, Report, create_image_grid
 from visualize_tumors import visualize_tumor, parameters
 import json
 
 
-# with open('Liver-Segmentation-Website/static/report.json') as f:
-#     report_json = json.load(f)
+with open('Liver-Segmentation-Website/static/report.json') as f:
+    rep = json.load(f)
 
 
 # paths
@@ -35,6 +35,15 @@ torch.cuda.empty_cache()
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 save_folder = "Liver-Segmentation-Website/static/img/"
+
+def round_dict(d):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            round_dict(v)
+        elif isinstance(v, float):
+            d[k] = round(v, 2)
+
+    return d
 
 def create_models ():
     """
@@ -122,39 +131,44 @@ def success():
         volume_location = save_folder + volume_filename
         file.save(volume_location)
 
-
-        volume = nib.load(volume_location).get_fdata()
-        liver_lesion , lobes  = segment_3d(volume_location)
-
         global report_json
-        report = Report(volume, mask=liver_lesion, lobes_mask=lobes)
-        report_json = report.build_report()
+        report_json = round_dict(rep)
 
-        visualize_tumor(volume_location, liver_lesion, mode='contour')
-        visualize_tumor(volume_location, liver_lesion, mode='box')
-        visualize_tumor(volume_location, liver_lesion, mode='zoom')
+        # volume = nib.load(volume_location).get_fdata()
+        # liver_lesion , lobes  = segment_3d(volume_location)
+
+        # global report_json
+        # report = Report(volume, mask=liver_lesion, lobes_mask=lobes)
+        # rep = report.build_report()
+        # report_json = round_dict(rep)
+
+        # visualize_tumor(volume_location, liver_lesion, mode='contour')
+        # visualize_tumor(volume_location, liver_lesion, mode='box')
+        # visualize_tumor(volume_location, liver_lesion, mode='zoom')
+
+        create_image_grid("Liver-Segmentation-Website/static/contour","Liver-Segmentation-Website/static/images/contour_grid.jpg")
 
         transform = monai.transforms.Resize((256, 256, 256), mode = "nearest")
-        volume = transform(volume[None]).squeeze(0)
-        liver_lesion = transform(liver_lesion[None]).squeeze(0)
-        lobes = transform(lobes[None]).squeeze(0)
-
-        original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
-
-        liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
-        liver_lesion_overlay.generate_slice("Liver-Segmentation-Website/static/images/liver_slice.png")
-
-        lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
-        lobes_overlay.generate_slice("Liver-Segmentation-Website/static/images/lobes.PNG")
+        # volume = transform(volume[None]).squeeze(0)
+        # liver_lesion = transform(liver_lesion[None]).squeeze(0)
+        # lobes = transform(lobes[None]).squeeze(0)
+        #
+        # original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
+        # original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
+        # original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
+        # original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
+        #
+        # liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
+        # liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
+        # liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
+        # liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
+        # liver_lesion_overlay.generate_slice("Liver-Segmentation-Website/static/images/liver_slice.png")
+        #
+        # lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
+        # lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
+        # lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
+        # lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
+        # lobes_overlay.generate_slice("Liver-Segmentation-Website/static/images/lobes.PNG")
 
         global longest_diameter_sum
         longest_diameter_sum = 0
@@ -221,18 +235,18 @@ def report():
             flag = False
             tumor_img_path = ""
 
-        name = request.form.get("name")
+        id = request.form.get("id")
         age = request.form.get("age")
         phone_number = request.form.get("phone")
         gender = request.form.get("gender")
         patient_data = [
-            ["Name", name],
+            ["Id", id],
             ["Age", age],
             ["Phone number", phone_number],
             ["Gender", gender],
         ]
         global patient_info
-        patient_info = [name,age,phone_number,gender]
+        patient_info = [id,age,phone_number,gender]
 
         return render_template(
             "report.html",
@@ -240,7 +254,8 @@ def report():
             my_flag=flag,
             tumor_path=tumor_img_path,
             lobes_path=lobes_img_path,
-            rep=report_json
+            rep=report_json,
+            liver_slice=segmented_slice_path
         )
 
 

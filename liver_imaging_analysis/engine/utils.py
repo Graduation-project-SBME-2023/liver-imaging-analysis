@@ -20,6 +20,7 @@ import SimpleITK as sitk
 from monai.transforms import ScaleIntensityRange
 from matplotlib import animation, rc
 from matplotlib.animation import PillowWriter
+from PIL import Image
 from liver_imaging_analysis.engine.config import config
 import json
 import openai
@@ -186,6 +187,43 @@ def find_pix_dim(path=config.visualization["volume"]):
 
     return [pix_dimx, pix_dimy, pix_dimz]
 
+
+def create_image_grid(dir_path, output_filename):
+    """
+    Creates an image grid from all the JPG files in the specified directory
+    and saves the resulting image to a file with the specified name.
+
+    Arguments:
+    - dir_path (str): the path to the directory containing the JPG files
+    - output_filename (str): the dir and  name of the output file (should end in .png or .jpg)
+    """
+    # Get a list of all the JPG files in the directory
+    jpg_files = os.listdir(dir_path)
+
+    # Determine the number of columns in the figure
+    n_files = len(jpg_files)
+    if n_files % 2 == 0:
+        n_cols = 2
+    else:
+        n_cols = 3
+
+    # Create a new image with the appropriate dimensions
+    img_height = 500
+    img_width = int(n_files / n_cols) * img_height
+    img_width += 100  # Add 100 pixels of white space to the right
+    img = Image.new('RGB', (img_width, img_height * n_cols), color='white')
+
+    # Iterate over the JPG files and paste them into the image
+    for i, f in enumerate(jpg_files):
+        # Calculate the coordinates of the upper-left corner of the current image
+        x = int(i / n_cols) * img_height
+        y = (i % n_cols) * img_height
+        # Open the current image and paste it into the larger image
+        im = Image.open(os.path.join(dir_path, f))
+        img.paste(im, (x, y))
+
+    # Save the image as a PNG or JPG file
+    img.save(output_filename)
 
 class Overlay:
     """
