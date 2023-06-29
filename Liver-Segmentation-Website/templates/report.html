@@ -38,8 +38,8 @@
                             <span>{{ patient_data[1] }}</span>
 
                         </li>
-                        {%endfor%}
-                    </ul>
+                    {%endfor%}
+                </ul>
                     <div class="card my-3" id="report-card">
                         <div class="card-header" align="center" style="font-family: 'Tinos', serif;font-size:25px;">
                             Analysis Report
@@ -68,14 +68,42 @@
                                             <td>{{rep["Spleen Attenuation"]}}</td> -->
                                             
                                         </tr>
-                                        <tr>
-                                          <th>
-                                            Liver Attenuation
-                                          </th>
-                                        </tr>
-                                        <tr>
-                                          <td>{{rep["Liver Attenuation"]}}</td>
-                                        </tr>
+                                        {% if rep['Liver/Spleen Attenuation Ratio'] is defined %}
+                                           <tr>
+                                            <th> Spleen Volume (cm<sup>3</sup>)</th>
+                                           </tr>
+                                           <tr>
+                                            <td>
+                                                {{rep["Spleen Volume"]}}
+                                            </td>
+                                           </tr>
+                                           <tr>
+                                            <th>Spleen Attenuation</th>
+                                           </tr>
+                                           <tr>
+                                            <td>
+                                                {{rep["Spleen Attenuation"]}}
+                                            </td>
+                                           </tr>
+                                           <tr>
+                                            <th>Attenuation Ratio</th>
+                                           </tr>  
+                                           <tr>
+                                            <td>
+                                                {{rep['Liver/Spleen Attenuation Ratio']}}
+                                            </td>
+                                           </tr>
+                                        {% else %}
+                                            <tr>
+                                                <th>
+                                                    Liver Attenuation
+                                                </th>
+                                            </tr>
+                                            <tr>
+                                                <td>{{rep["Liver Attenuation"]}}</td>
+                                            </tr>
+                                        {% endif %}
+                                        
                                     </table>
                                 </div>
                                 <div class="col">
