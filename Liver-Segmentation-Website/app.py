@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from flask import Flask, render_template, request, send_file, jsonify, make_response
 import nibabel as nib
 import monai
-import pdfkit
+# import pdfkit
 
 sys.path.append(".")
 from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
@@ -26,8 +26,8 @@ import json
 
 
 # paths
-lobes_img_path = "static/images/lobes.PNG"
-segmented_slice_path = "static/images/liver_slice.png"
+lobes_img_path = "../static/images/lobes.PNG"
+segmented_slice_path = "../static/images/liver_slice.png"
 
 plt.switch_backend("Agg")
 gc.collect()
