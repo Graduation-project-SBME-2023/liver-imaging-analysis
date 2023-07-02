@@ -24,6 +24,7 @@ from PIL import Image
 from liver_imaging_analysis.engine.config import config
 import json
 import openai
+import torch
 from monai.transforms import AsDiscrete
 plt.switch_backend('Agg') 
 rc("animation", html="html5")
@@ -219,8 +220,9 @@ def create_image_grid(dir_path, output_filename):
         x = int(i / n_cols) * img_height
         y = (i % n_cols) * img_height
         # Open the current image and paste it into the larger image
-        im = Image.open(os.path.join(dir_path, f))
-        img.paste(im, (x, y))
+        if(f != ".DS_Store"):
+            im = Image.open(os.path.join(dir_path, f))
+            img.paste(im, (x, y))
 
     # Save the image as a PNG or JPG file
     img.save(output_filename)
@@ -350,9 +352,12 @@ class Overlay:
         self.gray_to_colored()
         self.animate(output_filename,view)
 
-    def generate_slice(self, save_path):
-        slice_index = self.dest.shape[2]/3*2.7
-        slice_index = int(slice_index)
+    def generate_slice(self, mask,save_path):
+        '''
+        takes mask and draws the biggest slice in the given path
+        '''
+        depth_sum = torch.sum(mask, dim=(1,2))
+        slice_index = int(torch.argmax(depth_sum))
         print(f"dest shape:{self.dest.shape}")
         new_vol = self.dest.transpose((2, 0, 1,3))
         slice_data = new_vol[slice_index,:,:] # needs to rearrange dims

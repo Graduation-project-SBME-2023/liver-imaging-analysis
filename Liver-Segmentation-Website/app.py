@@ -19,11 +19,11 @@ from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.utils import Overlay, Report, create_image_grid
 from visualize_tumors import visualize_tumor, parameters
 import json
+from monai.transforms import( ToTensor, NormalizeIntensity, Compose
+                             ,ScaleIntensityRange)
 
 
-# with open('Liver-Segmentation-Website/static/report.json') as f:
-#     rep = json.load(f)
-
+report_json = {}
 
 # paths
 lobes_img_path = "../static/images/lobes.PNG"
@@ -106,7 +106,24 @@ def segment_3d(volume_path):
 
 
 liver_model, lesion_model, lobe_model  = create_models()
-longest_diameter_sum = 0 
+longest_diameter_sum = 0  # initialize
+data = 0  # initialize
+volume_processing = Compose(
+                [
+
+                    # OrientationD(keys, axcodes = "LAS", allow_missing_keys = True),
+                    # NormalizeIntensity(channel_wise = True),
+                     ScaleIntensityRange(
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0.0,
+                        b_max = 1.0,
+                        clip = True,
+                    )
+        
+                    # ToTensorD(Keys.all(), allow_missing_keys = True),
+                ]
+            )
 
 @app.route("/")
 def index():
@@ -116,7 +133,7 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/infer", methods = ["GET", "POST"])
+@app.route("/segment", methods = ["GET", "POST"])
 def success():
     """
     Start segmentation , create and display the gifs
@@ -132,14 +149,17 @@ def success():
         volume_location = save_folder + volume_filename
         file.save(volume_location)
 
-        # global report_json
-        # report_json = round_dict(rep)
-
         volume = nib.load(volume_location).get_fdata()
-        liver_lesion , lobes  = segment_3d(volume_location)
+        header = nib.load(volume_location).header
+        affine = nib.load(volume_location).affine
+        volume = ToTensor()(volume).unsqueeze(dim = 0).unsqueeze(dim = 0)
+        volume = volume_processing(volume).squeeze(dim = 0).squeeze(dim = 0)
 
+        liver_lesion , lobes  = segment_3d(volume_location)
         spleen = segment_spleen(volume_location)
 
+        new_nii_mask = nib.Nifti1Image(volume, affine=affine, header=header)
+        nib.save(new_nii_mask, volume_location)
 
         global report_json
         report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen[0][0])
@@ -166,27 +186,24 @@ def success():
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
         liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
-        liver_lesion_overlay.generate_slice("Liver-Segmentation-Website/static/images/liver_slice.png")
+        liver_lesion_overlay.generate_slice(liver_lesion,"Liver-Segmentation-Website/static/images/liver_slice.png")
 
         lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
         lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
-        lobes_overlay.generate_slice("Liver-Segmentation-Website/static/images/lobes.PNG")
+        lobes_overlay.generate_slice(liver_lesion, "Liver-Segmentation-Website/static/images/lobes.PNG")
 
         global longest_diameter_sum
-        longest_diameter_sum = 0
-
         for item in parameters:
             max_axis = max(item[0], item[1])
             longest_diameter_sum += max_axis
-
-        # global data
+        longest_diameter_sum = round(longest_diameter_sum,2)
         data = {"Data": parameters, "sum_longest": longest_diameter_sum}
-
+        report_json["Sum Of Longest Diameters"] = longest_diameter_sum
 
         return render_template(
-            "segmentation.html", data=data
+            "segmentation.html", data=data 
         )
 
 

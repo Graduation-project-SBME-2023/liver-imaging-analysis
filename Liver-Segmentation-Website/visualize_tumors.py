@@ -16,16 +16,20 @@ from monai.transforms import (
 
 
 parameters = []
-
+plt.axis('off')
 def visualize_tumor(volume_path,mask_path,mode):
     volume_to_pix_dim = nib.load(volume_path)
     volume = nib.load(volume_path).get_fdata()
     mask = mask_path
     mask= AsDiscrete(threshold=1.5)(mask)
-    print(mask.shape)
-    print(volume.shape)
+
+    
+    volume = np.rot90(volume)
+    mask = np.rot90(mask)
+    mask = torch.from_numpy(mask.copy())
+
     if mode=='contour':
-        plot_axis_call(mask,volume,volume_to_pix_dim)    
+        plot_axis_call(mask,volume,volume_to_pix_dim)   
     if mode=='box':
         plot_bbox_image_call(volume,mask,volume_to_pix_dim,crop_margin=0)
     if mode=='zoom':
@@ -54,6 +58,7 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
             ax1.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c='r')
             
         first_tumor=False
+        plt.axis('off')
         fig.savefig(f'Liver-Segmentation-Website/static/contour/tumor_{i}.png')
         i += 1
         parameters.append([round(axis1, 2),round(axis2, 2),round(max_volume,2)])
@@ -73,6 +78,7 @@ def plot_bbox_image_call(image, mask,volume_to_pix_dim, crop_margin=0):
         plt.imshow(image[:,:,idx], cmap='gray')
         plot_bbox_image(largest_tumor[0][:,:,idx],volume_to_pix_dim,crop_margin)            
         i=i+1
+        plt.axis('off')
         plt.savefig(f'Liver-Segmentation-Website/static/box/tumor_{i}.png')
         plt.close('all')
 
@@ -142,6 +148,7 @@ def plot_bbox_image(mask,volume_to_pix_dim, crop_margin=0):
     colors=get_colors()
     for i in range(len(dimensions)):
         xmin,ymin,xmax,ymax,_ =dimensions[i]
+        plt.axis('off')
         plt.plot([xmin, xmax], [ymin, ymin], color=colors[i], label=f"Lesion {i+1}")
         plt.plot([xmax, xmax], [ymin, ymax], color=colors[i])
         plt.plot([xmin, xmin], [ymin, ymax], color=colors[i])
@@ -225,19 +232,19 @@ def major_axis(arr,volume,ax,first_tumor,volume_to_pix_dim):
         ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99, label="Center")
     else:
         ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99)
-    ax.plot((com_y, com_y+dmax_1*pc1_y), (com_x, com_x+dmax_1*pc1_x),linestyle='dashed', lw=1, c='b')
+    ax.plot((com_y, com_y+dmax_1*pc1_y), (com_x, com_x+dmax_1*pc1_x),linestyle='dashed', lw=3, c='b')
 
     if(first_tumor):
-        ax.plot((com_y, com_y+dmin_1*pc1_y), (com_x, com_x+dmin_1*pc1_x), lw=1, c='b', linestyle='dashed', label="Major axis")
+        ax.plot((com_y, com_y+dmin_1*pc1_y), (com_x, com_x+dmin_1*pc1_x), lw=3, c='b', linestyle='dashed', label="Major axis")
     else:
-        ax.plot((com_y, com_y+dmin_1*pc1_y), (com_x, com_x+dmin_1*pc1_x),linestyle='dashed', lw=1, c='b')
+        ax.plot((com_y, com_y+dmin_1*pc1_y), (com_x, com_x+dmin_1*pc1_x),linestyle='dashed', lw=3, c='b')
 
-    ax.plot((com_y, com_y+dmax_2*pc2_y), (com_x, com_x+dmax_2*pc2_x),linestyle='dashed', lw=1, c='g')
+    ax.plot((com_y, com_y+dmax_2*pc2_y), (com_x, com_x+dmax_2*pc2_x),linestyle='dashed', lw=3, c='g')
 
     if(first_tumor):
-        ax.plot((com_y, com_y+dmin_2*pc2_y), (com_x, com_x+dmin_2*pc2_x), lw=1, c='g',linestyle='dashed', label="Minor axis")
+        ax.plot((com_y, com_y+dmin_2*pc2_y), (com_x, com_x+dmin_2*pc2_x), lw=3, c='g',linestyle='dashed', label="Minor axis")
     else:
-        ax.plot((com_y, com_y+dmin_2*pc2_y), (com_x, com_x+dmin_2*pc2_x), lw=1,linestyle='dashed', c='g')
+        ax.plot((com_y, com_y+dmin_2*pc2_y), (com_x, com_x+dmin_2*pc2_x), lw=3,linestyle='dashed', c='g')
 
     ax.legend(fontsize='small')
     return axis_1 , axis_2
@@ -262,10 +269,12 @@ def crop_to_bbox(image, bbox, crop_margin=0,pad=40):
 def plot_tumor(images, masks,volume_to_pix_dim,first_tumor, idx,i,save=False):
 
     image = np.asarray(images)
-    # mask = np.asarray(masks.to('cpu')) # DON't change this to CUDA, it must stay as cpu
     mask = np.asarray(masks.cpu()) # DON't change this to CUDA, it must stay as cpu
+    plt.axis("off")
     fig, ax = plt.subplots(1, 3, figsize=(12,4))
-
+    plt.axis("off")
+    ax[0].axes.get_yaxis().set_visible(False)
+    ax[0].axes.get_xaxis().set_visible(False)  
     ax[0].imshow(image, cmap='gray') # show image  (1)
     xmin, ymin, xmax, ymax = get_bounding_box(mask, crop_margin=0) # remember to put this box over the image
     ax[0].plot([xmin, xmax], [ymin, ymin],color='red' )
@@ -304,8 +313,9 @@ def plot_tumor(images, masks,volume_to_pix_dim,first_tumor, idx,i,save=False):
         ax[1].axes.get_xaxis().set_visible(False)
         ax[2].axes.get_yaxis().set_visible(False)
         ax[2].axes.get_xaxis().set_visible(False)  
-        
+        plt.axis("off")
     plt.subplots_adjust(wspace=0.02)
+    plt.axis('off')    
     fig.savefig(f'Liver-Segmentation-Website/static/zoom/tumor_{i}.png')
     plt.close('all')
 
