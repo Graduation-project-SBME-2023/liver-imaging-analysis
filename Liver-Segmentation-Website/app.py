@@ -249,7 +249,7 @@ def report():
     """
 
     if request.method == "POST":
-        if len(report_json['Lesions Information']) > 0:
+        if ('Lesions Information' in report_json and len(report_json['Lesions Information']) ) > 0:
             flag = True
             tumor_img_path = "../static/zoom/tumor_1.png"
         else:
