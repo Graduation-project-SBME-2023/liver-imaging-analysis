@@ -111,8 +111,6 @@ data = 0  # initialize
 volume_processing = Compose(
                 [
 
-                    # OrientationD(keys, axcodes = "LAS", allow_missing_keys = True),
-                    # NormalizeIntensity(channel_wise = True),
                      ScaleIntensityRange(
                         a_min = -135,
                         a_max = 215,
@@ -121,7 +119,6 @@ volume_processing = Compose(
                         clip = True,
                     )
         
-                    # ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             )
 
@@ -145,21 +142,24 @@ def success():
         )
     elif request.method == "POST":
         file = request.files["file"]
-        volume_filename = file.filename
-        volume_location = save_folder + volume_filename
+        volume_location = save_folder + "volume.nii"
+        mask_location = save_folder + "mask.nii"
         file.save(volume_location)
 
         volume = nib.load(volume_location).get_fdata()
         header = nib.load(volume_location).header
         affine = nib.load(volume_location).affine
+
         volume = ToTensor()(volume).unsqueeze(dim = 0).unsqueeze(dim = 0)
         volume = volume_processing(volume).squeeze(dim = 0).squeeze(dim = 0)
 
         liver_lesion , lobes  = segment_3d(volume_location)
         spleen = segment_spleen(volume_location)
 
-        new_nii_mask = nib.Nifti1Image(volume, affine=affine, header=header)
-        nib.save(new_nii_mask, volume_location)
+        new_nii_volume = nib.Nifti1Image(volume, affine=affine, header=header)
+        nib.save(new_nii_volume, volume_location)
+        new_nii_mask = nib.Nifti1Image(liver_lesion, affine=affine, header=header)
+        nib.save(new_nii_mask, mask_location)
 
         global report_json
         report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen[0][0])

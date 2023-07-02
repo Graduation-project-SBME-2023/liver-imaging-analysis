@@ -8,8 +8,8 @@
 
     },
     "visualization":{
-        "volume":"D:/GP/volume-0.nii",
-        "mask":"D:/GP/segmentation-0.nii"
+        "volume":"Liver-Segmentation-Website/static/img/volume.nii",
+        "mask":"Liver-Segmentation-Website/static/img/mask.nii"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
