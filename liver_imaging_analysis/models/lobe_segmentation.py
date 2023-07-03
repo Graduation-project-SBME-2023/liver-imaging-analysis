@@ -47,6 +47,7 @@ import shutil
 import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
+import argparse
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty = True, include_background = False)
@@ -62,18 +63,18 @@ class LobeSegmentation(Engine):
             Default is "2D"
     """
 
-    def __init__(self, mode = "2D"):
-        self.set_configs(mode)
+    def __init__(self, inference = "sliding_window"):
+        self.set_configs(inference)
         super().__init__()
-        if mode == '3D':
+        if inference == '3D':
             self.predict = self.predict_2dto3d
-        elif mode == 'sliding_window':
+        elif inference == 'sliding_window':
             self.predict = self.predict_sliding_window
             self.test = self.test_sliding_window
 
 
-    def set_configs(self, mode):
-        if mode in ['2D', '3D']:
+    def set_configs(self, inference):
+        if inference in ['2D', '3D']:
             config.dataset['prediction'] = "test cases/sample_image"
             config.dataset['training'] = "Temp2D/Train/"
             config.dataset['testing'] = "Temp2D/Test/"
@@ -93,6 +94,7 @@ class LobeSegmentation(Engine):
             config.network_parameters['norm'] = "INSTANCE"
             config.network_parameters['bias'] = True
             config.save['lobe_checkpoint'] = 'lobe_cp'
+            config.save['liver_checkpoint'] = 'liver_cp'
             config.training['loss_parameters'] = { 
                                                     "softmax" : True, 
                                                     "batch" : True, 
@@ -108,7 +110,7 @@ class LobeSegmentation(Engine):
             config.transforms["test_transform"] = "2DUnet_transform"
             config.transforms["post_transform"] = "2DUnet_transform"
 
-        elif mode == 'sliding_window':
+        elif inference == 'sliding_window':
             config.dataset['training'] = "MedSeg_Lobes/Train/"
             config.dataset['testing'] = "MedSeg_Lobes/Test/"
             config.dataset['prediction'] = "test cases/sample_volume"
@@ -139,6 +141,7 @@ class LobeSegmentation(Engine):
             config.network_parameters['norm'] = "BATCH"
             config.network_parameters['bias'] = False
             config.save['lobe_checkpoint'] = 'lobe_cp_sliding_window'
+            config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
             config.transforms['sw_batch_size'] = 2
             config.transforms['roi_size'] = (192, 192, 32)
             config.transforms['overlap'] = 0.25
@@ -768,83 +771,270 @@ class LobeSegmentation(Engine):
         return test_loss, test_metric
     
     
-def segment_lobe(*args):
+def segment_lobe(
+        prediction_path = None,
+        liver_inference = '3D',
+        lobe_inference = 'sliding_window', 
+        liver_cp = None, 
+        lobe_cp = None
+        ):
     """
-    A function used to segment the liver lobes using
-    the liver and the lobes models.
-    """
+    Segments the Lobes from a liver scan.
 
+    Parameters
+    ----------
+    prediciton_path : str
+        if inferences are 2D, expects a directory containing a set of png images.
+        if inferences are 3D or sliding_window, expects a path of a 3D nii volume.
+        if not defined, prediction dataset will be loaded from configs
+    liver_inference : str
+        the type of inference to be used for liver model.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    lobe_inference : str
+        the type of inference to be used for lobe model.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is sliding_window
+    liver_cp : str
+        path of the liver model weights to be used for prediction. 
+        if not defined, liver_checkpoint will be loaded from configs.
+    lobe_cp : str
+        path of the lobe model weights to be used for prediction. 
+        if not defined, lobe_checkpoint will be loaded from configs.
+    Returns
+    ----------
+        tensor : predicted lobes segmentation
+    """
+    if prediction_path is None:
+        prediction_path = config.dataset['prediction']
+    if liver_cp is None:
+        liver_cp = config.save["liver_checkpoint"]
+    if lobe_cp is None:
+        lobe_cp = config.save["lobe_checkpoint"]
     set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lobe_model = LobeSegmentation(mode = '2D')
-    lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
-    liver_prediction=liver_model.predict(config.dataset['prediction'])
-    lobe_prediction= lobe_model.predict(
-                        config.dataset['prediction'], 
+    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
+    liver_model.load_checkpoint(liver_cp)
+    lobe_model = LobeSegmentation(inference = lobe_inference)
+    lobe_model.load_checkpoint(lobe_cp)
+    liver_prediction = liver_model.predict(prediction_path)
+    if lobe_inference == '3D':
+        liver_prediction = liver_prediction[0].permute(3,0,1,2)
+    lobe_prediction = lobe_model.predict(
+                        prediction_path, 
                         liver_mask = liver_prediction
                         )
     lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
     return lobe_prediction
 
 
-def segment_lobe_3d(*args):
-    """
-    A function used to segment the liver lobes
-    of a 3d volume using the liver and the lobes models.
-    """
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lobe_model = LobeSegmentation(mode = '3D')
-    lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path = args[0])
-    lobe_prediction = lobe_model.predict(
-                            volume_path = args[0],
-                            liver_mask = liver_prediction[0].permute(3,0,1,2)
-                            )
-    lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
-    return lobe_prediction
-
-
-def segment_lobe_sliding_window(*args):
-    """
-    a function used to segment the lobes of a 3d volume using a 3D model and sliding window technique
-
-    """
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lobe_model = LobeSegmentation(mode = 'sliding_window')
-    lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path = args[0])
-    lobe_prediction = lobe_model.predict(
-                            volume_path = args[0],
-                            liver_mask = liver_prediction
-                            )
-    lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
-    return lobe_prediction
-
-
-def train_lobe(*args):
-    """
-    a function used to start the training of liver segmentation
-
-    """
-    set_seed()
-    model = LobeSegmentation(mode = '2D')
-    model.load_data()
-    model.data_status()
-    model.load_checkpoint(config.save["lobe_checkpoint"])
-    print(
-        "Initial test loss:", 
-        model.test(model.test_dataloader, callback = False)
-        )
-    model.fit(
+def train_lobe(
+        inference = 'sliding_window', 
+        pretrained = True, 
+        cp_path = None,
+        epochs = None, 
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
+        save_path = None,
+        test_batch_callback = False,
+        ):
+    """
+    Starts training of lobe segmentation model.
+    inference : str
+        the type of inference to be used.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    pretrained : bool
+        if true, loads pretrained checkpoint. Default is True.
+    cp_path : str
+        determines the path of the checkpoint to be loaded 
+        if pretrained is true. If not defined, the potential 
+        cp path will be loaded from config.
+    epochs : int
+        number of training epochs.
+        If not defined, epochs will be loaded from config.
+    evaluate_epochs : int
+        The number of epochs to evaluate model after. Default is 1.
+    batch_callback_epochs : int
+        The frequency at which per_batch_callback will be called. 
+        Expects a number of epochs. Default is 100.
+    save_weight : bool
+        whether to save weights or not. Default is True.
+    save_path : str
+        the path to save weights at if save_weights is True.
+        If not defined, the potential cp path will be loaded 
+        from config.
+    test_batch_callback : bool
+        whether to call per_batch_callback during testing or not.
+        Default is False
+    """
+    if cp_path is None:
+        cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+    if save_path is None:
+        save_path = config.save["potential_checkpoint"]
+    set_seed()
+    model = LobeSegmentation(inference)
+    model.load_data()
+    model.data_status()
+    if pretrained:
+        model.load_checkpoint(cp_path)
+    model.compile_status()
+    init_loss, init_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
+    print(
+        "Initial test loss:", 
+        init_loss,
+        )
+    print(
+        "\nInitial average test metric:", 
+        init_metric.mean().item(),
+        ':\nInitial average test metric per lobe',
+        init_metric.cpu().numpy()
+        )
+    model.fit(
+        epochs = epochs,
+        evaluate_epochs = evaluate_epochs,
+        batch_callback_epochs = batch_callback_epochs,
+        save_weight = save_weight,
+        save_path = save_path
     )
-    # evaluate on last saved checkpoint
-    model.load_checkpoint(config.save["potential_checkpoint"]) 
-    print("final test loss:", model.test(model.test_dataloader, callback = False))
+    # Evaluate on latest saved check point
+    model.load_checkpoint(save_path)
+    final_loss, final_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
+    print(
+        "Final test loss:", 
+        final_loss,
+        )
+    print(
+        "\nFinal average test metric:", 
+        final_metric.mean().item(),
+        ':\nFinal average test metric per lobe',
+        final_metric.cpu().numpy()
+        )
+    
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Lobe Segmentation')
+    parser.add_argument(
+                '--liver_inference', type = str, default = '3D',
+                help = 'choose liver inference mode: 2D, 3D, or sliding_window (default: 3D)'
+                )    
+    parser.add_argument(
+                '--lobe_inference', type = str, default = 'sliding_window',
+                help = 'choose lobe inference mode: 2D, 3D, or sliding_window (default: sliding_window)'
+                )
+    parser.add_argument(
+                '--cp', type = bool, default = True,
+                help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--liver_cp_path', type = bool, default = None,
+                help = 'path of pretrained liver checkpoint (default: liver cp config path)'
+                )
+    parser.add_argument(
+                '--lobe_cp_path', type = bool, default = None,
+                help = 'path of pretrained lobe checkpoint (default: lobe cp config path)'
+                )
+    parser.add_argument(
+                '--train', type = bool, default = False,
+                help = 'if True runs training loop (default: False)'
+                )
+    parser.add_argument(
+                '--epochs', type = int, default = 1,
+                help = 'number of epochs to train (default: 1)'
+                )
+    parser.add_argument(
+                '--eval_epochs', type = int, default = 1,
+                help = 'number of epochs to evaluate after (default: 1)'
+                )
+    parser.add_argument(
+                '--batch_callback', type = int, default = 100,
+                help = 'number of epochs to run batch callback after (default: 100)'
+                )
+    parser.add_argument(
+                '--save', type = bool, default = False,
+                help = 'if True save weights after training (default: False)'
+                )
+    parser.add_argument(
+                '--save_path', type = str, default = None,
+                help = 'path to save weights at if save is True (default: potential cp config path)'
+                )
+    parser.add_argument(
+                '--test_callback', type = bool, default = False,
+                help = 'if True call batch callback during testing (default: False)'        
+                )
+    parser.add_argument(
+                '--test', type = bool, default = False,
+                help = 'if True runs separate testing loop (default: False)'
+                )
+    parser.add_argument(
+                '--predict_path', type = str, default = None,
+                help = 'predicts the volume at the provided path (default: prediction config path)'
+                )
+    args = parser.parse_args()
+    if args.predict_path is None:
+        args.predict_path = config.dataset['prediction']
+    if args.liver_cp_path is None:
+        args.liver_cp_path = config.save["liver_checkpoint"]
+    if args.lobe_cp_path is None:
+        args.lobe_cp_path = config.save["lobe_checkpoint"]
+    if args.save_path is None:
+        args.save_path = config.save["potential_checkpoint"]
+    if args.train: 
+        train_lobe(
+            inference = args.lobe_inference, 
+            pretrained = args.cp, 
+            cp_path = args.lobe_cp_path,
+            epochs = args.epochs, 
+            evaluate_epochs = args.eval_epochs,
+            batch_callback_epochs = args.batch_callback,
+            save_weight = args.save,
+            save_path = args.save_path,
+            test_batch_callback = args.test_callback,
+            )
+    if args.test:
+        model = LobeSegmentation(args.lobe_inference)
+        model.load_data() #dataset should be located at the config path
+        loss, metric = model.test(
+                                    model.test_dataloader, 
+                                    callback = args.test_callback
+                                    )
+        print(
+            "Test loss:", 
+            loss,
+            )
+        print(
+            "\nAverage test metric:", 
+            metric.mean().item(),
+            ':\nAverage test metric per lobe',
+            metric.cpu().numpy()
+            )
+    if args.predict_path is not None:
+        prediction = segment_lobe(
+                        args.predict_path, 
+                        liver_inference = args.liver_inference,
+                        lobe_inference = args.lobe_inference,
+                        liver_cp = args.liver_cp_path,
+                        lobe_cp = args.lobe_cp_path
+                        )
+        #save prediction as a nifti file
+        original_header = nib.load(args.predict_path).header
+        original_affine = nib.load(args.predict_path).affine
+        liver_volume = nib.Nifti1Image(
+                            prediction[0,0].cpu(), 
+                            affine = original_affine, 
+                            header = original_header
+                            )
+        nib.save(liver_volume, args.predict_path.split('.')[0] + '_lobes.nii')
+        print('Prediction saved at', args.predict_path.split('.')[0] + '_lobes.nii')
+    print("Run Complete")

@@ -58,10 +58,10 @@ class LiverSegmentation(Engine):
             determines the mode of inference. 
             Expects "2D" for slice inference, "3D" for volume inference,
             or "sliding_window" for sliding window inference.
-            Default is "2D"
+            Default is "3D"
     """
 
-    def __init__(self, modality = 'CT', inference = '2D'):
+    def __init__(self, modality = 'CT', inference = '3D'):
         self.set_configs(modality, inference)
         super().__init__()
         if inference == '3D':
@@ -616,7 +616,12 @@ class LiverSegmentation(Engine):
         return test_loss, test_metric
         
 
-def segment_liver(prediction_path, modality = 'CT', inference = '3D'):
+def segment_liver(
+        prediction_path = None, 
+        modality = 'CT', 
+        inference = '3D', 
+        cp_path = None
+        ):
     """
     Segments the liver from an abdominal scan.
 
@@ -625,6 +630,7 @@ def segment_liver(prediction_path, modality = 'CT', inference = '3D'):
     prediciton_path : str
         if inference is 2D, expects a directory containing a set of png images.
         if inference is 3D or sliding_window, expects a path of a 3D nii volume.
+        if not defined, prediction dataset will be loaded from configs
     modality : str
         the type of imaging modality to be segmented.
         expects 'CT' for CT images, or 'MRI' for MRI images.
@@ -633,14 +639,20 @@ def segment_liver(prediction_path, modality = 'CT', inference = '3D'):
         the type of inference to be used.
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
+    cp_path : str
+        path of the model weights to be used for prediction. 
+        if not defined, liver_checkpoint will be loaded from configs.
     Returns
     ----------
         tensor : predicted liver segmentation
     """
-
+    if prediction_path is None:
+        prediction_path = config.dataset['prediction']
+    if cp_path is None:
+        cp_path = config.save["liver_checkpoint"]
     set_seed()
     liver_model = LiverSegmentation(modality, inference)
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    liver_model.load_checkpoint(cp_path)
     liver_prediction = liver_model.predict(prediction_path)
     return liver_prediction
 
@@ -704,9 +716,18 @@ def train_liver(
     model.data_status()
     if pretrained:
         model.load_checkpoint(cp_path)
+    model.compile_status()
+    init_loss, init_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
     print(
         "Initial test loss:", 
-        model.test(model.test_dataloader, callback = test_batch_callback)
+        init_loss,
+        )
+    print(
+        "\nInitial test metric:", 
+        init_metric.mean().item(),
         )
     model.fit(
         epochs = epochs,
@@ -716,10 +737,18 @@ def train_liver(
         save_path = save_path
     )
     # Evaluate on latest saved check point
-    model.load_checkpoint(config.save["potential_checkpoint"])
+    model.load_checkpoint(save_path)
+    final_loss, final_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
     print(
         "Final test loss:", 
-        model.test(model.test_dataloader, callback = test_batch_callback)
+        final_loss,
+        )
+    print(
+        "\nFinal test metric:", 
+        final_metric.mean().item(),
         )
 
 
@@ -740,7 +769,7 @@ if __name__ == '__main__':
                 )
     parser.add_argument(
                 '--cp_path', type = bool, default = None,
-                help = 'path of pretrained checkpoint (default: potential cp config path)'
+                help = 'path of pretrained checkpoint (default: liver cp config path)'
                 )
     parser.add_argument(
                 '--train', type = bool, default = False,
@@ -775,12 +804,14 @@ if __name__ == '__main__':
                 help = 'if True runs separate testing loop (default: False)'
                 )
     parser.add_argument(
-                '--predict', type = str, default = None,
-                help = 'predicts the volume at the provided path'
+                '--predict_path', type = str, default = None,
+                help = 'predicts the volume at the provided path (default: prediction config path)'
                 )
     args = parser.parse_args()
+    if args.predict_path is None:
+        args.predict_path = config.dataset['prediction']
     if args.cp_path is None:
-        args.cp_path = config.save["potential_checkpoint"]
+        args.cp_path = config.save["liver_checkpoint"]
     if args.save_path is None:
         args.save_path = config.save["potential_checkpoint"]
     if args.train: 
@@ -799,24 +830,33 @@ if __name__ == '__main__':
     if args.test:
         model = LiverSegmentation(args.modality, args.inference)
         model.load_data() #dataset should be located at the config path
+        loss, metric = model.test(
+                                    model.test_dataloader, 
+                                    callback = args.test_callback
+                                    )
         print(
-            "testing loss, metric:", 
-            model.test(model.test_dataloader, args.test_callback)
+            "test loss:", 
+            loss,
             )
-    if args.predict is not None:
+        print(
+            "\ntest metric:", 
+            metric.mean().item(),
+            )
+    if args.predict_path is not None:
         prediction = segment_liver(
-                        args.predict, 
+                        args.predict_path, 
                         modality = args.modality, 
-                        inference = args.inference
+                        inference = args.inference,
+                        cp_path = args.cp_path
                         )
         #save prediction as a nifti file
-        original_header = nib.load(args.predict).header
-        original_affine = nib.load(args.predict).affine
+        original_header = nib.load(args.predict_path).header
+        original_affine = nib.load(args.predict_path).affine
         liver_volume = nib.Nifti1Image(
                             prediction[0,0].cpu(), 
                             affine = original_affine, 
                             header = original_header
                             )
-        nib.save(liver_volume, args.predict.split('.')[0] + '_prediction.nii')
-        print('Prediction saved at', args.predict.split('.')[0] + '_prediction.nii')
+        nib.save(liver_volume, args.predict_path.split('.')[0] + '_liver.nii')
+        print('Prediction saved at', args.predict_path.split('.')[0] + '_liver.nii')
     print("Run Complete")

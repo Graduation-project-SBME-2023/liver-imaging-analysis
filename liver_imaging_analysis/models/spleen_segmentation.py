@@ -42,7 +42,7 @@ import cv2
 import shutil
 import natsort
 import nibabel as nib
-
+import argparse
 
 class SpleenSegmentation(Engine):
     """
@@ -248,22 +248,62 @@ class SpleenSegmentation(Engine):
         return prediction_list
     
 
-def segment_spleen(volume_path):
+def segment_spleen(prediciton_path = None, cp_path = None):
     """
     a function used to segment the spleen of a 3d volume 
     using sliding window inference
 
     Parameters
     ----------
-        volume_path: str
-            3D volume path, expects a nifti file.
+    prediciton_path: str
+        expects a path of a 3D nii volume.
+        if not defined, prediction dataset will be loaded from configs
+    cp_path : str
+        path of the model weights to be used for prediction. 
+        if not defined, spleen_checkpoint will be loaded from configs.
 
     Returns
     ----------
         tensor: predicted 3D spleen mask
     """
+    if prediction_path is None:
+        prediction_path = config.dataset['prediction']
+    if cp_path is None:
+        cp_path = config.save["spleen_checkpoint"]
     set_seed()
     spleen_model = SpleenSegmentation()
-    spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
-    spleen_prediction = spleen_model.predict(volume_path = volume_path)
+    spleen_model.load_checkpoint(cp_path)
+    spleen_prediction = spleen_model.predict(prediciton_path)
     return spleen_prediction
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Spleen Segmentation')
+    parser.add_argument(
+                '--predict_path', type = str, default = None,
+                help = 'predicts the volume at the provided path (default: prediction config path)'
+                )
+    parser.add_argument(
+                '--cp_path', type = bool, default = None,
+                help = 'path of model weights (default: spleen_checkpoint config path)'
+                )
+    args = parser.parse_args()
+    if args.predict_path is None:
+        args.predict_path = config.dataset['prediction']
+    if args.cp_path is None:
+        args.cp_path = config.save["spleen_checkpoint"]
+    prediction = segment_spleen(
+                    volume_path = args.predict_path, 
+                    cp_path = args.cp_path
+                    )
+    #save prediction as a nifti file
+    original_header = nib.load(args.predict_path).header
+    original_affine = nib.load(args.predict_path).affine
+    spleen_volume = nib.Nifti1Image(
+                        prediction[0,0].cpu(), 
+                        affine = original_affine, 
+                        header = original_header
+                        )
+    nib.save(spleen_volume, args.predict_path.split('.')[0] + '_spleen.nii')
+    print('Prediction saved at', args.predict_path.split('.')[0] + '_spleen.nii')
+    print("Run Complete")

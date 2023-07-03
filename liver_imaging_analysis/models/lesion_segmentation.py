@@ -39,6 +39,7 @@ import shutil
 import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
+import argparse
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty = True, include_background = False)
@@ -48,16 +49,16 @@ class LesionSegmentation(Engine):
     A class used for the lesion segmentation task. Inherits from Engine.
 
     Args:
-        mode: str
+        inference: str
             determines the mode of inference. 
             Expects "2D" for slice inference or "3D" for volume inference.
-            Default is "2D"
+            Default is "3D"
     """
 
-    def __init__(self, mode = "2D"):
+    def __init__(self, inference = "3D"):
         self.set_configs()
         super().__init__()
-        if mode == '3D':
+        if inference == '3D':
             self.predict = self.predict_2dto3d
 
     def set_configs(self):
@@ -79,6 +80,7 @@ class LesionSegmentation(Engine):
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = False
         config.save['lesion_checkpoint'] = 'lesion_cp'
+        config.save['liver_checkpoint'] = 'liver_cp'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
                                                 "batch" : True,
@@ -498,20 +500,58 @@ class LesionSegmentation(Engine):
         return batch[Keys.PRED]
     
 
-def segment_lesion(*args):
+def segment_lesion(
+        prediction_path = None,
+        liver_inference = '3D',
+        lesion_inference = '3D', 
+        liver_cp = None, 
+        lesion_cp = None
+        ):
     """
-    A function used to segment the liver lesions using
-    the liver and the lesion models.
-    """
+    Segments the lesions from a liver scan.
 
+    Parameters
+    ----------
+    prediciton_path : str
+        if inferences are 2D, expects a directory containing a set of png images.
+        if inferences are 3D or sliding_window, expects a path of a 3D nii volume.
+        if not defined, prediction dataset will be loaded from configs
+    liver_inference : str
+        the type of inference to be used for liver model.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    lesion_inference : str
+        the type of inference to be used for lesion model.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    liver_cp : str
+        path of the liver model weights to be used for prediction. 
+        if not defined, liver_checkpoint will be loaded from configs.
+    lesion_cp : str
+        path of the lesion model weights to be used for prediction. 
+        if not defined, lesion_checkpoint will be loaded from configs.
+    Returns
+    ----------
+        tensor : predicted lesions segmentation
+    """
+    if prediction_path is None:
+        prediction_path = config.dataset['prediction']
+    if liver_cp is None:
+        liver_cp = config.save["liver_checkpoint"]
+    if lesion_cp is None:
+        lesion_cp = config.save["lesion_checkpoint"]
     set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model = LesionSegmentation(mode = '2D')
-    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction = liver_model.predict(config.dataset['prediction'])
+    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
+    liver_model.load_checkpoint(liver_cp)
+    lesion_model = LesionSegmentation(inference = lesion_inference)
+    lesion_model.load_checkpoint(lesion_cp)
+    liver_prediction = liver_model.predict(prediction_path)
+    if lesion_inference == '3D':
+        liver_prediction = liver_prediction[0].permute(3,0,1,2)
     lesion_prediction = lesion_model.predict(
-                            config.dataset['prediction'],
+                            prediction_path,
                             liver_mask = liver_prediction
                             )
     lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
@@ -519,46 +559,201 @@ def segment_lesion(*args):
     return liver_lesion_prediction
 
 
-def segment_lesion_3d(*args):
-    """
-    A function used to segment the liver lesions
-    of a 3d volume using the liver and the lesion models.
-    """
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model = LesionSegmentation(mode = '3D')
-    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    liver_prediction = liver_model.predict(volume_path=args[0])
-    lesion_prediction = lesion_model.predict(
-                            volume_path = args[0],
-                            liver_mask = liver_prediction[0].permute(3,0,1,2)
-                            )
-    lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
-    liver_lesion_prediction = lesion_prediction + liver_prediction #lesion label is 2
-    return liver_lesion_prediction
-
-
-
-def train_lesion(*args):
-    """
-    a function used to start the training of liver segmentation
-
-    """
-    set_seed()
-    model = LesionSegmentation(mode = '2D')
-    model.load_data()
-    model.data_status()
-    model.load_checkpoint(config.save["potential_checkpoint"])
-    print(
-        "Initial test loss:", 
-        model.test(model.test_dataloader, callback=False)
-        )
-    model.fit(
+def train_lesion(
+        pretrained = True, 
+        cp_path = None,
+        epochs = None, 
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
+        save_path = None,
+        test_batch_callback = False,
+        ):
+    """
+    Starts training of lesion segmentation model.
+    pretrained : bool
+        if true, loads pretrained checkpoint. Default is True.
+    cp_path : str
+        determines the path of the checkpoint to be loaded 
+        if pretrained is true. If not defined, the potential 
+        cp path will be loaded from config.
+    epochs : int
+        number of training epochs.
+        If not defined, epochs will be loaded from config.
+    evaluate_epochs : int
+        The number of epochs to evaluate model after. Default is 1.
+    batch_callback_epochs : int
+        The frequency at which per_batch_callback will be called. 
+        Expects a number of epochs. Default is 100.
+    save_weight : bool
+        whether to save weights or not. Default is True.
+    save_path : str
+        the path to save weights at if save_weights is True.
+        If not defined, the potential cp path will be loaded 
+        from config.
+    test_batch_callback : bool
+        whether to call per_batch_callback during testing or not.
+        Default is False
+    """
+    if cp_path is None:
+        cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+    if save_path is None:
+        save_path = config.save["potential_checkpoint"]
+    set_seed()
+    model = LesionSegmentation()
+    model.load_data()
+    model.data_status()
+    if pretrained:
+        model.load_checkpoint(cp_path)
+    model.compile_status()
+    init_loss, init_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
+    print(
+        "Initial test loss:", 
+        init_loss,
+        )
+    print(
+        "\nInitial test metric:", 
+        init_metric.mean().item(),
+        )
+    model.fit(
+        epochs = epochs,
+        evaluate_epochs = evaluate_epochs,
+        batch_callback_epochs = batch_callback_epochs,
+        save_weight = save_weight,
+        save_path = save_path
     )
-    # evaluate on last saved check point
-    model.load_checkpoint(config.save["potential_checkpoint"])
-    print("final test loss:", model.test(model.test_dataloader, callback = False))
+    # Evaluate on latest saved check point
+    model.load_checkpoint(save_path)
+    final_loss, final_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback
+                                )
+    print(
+        "Final test loss:", 
+        final_loss,
+        )
+    print(
+        "\nFinal test metric:", 
+        final_metric.mean().item(),
+        )
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Lobe Segmentation')
+    parser.add_argument(
+                '--liver_inference', type = str, default = '3D',
+                help = 'choose liver inference mode: 2D, 3D, or sliding_window (default: 3D)'
+                )    
+    parser.add_argument(
+                '--lesion_inference', type = str, default = '3D',
+                help = 'choose lesion inference mode: 2D, 3D, or sliding_window (default: 3D)'
+                )
+    parser.add_argument(
+                '--cp', type = bool, default = True,
+                help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--liver_cp_path', type = bool, default = None,
+                help = 'path of pretrained liver checkpoint (default: liver cp config path)'
+                )
+    parser.add_argument(
+                '--lesion_cp_path', type = bool, default = None,
+                help = 'path of pretrained lesion checkpoint (default: lesion cp config path)'
+                )
+    parser.add_argument(
+                '--train', type = bool, default = False,
+                help = 'if True runs training loop (default: False)'
+                )
+    parser.add_argument(
+                '--epochs', type = int, default = 1,
+                help = 'number of epochs to train (default: 1)'
+                )
+    parser.add_argument(
+                '--eval_epochs', type = int, default = 1,
+                help = 'number of epochs to evaluate after (default: 1)'
+                )
+    parser.add_argument(
+                '--batch_callback', type = int, default = 100,
+                help = 'number of epochs to run batch callback after (default: 100)'
+                )
+    parser.add_argument(
+                '--save', type = bool, default = False,
+                help = 'if True save weights after training (default: False)'
+                )
+    parser.add_argument(
+                '--save_path', type = str, default = None,
+                help = 'path to save weights at if save is True (default: potential cp config path)'
+                )
+    parser.add_argument(
+                '--test_callback', type = bool, default = False,
+                help = 'if True call batch callback during testing (default: False)'        
+                )
+    parser.add_argument(
+                '--test', type = bool, default = False,
+                help = 'if True runs separate testing loop (default: False)'
+                )
+    parser.add_argument(
+                '--predict_path', type = str, default = None,
+                help = 'predicts the volume at the provided path (default: prediction config path)'
+                )
+    args = parser.parse_args()
+    if args.predict_path is None:
+        args.predict_path = config.dataset['prediction']
+    if args.liver_cp_path is None:
+        args.liver_cp_path = config.save["liver_checkpoint"]
+    if args.lesion_cp_path is None:
+        args.lesion_cp_path = config.save["lesion_checkpoint"]
+    if args.save_path is None:
+        args.save_path = config.save["potential_checkpoint"]
+    if args.train: 
+        train_lesion(
+            inference = args.lesion_inference, 
+            pretrained = args.cp, 
+            cp_path = args.lesion_cp_path,
+            epochs = args.epochs, 
+            evaluate_epochs = args.eval_epochs,
+            batch_callback_epochs = args.batch_callback,
+            save_weight = args.save,
+            save_path = args.save_path,
+            test_batch_callback = args.test_callback,
+            )
+    if args.test:
+        model = LesionSegmentation()
+        model.load_data() #dataset should be located at the config path
+        loss, metric = model.test(
+                                    model.test_dataloader, 
+                                    callback = args.test_callback
+                                    )
+        print(
+            "test loss:", 
+            loss,
+            )
+        print(
+            "\ntest metric:", 
+            metric.mean().item(),
+            )
+    if args.predict_path is not None:
+        prediction = segment_lesion(
+                        args.predict_path, 
+                        liver_inference = args.liver_inference,
+                        lesion_inference = args.lesion_inference,
+                        liver_cp = args.liver_cp_path,
+                        lesion_cp = args.lesion_cp_path
+                        )
+        #save prediction as a nifti file
+        original_header = nib.load(args.predict_path).header
+        original_affine = nib.load(args.predict_path).affine
+        liver_volume = nib.Nifti1Image(
+                            prediction[0,0].cpu(), 
+                            affine = original_affine, 
+                            header = original_header
+                            )
+        nib.save(liver_volume, args.predict_path.split('.')[0] + '_lesions.nii')
+        print('Prediction saved at', args.predict_path.split('.')[0] + '_lesions.nii')
+    print("Run Complete")
