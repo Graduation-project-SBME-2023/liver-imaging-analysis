@@ -94,7 +94,6 @@ class LobeSegmentation(Engine):
             config.network_parameters['norm'] = "INSTANCE"
             config.network_parameters['bias'] = True
             config.save['lobe_checkpoint'] = 'lobe_cp'
-            config.save['liver_checkpoint'] = 'liver_cp'
             config.training['loss_parameters'] = { 
                                                     "softmax" : True, 
                                                     "batch" : True, 
@@ -113,7 +112,6 @@ class LobeSegmentation(Engine):
             config.dataset['prediction'] = "test cases/volume/volume-64.nii"
             config.dataset['training'] = "MedSeg_Lobes/Train/"
             config.dataset['testing'] = "MedSeg_Lobes/Test/"
-            config.dataset['prediction'] = "test cases/sample_volume"
             config.training['batch_size'] = 1
             config.training['optimizer_parameters'] = { "lr" : 0.01 }
             config.training['scheduler_parameters'] = {
@@ -141,7 +139,6 @@ class LobeSegmentation(Engine):
             config.network_parameters['norm'] = "BATCH"
             config.network_parameters['bias'] = False
             config.save['lobe_checkpoint'] = 'lobe_cp_sliding_window'
-            config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
             config.transforms['sw_batch_size'] = 2
             config.transforms['roi_size'] = (192, 192, 32)
             config.transforms['overlap'] = 0.25
@@ -802,23 +799,22 @@ def segment_lobe(
     ----------
         tensor : predicted lobes segmentation
     """
+    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
+    lobe_model = LobeSegmentation(inference = lobe_inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
     if liver_cp is None:
         liver_cp = config.save["liver_checkpoint"]
     if lobe_cp is None:
         lobe_cp = config.save["lobe_checkpoint"]
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
     liver_model.load_checkpoint(liver_cp)
-    lobe_model = LobeSegmentation(inference = lobe_inference)
     lobe_model.load_checkpoint(lobe_cp)
     liver_prediction = liver_model.predict(prediction_path)
-    if lobe_inference == '3D':
-        liver_prediction = liver_prediction[0].permute(3,0,1,2)
     lobe_prediction = lobe_model.predict(
                         prediction_path, 
-                        liver_mask = liver_prediction
+                        liver_mask = liver_prediction[0].permute(3,0,1,2) 
+                                     if lobe_inference == '3D' 
+                                     else liver_prediction
                         )
     lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
     return lobe_prediction
@@ -973,10 +969,16 @@ if __name__ == '__main__':
                 help = 'if True runs separate testing loop (default: False)'
                 )
     parser.add_argument(
+                '--predict', type = bool, default = False,
+                help = 'if True, predicts the volume at predict_path (default: False)'
+                )
+    parser.add_argument(
                 '--predict_path', type = str, default = None,
                 help = 'predicts the volume at the provided path (default: prediction config path)'
                 )
     args = parser.parse_args()
+    LiverSegmentation(inference = args.liver_inference) # to set configs
+    LobeSegmentation(inference = args.lobe_inference) # to set configs
     if args.predict_path is None:
         args.predict_path = config.dataset['prediction']
     if args.liver_cp_path is None:
@@ -1014,7 +1016,7 @@ if __name__ == '__main__':
             ':\nAverage test metric per lobe',
             metric.cpu().numpy()
             )
-    if args.predict_path is not None:
+    if args.predict:
         prediction = segment_lobe(
                         args.predict_path, 
                         liver_inference = args.liver_inference,

@@ -241,13 +241,13 @@ class SpleenSegmentation(Engine):
                                         self.network
                                         )
                 # Apply post processing transforms
-                batch = self.post_process(batch,Keys.PRED)    
+                batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
         return prediction_list
     
 
-def segment_spleen(prediciton_path = None, cp_path = None):
+def segment_spleen(prediction_path = None, cp_path = None):
     """
     a function used to segment the spleen of a 3d volume 
     using sliding window inference
@@ -265,14 +265,13 @@ def segment_spleen(prediciton_path = None, cp_path = None):
     ----------
         tensor: predicted 3D spleen mask
     """
+    spleen_model = SpleenSegmentation()
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
     if cp_path is None:
         cp_path = config.save["spleen_checkpoint"]
-    set_seed()
-    spleen_model = SpleenSegmentation()
     spleen_model.load_checkpoint(cp_path)
-    spleen_prediction = spleen_model.predict(prediciton_path)
+    spleen_prediction = spleen_model.predict(prediction_path)
     return spleen_prediction
 
 
@@ -287,12 +286,13 @@ if __name__ == '__main__':
                 help = 'path of model weights (default: spleen_checkpoint config path)'
                 )
     args = parser.parse_args()
+    SpleenSegmentation() # to set configs
     if args.predict_path is None:
         args.predict_path = config.dataset['prediction']
     if args.cp_path is None:
         args.cp_path = config.save["spleen_checkpoint"]
     prediction = segment_spleen(
-                    volume_path = args.predict_path, 
+                    prediction_path = args.predict_path, 
                     cp_path = args.cp_path
                     )
     #save prediction as a nifti file

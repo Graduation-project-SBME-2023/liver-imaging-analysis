@@ -93,6 +93,8 @@ class LiverSegmentation(Engine):
                                                             "verbose" : False
                                                             }
                 config.network_parameters['dropout'] = 0
+                config.network_parameters["out_channels"] = 1
+                config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
                 config.network_parameters['num_res_units'] =  4
@@ -111,6 +113,7 @@ class LiverSegmentation(Engine):
                                                             "verbose" : False
                                                             }
                 config.network_parameters['dropout'] = 0
+                config.network_parameters["out_channels"] = 1
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['spatial_dims'] = 3
                 config.network_parameters['strides'] =  [2, 2, 2]
@@ -134,6 +137,8 @@ class LiverSegmentation(Engine):
                                                             "verbose" : True
                                                             }
                 config.network_parameters['dropout'] = 0.35
+                config.network_parameters["out_channels"] = 1
+                config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
                 config.network_parameters['num_res_units'] =  6
@@ -642,12 +647,11 @@ def segment_liver(
     ----------
         tensor : predicted liver segmentation
     """
+    liver_model = LiverSegmentation(modality, inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
     if cp_path is None:
         cp_path = config.save["liver_checkpoint"]
-    set_seed()
-    liver_model = LiverSegmentation(modality, inference)
     liver_model.load_checkpoint(cp_path)
     liver_prediction = liver_model.predict(prediction_path)
     return liver_prediction
@@ -800,10 +804,15 @@ if __name__ == '__main__':
                 help = 'if True runs separate testing loop (default: False)'
                 )
     parser.add_argument(
+                '--predict', type = bool, default = False,
+                help = 'if True, predicts the volume at predict_path (default: False)'
+                )
+    parser.add_argument(
                 '--predict_path', type = str, default = None,
                 help = 'predicts the volume at the provided path (default: prediction config path)'
                 )
     args = parser.parse_args()
+    LiverSegmentation(args.modality, args.inference) # to set configs
     if args.predict_path is None:
         args.predict_path = config.dataset['prediction']
     if args.cp_path is None:
@@ -838,7 +847,7 @@ if __name__ == '__main__':
             "\ntest metric:", 
             metric.mean().item(),
             )
-    if args.predict_path is not None:
+    if args.predict:
         prediction = segment_liver(
                         args.predict_path, 
                         modality = args.modality, 

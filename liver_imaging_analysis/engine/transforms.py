@@ -121,7 +121,7 @@ class MorphologicalClosingd(MapTransform):
             resultant mask after applying closing to the input by the structuring element.
         '''
         channels = self.channels if self.channels is not None else range(mask.shape[0])
-        device = mask.get_device()
+        device = mask.device
         dtype = mask.dtype
         for channel in channels:
             current_channel = mask.cpu().to(torch.uint8)[channel] # remove channel dim

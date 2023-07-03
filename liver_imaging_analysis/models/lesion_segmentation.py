@@ -73,6 +73,8 @@ class LesionSegmentation(Engine):
                                                     "verbose" : False
                                                   }
         config.network_parameters['dropout'] = 0
+        config.network_parameters["out_channels"] = 1
+        config.network_parameters['spatial_dims'] = 2
         config.network_parameters['channels'] = [64, 128, 256, 512]
         config.network_parameters["out_channels"] = 1
         config.network_parameters['strides'] =  [2, 2, 2]
@@ -80,7 +82,6 @@ class LesionSegmentation(Engine):
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = False
         config.save['lesion_checkpoint'] = 'lesion_cp'
-        config.save['liver_checkpoint'] = 'liver_cp'
         config.training['loss_parameters'] = {
                                                 "sigmoid" : True,
                                                 "batch" : True,
@@ -469,27 +470,27 @@ def segment_lesion(
     ----------
         tensor : predicted lesions segmentation
     """
+    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
+    lesion_model = LesionSegmentation(inference = lesion_inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
     if liver_cp is None:
         liver_cp = config.save["liver_checkpoint"]
     if lesion_cp is None:
         lesion_cp = config.save["lesion_checkpoint"]
-    set_seed()
-    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
     liver_model.load_checkpoint(liver_cp)
-    lesion_model = LesionSegmentation(inference = lesion_inference)
     lesion_model.load_checkpoint(lesion_cp)
     liver_prediction = liver_model.predict(prediction_path)
-    if lesion_inference == '3D':
-        liver_prediction = liver_prediction[0].permute(3,0,1,2)
     lesion_prediction = lesion_model.predict(
                             prediction_path,
-                            liver_mask = liver_prediction
+                            liver_mask = liver_prediction[0].permute(3,0,1,2) 
+                                         if lesion_inference == '3D' 
+                                         else liver_prediction
                             )
     lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
     liver_lesion_prediction = lesion_prediction + liver_prediction #lesion label is 2
     return liver_lesion_prediction
+
 
 
 def train_lesion(
@@ -632,10 +633,16 @@ if __name__ == '__main__':
                 help = 'if True runs separate testing loop (default: False)'
                 )
     parser.add_argument(
+                '--predict', type = bool, default = False,
+                help = 'if True, predicts the volume at predict_path (default: False)'
+                )
+    parser.add_argument(
                 '--predict_path', type = str, default = None,
                 help = 'predicts the volume at the provided path (default: prediction config path)'
                 )
     args = parser.parse_args()
+    LiverSegmentation(inference = args.liver_inference) # to set configs
+    LesionSegmentation(inference = args.lesion_inference) # to set configs
     if args.predict_path is None:
         args.predict_path = config.dataset['prediction']
     if args.liver_cp_path is None:
@@ -671,7 +678,7 @@ if __name__ == '__main__':
             "\ntest metric:", 
             metric.mean().item(),
             )
-    if args.predict_path is not None:
+    if args.predict:
         prediction = segment_lesion(
                         args.predict_path, 
                         liver_inference = args.liver_inference,
