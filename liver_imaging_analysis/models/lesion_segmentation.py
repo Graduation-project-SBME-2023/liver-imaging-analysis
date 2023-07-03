@@ -62,7 +62,7 @@ class LesionSegmentation(Engine):
             self.predict = self.predict_2dto3d
 
     def set_configs(self):
-        config.dataset['prediction'] = "test cases/sample_image"
+        config.dataset['prediction'] = "test cases/volume/volume-64.nii"
         config.dataset['training'] = "Temp2D/Train/"
         config.dataset['testing'] = "Temp2D/Test/"
         config.training['batch_size'] = 8
@@ -90,8 +90,9 @@ class LesionSegmentation(Engine):
                                                     "ignore_empty" : True,
                                                     "include_background" : False
                                                 }
-        config.transforms['test_transform'] = "2DUnet_transform"
-        config.transforms['post_transform'] = "2DUnet_transform"
+        config.transforms['train_transform'] = "2d_transform"
+        config.transforms['test_transform'] = "2d_transform"
+        config.transforms['post_transform'] = "2d_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -106,53 +107,12 @@ class LesionSegmentation(Engine):
                 Stack of selected transforms.
         """
 
-        resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
-                [
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    OrientationD(
-                        Keys.all(), 
-                        axcodes = "LAS", 
-                        allow_missing_keys = True
-                        ),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode = ("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
-                        ),
-                    RandFlipd(
-                        Keys.all(), 
-                        prob = 0.5, 
-                        spatial_axis = 1, 
-                        allow_missing_keys = True
-                        ),
-                    RandRotated(
-                        Keys.all(),
-                        range_x = 0.1,
-                        range_y = 0.1,
-                        range_z = 0.1,
-                        prob = 0.5,
-                        keep_size = True,
-                        allow_missing_keys = True,
-                    ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
-                ]
-            ),
-            "2DUnet_transform" : Compose(
+            "2d_transform" : Compose(
                 [
                     #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode = ("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
-                        ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
                         a_min = -135,
@@ -196,6 +156,7 @@ class LesionSegmentation(Engine):
         }
         return transforms[transform_name]
 
+
     def get_pretesting_transforms(self, transform_name):
         """
         Gets a stack of preprocessing transforms to be used on the testing data.
@@ -209,38 +170,11 @@ class LesionSegmentation(Engine):
                 Stack of selected transforms.
         """
 
-        resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
+            "2d_transform" : Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    OrientationD(
-                        Keys.all(), 
-                        axcodes = "LAS", 
-                        allow_missing_keys = True
-                        ),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode = ("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
-                        ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
-                ]
-            ),
-            "2DUnet_transform" : Compose(
-                [
-                    #Transformations
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    # ResizeD(
-                    #     Keys.all(), 
-                    #     resize_size, 
-                    #     mode = ("bilinear", "nearest", "nearest"), 
-                    #     allow_missing_keys = True
-                    #     ),
                     ScaleIntensityRanged(
                         Keys.IMAGE,
                         a_min = -135,
@@ -270,15 +204,14 @@ class LesionSegmentation(Engine):
         """
 
         transforms= {
-        '2DUnet_transform': Compose(
-            [
-                ActivationsD(Keys.PRED, sigmoid = True),
-                AsDiscreteD(Keys.PRED, threshold = 0.5),
-                FillHolesD(Keys.PRED),
-                RemoveSmallObjectsD(Keys.PRED, min_size = 5),
-                KeepLargestConnectedComponentD(Keys.PRED, num_components = 10),   
-            ]
-        )
+            '2d_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED, sigmoid = True),
+                    AsDiscreteD(Keys.PRED, threshold = 0.5),
+                    FillHolesD(Keys.PRED),
+                    RemoveSmallObjectsD(Keys.PRED, min_size = 5),
+                ]
+            ),
         } 
         return transforms[transform_name] 
     

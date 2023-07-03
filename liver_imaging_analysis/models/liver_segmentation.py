@@ -85,7 +85,7 @@ class LiverSegmentation(Engine):
         """
         if modality == 'CT':
             if inference in ['2D', '3D']:
-                config.dataset['prediction'] = "test cases/sample_image"
+                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
@@ -103,7 +103,7 @@ class LiverSegmentation(Engine):
                 config.transforms['test_transform'] = "2d_ct_transform"
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
-                config.dataset['prediction'] = "test cases/sample_volume"
+                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
@@ -126,7 +126,7 @@ class LiverSegmentation(Engine):
                 config.transforms['post_transform'] = "3d_ct_transform"
         elif modality == 'MRI':
             if inference in ['2D', '3D']:
-                config.dataset['prediction'] = "test cases/sample_image"
+                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 12
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
@@ -143,9 +143,6 @@ class LiverSegmentation(Engine):
                 config.transforms['train_transform'] = "2d_mri_transform"
                 config.transforms['test_transform'] = "2d_mri_transform"
                 config.transforms['post_transform'] = "2d_mri_transform"
-            elif inference == 'sliding_window':
-                #add configs
-                pass
 
     
     def get_pretraining_transforms(self, transform_name):
@@ -274,7 +271,6 @@ class LiverSegmentation(Engine):
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    # OrientationD(keys, axcodes = "LAS", allow_missing_keys = True),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,

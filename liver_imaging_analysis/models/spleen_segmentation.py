@@ -59,9 +59,8 @@ class SpleenSegmentation(Engine):
         """
         Sets new values for config parameters.
         """
-        config.dataset['prediction']="test cases/sample_volume"
+        config.dataset['prediction'] = "test cases/volume/volume-64.nii"
         config.training['batch_size'] = 1
-
         config.training['scheduler_parameters'] = {
                                                     "step_size":20,
                                                     "gamma":0.5, 
@@ -79,9 +78,9 @@ class SpleenSegmentation(Engine):
         config.transforms['sw_batch_size'] = 4
         config.transforms['roi_size'] = (96, 96, 96)
         config.transforms['overlap'] = 0.25
-        config.transforms['train_transform'] = "3DUnet_transform"
-        config.transforms['test_transform'] = "3DUnet_transform"
-        config.transforms['post_transform'] = "3DUnet_transform"
+        config.transforms['train_transform'] = "3d_transform"
+        config.transforms['test_transform'] = "3d_transform"
+        config.transforms['post_transform'] = "3d_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -97,7 +96,7 @@ class SpleenSegmentation(Engine):
         """
 
         transforms = {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -141,7 +140,7 @@ class SpleenSegmentation(Engine):
         """
 
         transforms = {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -185,7 +184,7 @@ class SpleenSegmentation(Engine):
                 Stack of selected transforms.
         """
         transforms= {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     Invertd(
                         Keys.PRED,

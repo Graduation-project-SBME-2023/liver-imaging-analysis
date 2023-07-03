@@ -75,7 +75,7 @@ class LobeSegmentation(Engine):
 
     def set_configs(self, inference):
         if inference in ['2D', '3D']:
-            config.dataset['prediction'] = "test cases/sample_image"
+            config.dataset['prediction'] = "test cases/volume/volume-64.nii"
             config.dataset['training'] = "Temp2D/Train/"
             config.dataset['testing'] = "Temp2D/Test/"
             config.training['batch_size'] = 2
@@ -106,11 +106,11 @@ class LobeSegmentation(Engine):
                                                         "include_background" : False, 
                                                         "reduction" : "mean" 
                                                     }
-            config.transforms["train_transform"] = "2DUnet_transform"
-            config.transforms["test_transform"] = "2DUnet_transform"
-            config.transforms["post_transform"] = "2DUnet_transform"
-
+            config.transforms["train_transform"] = "2d_transform"
+            config.transforms["test_transform"] = "2d_transform"
+            config.transforms["post_transform"] = "2d_transform"
         elif inference == 'sliding_window':
+            config.dataset['prediction'] = "test cases/volume/volume-64.nii"
             config.dataset['training'] = "MedSeg_Lobes/Train/"
             config.dataset['testing'] = "MedSeg_Lobes/Test/"
             config.dataset['prediction'] = "test cases/sample_volume"
@@ -145,9 +145,9 @@ class LobeSegmentation(Engine):
             config.transforms['sw_batch_size'] = 2
             config.transforms['roi_size'] = (192, 192, 32)
             config.transforms['overlap'] = 0.25
-            config.transforms['train_transform'] = "3DUnet_transform"
-            config.transforms['test_transform'] = "3DUnet_transform"
-            config.transforms['post_transform'] = "3DUnet_transform"
+            config.transforms['train_transform'] = "3d_transform"
+            config.transforms['test_transform'] = "3d_transform"
+            config.transforms['post_transform'] = "3d_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -161,10 +161,9 @@ class LobeSegmentation(Engine):
             Compose
                 Stack of selected transforms.
         """
-
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
+            "3d_transform" : Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -173,86 +172,22 @@ class LobeSegmentation(Engine):
                         axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
-                    # RandZoomd(
-                    #     Keys.all(),
-                    #     prob = 0.5, 
-                    #     min_zoom = 0.8, 
-                    #     max_zoom = 1.2, 
-                    #     allow_missing_keys = True
-                    #     ),
-                    # RandFlipd(
-                    #     Keys.all(), 
-                    #     prob = 0.5, 
-                    #     spatial_axis = 1, 
-                    #     allow_missing_keys = True
-                    #     ),
-                    # RandFlipd(
-                    #     Keys.all(), 
-                    #     prob = 0.5, 
-                    #     spatial_axis = 0, 
-                    #     allow_missing_keys = True
-                    #     ),
-                    RandRotated(
+                    CropForegroundd(
                         Keys.all(), 
-                        range_x = 1.5,
-                        range_y = 0, 
-                        range_z = 0, 
-                        prob = 0.5, 
-                        allow_missing_keys = True
-                        ),
-                    # RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
+                        source_key = Keys.IMAGE,
+                        allow_missing_keys = True),
                     Spacingd(
                         Keys.all(), 
                         pixdim = [1, 1, 5], 
                         mode = ("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
-                    CropForegroundd(
-                        Keys.all(), 
-                        source_key = Keys.IMAGE,
-                        allow_missing_keys = True),
                     SpatialPadd(
                         Keys.all(), 
                         config.transforms['roi_size'], 
                         mode = 'minimum',
                         allow_missing_keys = True
                         ),
-                    ScaleIntensityRanged(
-                        Keys.IMAGE,
-                        a_min = -135,
-                        a_max = 215,
-                        b_min = 0,
-                        b_max = 1,
-                        clip = True, 
-                        allow_missing_keys = True
-                    ),
-                    RandSpatialCropSamplesd(
-                        Keys.all(), 
-                        config.transforms['roi_size'], 
-                        num_samples = config.transforms['sw_batch_size'], 
-                        random_center = True, 
-                        random_size = False, 
-                        allow_missing_keys = True
-                        ),
-                    EnsureTyped(Keys.all(), allow_missing_keys = True),
-                    AsDiscreteD(Keys.LABEL, to_onehot = 10)   # mandatory during training
-
-                ]
-            ),
-            "2DUnet_transform" : Compose(
-                [
-                    # Transformations
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode = ("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
-                        ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    AsDiscreteD(Keys.LABEL, to_onehot = 10),
-                    # Augmentations
                     RandZoomd(
                         Keys.all(),
                         prob = 0.5, 
@@ -281,7 +216,68 @@ class LobeSegmentation(Engine):
                         allow_missing_keys = True
                         ),
                     RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
-                    # Array to Tensor
+                    ScaleIntensityRanged(
+                        Keys.IMAGE,
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0,
+                        b_max = 1,
+                        clip = True, 
+                        allow_missing_keys = True
+                    ),
+                    RandSpatialCropSamplesd(
+                        Keys.all(), 
+                        config.transforms['roi_size'], 
+                        num_samples = config.transforms['sw_batch_size'], 
+                        random_center = True, 
+                        random_size = False, 
+                        allow_missing_keys = True
+                        ),
+                    EnsureTyped(Keys.all(), allow_missing_keys = True),
+                    AsDiscreteD(Keys.LABEL, to_onehot = 10)   # mandatory during training
+
+                ]
+            ),
+            "2d_transform" : Compose(
+                [
+                    LoadImageD(Keys.all(), allow_missing_keys = True),
+                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    ResizeD(
+                        Keys.all(), 
+                        resize_size, 
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
+                    AsDiscreteD(Keys.LABEL, to_onehot = 10),
+                    RandZoomd(
+                        Keys.all(),
+                        prob = 0.5, 
+                        min_zoom = 0.8, 
+                        max_zoom = 1.2, 
+                        allow_missing_keys = True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob = 0.5, 
+                        spatial_axis = 1, 
+                        allow_missing_keys = True
+                        ),
+                    RandFlipd(
+                        Keys.all(), 
+                        prob = 0.5, 
+                        spatial_axis = 0, 
+                        allow_missing_keys = True
+                        ),
+                    RandRotated(
+                        Keys.all(), 
+                        range_x = 1.5,
+                        range_y = 0, 
+                        range_z = 0, 
+                        prob = 0.5, 
+                        allow_missing_keys = True
+                        ),
+                    RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
@@ -303,7 +299,7 @@ class LobeSegmentation(Engine):
 
         resize_size = config.transforms["transformation_size"]
         transforms = {
-            "3DUnet_transform" : Compose(
+            "3d_transform" : Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -312,16 +308,16 @@ class LobeSegmentation(Engine):
                         axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
+                    CropForegroundd(
+                        Keys.all(), 
+                        source_key = Keys.IMAGE,
+                        allow_missing_keys = True),
                     Spacingd(
                         Keys.all(), 
                         pixdim = [1, 1, 5],
                         mode = ("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
-                    CropForegroundd(
-                        Keys.all(), 
-                        source_key = Keys.IMAGE,
-                        allow_missing_keys = True),
                     SpatialPadd(
                         Keys.all(), 
                         config.transforms['roi_size'], 
@@ -342,9 +338,8 @@ class LobeSegmentation(Engine):
 
                 ]
             ),
-            "2DUnet_transform" : Compose(
+            "2d_transform" : Compose(
                 [
-                    #Transformations
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
@@ -376,7 +371,7 @@ class LobeSegmentation(Engine):
         """
 
         transforms= {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     Invertd(
                         (Keys.LABEL, Keys.PRED),
@@ -397,7 +392,7 @@ class LobeSegmentation(Engine):
                     # AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
                 ]
             ),
-            '2DUnet_transform': Compose(
+            '2d_transform': Compose(
                 [
                     ActivationsD(Keys.PRED, softmax = True),
                     AsDiscreteD(Keys.PRED, argmax = True),
