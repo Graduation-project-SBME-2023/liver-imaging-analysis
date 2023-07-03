@@ -649,12 +649,12 @@ def train_liver(
         modality = 'CT', 
         inference = '3D', 
         pretrained = True, 
-        cp_path = config.save["potential_checkpoint"],
-        epochs = config.training["epochs"], 
+        cp_path = None,
+        epochs = None, 
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
-        save_path = config.save["potential_checkpoint"],
+        save_path = None,
         test_batch_callback = False,
         ):
     """
@@ -672,11 +672,11 @@ def train_liver(
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
         determines the path of the checkpoint to be loaded 
-        if pretrained is true.
-        Default is the potential cp path in configs.
+        if pretrained is true. If not defined, the potential 
+        cp path will be loaded from config.
     epochs : int
         number of training epochs.
-        Default is the epochs defined in configs.
+        If not defined, epochs will be loaded from config.
     evaluate_epochs : int
         The number of epochs to evaluate model after. Default is 1.
     batch_callback_epochs : int
@@ -686,11 +686,18 @@ def train_liver(
         whether to save weights or not. Default is True.
     save_path : str
         the path to save weights at if save_weights is True.
-        Default is the potential cp path in configs.
+        If not defined, the potential cp path will be loaded 
+        from config.
     test_batch_callback : bool
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+    if cp_path is None:
+        cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+    if save_path is None:
+        save_path = config.save["potential_checkpoint"]
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
@@ -732,8 +739,8 @@ if __name__ == '__main__':
                 help = 'if True loads pretrained checkpoint (default: True)'
                 )
     parser.add_argument(
-                '--cp_path', type = bool, default = config.save["potential_checkpoint"],
-                help = 'path of pretrained checkpoint (default: potential_checkpoint path)'
+                '--cp_path', type = bool, default = None,
+                help = 'path of pretrained checkpoint (default: potential cp config path)'
                 )
     parser.add_argument(
                 '--train', type = bool, default = False,
@@ -756,8 +763,8 @@ if __name__ == '__main__':
                 help = 'if True save weights after training (default: False)'
                 )
     parser.add_argument(
-                '--save_path', type = str, default = config.save["potential_checkpoint"],
-                help = 'path to save weights at if save is True (default: potential_checkpoint path)'
+                '--save_path', type = str, default = None,
+                help = 'path to save weights at if save is True (default: potential cp config path)'
                 )
     parser.add_argument(
                 '--test_callback', type = bool, default = False,
@@ -772,6 +779,10 @@ if __name__ == '__main__':
                 help = 'predicts the volume at the provided path'
                 )
     args = parser.parse_args()
+    if args.cp_path is None:
+        args.cp_path = config.save["potential_checkpoint"]
+    if args.save_path is None:
+        args.save_path = config.save["potential_checkpoint"]
     if args.train: 
         train_liver(
             modality = args.modality, 
