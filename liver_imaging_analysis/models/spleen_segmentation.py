@@ -59,6 +59,7 @@ class SpleenSegmentation(Engine):
         """
         Sets new values for config parameters.
         """
+        
         config.dataset['prediction'] = "test cases/volume/volume-64.nii"
         config.training['batch_size'] = 1
         config.training['scheduler_parameters'] = {

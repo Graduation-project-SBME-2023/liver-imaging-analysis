@@ -62,6 +62,10 @@ class LesionSegmentation(Engine):
             self.predict = self.predict_2dto3d
 
     def set_configs(self):
+        """
+        Sets new values for config parameters.
+        """
+       
         config.dataset['prediction'] = "test cases/volume/volume-64.nii"
         config.dataset['training'] = "Temp2D/Train/"
         config.dataset['testing'] = "Temp2D/Test/"

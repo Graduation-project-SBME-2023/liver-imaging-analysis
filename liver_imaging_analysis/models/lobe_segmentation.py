@@ -74,6 +74,16 @@ class LobeSegmentation(Engine):
 
 
     def set_configs(self, inference):
+        """
+        Sets new values for config parameters.
+
+        Args:
+            inference: str
+                together with modality, determines the configurations to be loaded.
+                Expects "2D" for slice inference, "3D" for volume inference,
+                or "sliding_window" for sliding window inference.
+        """
+        
         if inference in ['2D', '3D']:
             config.dataset['prediction'] = "test cases/volume/volume-64.nii"
             config.dataset['training'] = "Temp2D/Train/"

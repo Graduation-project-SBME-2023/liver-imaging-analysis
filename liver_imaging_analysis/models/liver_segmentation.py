@@ -83,6 +83,7 @@ class LiverSegmentation(Engine):
                 Expects "2D" for slice inference, "3D" for volume inference,
                 or "sliding_window" for sliding window inference.
         """
+        
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
