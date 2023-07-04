@@ -148,7 +148,7 @@ class LobeSegmentation(Engine):
             config.network_parameters['num_res_units'] =  4
             config.network_parameters['norm'] = "BATCH"
             config.network_parameters['bias'] = False
-            config.save['lobe_checkpoint'] = 'lobe_cp_sliding_window'
+            config.save['lobe_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/lobe_cp_sliding_window'
             config.transforms['sw_batch_size'] = 2
             config.transforms['roi_size'] = (192, 192, 32)
             config.transforms['overlap'] = 0.25

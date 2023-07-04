@@ -101,7 +101,7 @@ class LiverSegmentation(Engine):
                 config.network_parameters['num_res_units'] =  4
                 config.network_parameters['norm'] = "INSTANCE"
                 config.network_parameters['bias'] = True
-                config.save['liver_checkpoint'] = 'liver_cp'
+                config.save['liver_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/liver_cp'
                 config.transforms['train_transform'] = "2d_ct_transform"
                 config.transforms['test_transform'] = "2d_ct_transform"
                 config.transforms['post_transform'] = "2d_ct_transform"

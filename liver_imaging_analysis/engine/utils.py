@@ -237,10 +237,23 @@ def get_colors(numbers=[1, 0.5, 0]):
     colors: list
         list with all possible permutations of rgb values
     """
-    random.seed(2)
-    perm = permutations(numbers, 3)
-    colors = [color for color in perm]
-    random.shuffle(colors)
+    # random.seed(2)
+    # perm = permutations(numbers, 3)
+    # colors = [color for color in perm]
+    # random.shuffle(colors)
+
+    colors = [
+    [1.0, 0.0, 0.0],       # Red
+    [0.0, 0.0, 1.0],       # Blue
+    [0.0, 1.0, 0.0],       # Green
+    [1.0, 1.0, 0.0],       # Yellow
+    [0.5, 0.0, 0.5],       # Purple
+    [1.0, 0.647, 0.0],     # Orange
+    [0.0, 0.502, 0.502],   # Teal
+    [1.0, 0.753, 0.796],   # Pink
+    [0.647, 0.165, 0.165], # Brown
+    [0.0, 1.0, 1.0]        # Cyan
+    ]
     return colors
 
 

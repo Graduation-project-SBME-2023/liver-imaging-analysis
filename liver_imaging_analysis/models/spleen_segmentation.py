@@ -75,7 +75,7 @@ class SpleenSegmentation(Engine):
         config.network_parameters['num_res_units'] =  2
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = True
-        config.save['spleen_checkpoint'] = 'spleen_cp'
+        config.save['spleen_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/spleen_cp'
         config.transforms['sw_batch_size'] = 4
         config.transforms['roi_size'] = (96, 96, 96)
         config.transforms['overlap'] = 0.25

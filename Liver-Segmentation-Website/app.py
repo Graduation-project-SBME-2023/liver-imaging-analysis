@@ -13,7 +13,9 @@ import monai
 # import pdfkit
 
 sys.path.append(".")
-from liver_imaging_analysis.models import liver_segmentation, lesion_segmentation , lobe_segmentation
+
+from liver_imaging_analysis.models.lesion_segmentation import segment_lesion
+from liver_imaging_analysis.models.lobe_segmentation import segment_lobe
 from liver_imaging_analysis.models.spleen_segmentation import segment_spleen
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.utils import Overlay, Report, create_image_grid
@@ -46,66 +48,6 @@ def round_dict(d):
 
     return d
 
-def create_models ():
-    """
-    Function used to create the segmentation models' objects , each one of them is loaded 
-    with its weights
-
-    Returns:
-    -------
-        LiverSegmentation instance
-            
-        LesionSegmentation instance
-        
-        LobeSegmentation instance
-
-    """
-    liver_model = liver_segmentation.LiverSegmentation(mode = '3D')
-    lesion_model = lesion_segmentation.LesionSegmentation(mode = '3D')
-    lobe_model = lobe_segmentation.LobeSegmentation(mode = '3D')
-
-    liver_model.load_checkpoint(config.save["liver_checkpoint"])
-    lesion_model.load_checkpoint(config.save["lesion_checkpoint"])
-    lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
-
-    return liver_model, lesion_model, lobe_model
-
-
-def segment_3d(volume_path):
-    '''
-    Uses the liver, lesion and lobes segmentation models to segment the 3d volume given 
-
-    Args:
-
-    volume_path: str
-    path to the 3d volume , expected nii or nii.gz file
-    --------
-    Returns:
-    liver_lesion_prediction : tensor
-    3D tensor for the volume with the liver and lesion segmented
-
-    lobe_prediction : tensor
-    3D tensor for the volume with the lobes segmented
-
-    '''
-    liver_prediction = liver_model.predict(volume_path = volume_path)
-    lesion_prediction = lesion_model.predict(
-                            volume_path = volume_path,
-                            liver_mask = liver_prediction[0].permute(3, 0, 1, 2)
-                            )
-    lesion_prediction = lesion_prediction * liver_prediction  # no liver -> no lesion
-    liver_lesion_prediction = lesion_prediction + liver_prediction  # lesion label is 2
-
-    lobe_prediction = lobe_model.predict(
-                            volume_path =volume_path,
-                            liver_mask = liver_prediction[0].permute(3,0,1,2)
-                            )
-    lobe_prediction = lobe_prediction * liver_prediction  # no liver -> no lobe
-
-    return liver_lesion_prediction[0][0], lobe_prediction[0][0]
-
-
-liver_model, lesion_model, lobe_model  = create_models()
 longest_diameter_sum = 0  # initialize
 data = 0  # initialize
 volume_processing = Compose(
@@ -146,6 +88,16 @@ def success():
         mask_location = save_folder + "mask.nii"
         file.save(volume_location)
 
+
+        # file_list = os.listdir("../static/contour")
+        # file_list = os.listdir("../static/contour")
+        # file_list = os.listdir("../static/contour")
+
+        # # Loop through the list and delete each file
+        # for filename in file_list:
+        #     os.remove(filename)
+
+
         volume = nib.load(volume_location).get_fdata()
         header = nib.load(volume_location).header
         affine = nib.load(volume_location).affine
@@ -153,8 +105,9 @@ def success():
         volume = ToTensor()(volume).unsqueeze(dim = 0).unsqueeze(dim = 0)
         volume = volume_processing(volume).squeeze(dim = 0).squeeze(dim = 0)
 
-        liver_lesion , lobes  = segment_3d(volume_location)
-        spleen = segment_spleen(volume_location)
+        liver_lesion = segment_lesion(volume_location)[0][0]
+        lobes  = segment_lobe(volume_location)[0][0]
+        spleen = segment_spleen(volume_location)[0][0]
 
         new_nii_volume = nib.Nifti1Image(volume, affine=affine, header=header)
         nib.save(new_nii_volume, volume_location)
@@ -162,7 +115,8 @@ def success():
         nib.save(new_nii_mask, mask_location)
 
         global report_json
-        report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen[0][0])
+   
+        report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
         rep = report.build_report()
         report_json = round_dict(rep)
 
