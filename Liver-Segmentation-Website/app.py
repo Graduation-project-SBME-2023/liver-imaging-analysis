@@ -1,7 +1,7 @@
 """
 Flask website app module
 """
-
+import shutil
 import os
 import sys
 import gc
@@ -13,6 +13,9 @@ import monai
 # import pdfkit
 
 sys.path.append(".")
+plt.switch_backend("Agg")
+gc.collect()
+torch.cuda.empty_cache()
 
 from liver_imaging_analysis.models.lesion_segmentation import segment_lesion
 from liver_imaging_analysis.models.lobe_segmentation import segment_lobe
@@ -25,21 +28,41 @@ from monai.transforms import( ToTensor, NormalizeIntensity, Compose
                              ,ScaleIntensityRange)
 
 
-report_json = {}
 
-# paths
-lobes_img_path = "../static/images/lobes.PNG"
-segmented_slice_path = "../static/images/liver_slice.png"
-
-plt.switch_backend("Agg")
-gc.collect()
-torch.cuda.empty_cache()
-
+######## Initialization ########
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 save_folder = "Liver-Segmentation-Website/static/img/"
 
+report_json = {}
+lobes_img_path = "../static/images/lobes.PNG"
+segmented_slice_path = "../static/images/liver_slice.png"
+
+longest_diameter_sum = 0 
+data = 0  
+volume_processing = Compose(
+                [
+                     ScaleIntensityRange(
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0.0,
+                        b_max = 1.0,
+                        clip = True,
+                    )
+                ]
+            )
+
+
 def round_dict(d):
+    '''
+    Rounds all the numbers inside a dictionary to the nearest 2 digits
+
+    Args:
+        d : dict
+
+    Returns:
+        d : dict 
+    '''
     for k, v in d.items():
         if isinstance(v, dict):
             round_dict(v)
@@ -48,21 +71,21 @@ def round_dict(d):
 
     return d
 
-longest_diameter_sum = 0  # initialize
-data = 0  # initialize
-volume_processing = Compose(
-                [
 
-                     ScaleIntensityRange(
-                        a_min = -135,
-                        a_max = 215,
-                        b_min = 0.0,
-                        b_max = 1.0,
-                        clip = True,
-                    )
-        
-                ]
-            )
+def delete_previous_results():
+    '''
+    Function used to clear the previous generated data from the static folder
+    '''
+
+    if (os.path.isdir("temp")):
+        shutil.rmtree('temp')  
+
+    for folder in ["box", "zoom", "contour"]:  # remove the images generated from previous runs 
+        previous_images_dir = 'Liver-Segmentation-Website/static/' + folder
+        previous_images = os.listdir(previous_images_dir)
+        for f in previous_images:
+            os.remove(os.path.join(previous_images_dir, f))
+
 
 @app.route("/")
 def index():
@@ -82,21 +105,13 @@ def success():
         return render_template(
             "segmentation.html", data=data
         )
+    
     elif request.method == "POST":
+        delete_previous_results()
         file = request.files["file"]
         volume_location = save_folder + "volume.nii"
         mask_location = save_folder + "mask.nii"
         file.save(volume_location)
-
-
-        # file_list = os.listdir("../static/contour")
-        # file_list = os.listdir("../static/contour")
-        # file_list = os.listdir("../static/contour")
-
-        # # Loop through the list and delete each file
-        # for filename in file_list:
-        #     os.remove(filename)
-
 
         volume = nib.load(volume_location).get_fdata()
         header = nib.load(volume_location).header
@@ -114,16 +129,14 @@ def success():
         new_nii_mask = nib.Nifti1Image(liver_lesion, affine=affine, header=header)
         nib.save(new_nii_mask, mask_location)
 
-        global report_json
-   
         report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
         rep = report.build_report()
+        global report_json
         report_json = round_dict(rep)
 
         visualize_tumor(volume_location, liver_lesion, mode='contour')
         visualize_tumor(volume_location, liver_lesion, mode='box')
         visualize_tumor(volume_location, liver_lesion, mode='zoom')
-
         create_image_grid("Liver-Segmentation-Website/static/contour","Liver-Segmentation-Website/static/images/contour_grid.jpg")
 
         transform = monai.transforms.Resize((256, 256, 256), mode = "nearest")
@@ -232,7 +245,6 @@ def report():
             rep=report_json,
             liver_slice=segmented_slice_path
         )
-
 
     return render_template("form.html")
 
