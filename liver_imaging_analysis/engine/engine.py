@@ -171,23 +171,23 @@ class Engine:
         """
         return Compose([])
 
-    def post_process(self, batch, key):
-        """
-        Applies the transformations specified in get_postprocessing_transforms
-        to the network output.
+    def post_process(self, batch):
+            """
+            Applies the transformations specified in get_postprocessing_transforms
+            to the network output.
 
-        Parameters
-        ----------
-        batch: dict
-            a dictionary containing the model's output to be post-processed
-        key: str
-            dictionary key of model's ouput
-        """
-        post_batch = [self.postprocessing_transforms(i) 
-                      for i in decollate_batch(batch)]
-        batch[key] = from_engine(key)(post_batch)
-        batch[key] = torch.stack(batch[key],dim=0)
-        return batch
+            Parameters
+            ----------
+            batch: dict
+                a dictionary containing the model's output to be post-processed
+            """
+            post_batch = [self.postprocessing_transforms(i) 
+                        for i in decollate_batch(batch)]
+            for key in batch.keys():
+                if key in Keys.all():
+                    batch[key] = from_engine(key)(post_batch)
+                    batch[key] = torch.stack(batch[key], dim = 0)
+            return batch 
 
     def load_data(self):
         """
@@ -367,10 +367,11 @@ class Engine:
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
                 # Apply post processing transforms and calculate metrics
-                batch = self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
                 self.optimizer.zero_grad()
@@ -443,7 +444,7 @@ class Engine:
                     batch[Keys.LABEL]
                     ).item()
                 #Apply post processing transforms on prediction
-                batch = self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
                   self.per_batch_callback(
@@ -494,7 +495,7 @@ class Engine:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 #Apply post processing transforms
-                batch= self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list

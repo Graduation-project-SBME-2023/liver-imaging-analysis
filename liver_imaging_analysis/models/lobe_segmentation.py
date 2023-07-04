@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+from monai.inferers import sliding_window_inference
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -22,6 +23,13 @@ from monai.transforms import (
     RemoveSmallObjectsD,
     FillHolesD,
     ScaleIntensityRanged,
+    RandSpatialCropSamplesd,
+    SpatialPadd,
+    Spacingd,
+    EnsureTyped,
+    AsDiscreted,
+    Activationsd,
+    Invertd
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -55,46 +63,88 @@ class LobeSegmentation(Engine):
     """
 
     def __init__(self, mode = "2D"):
-        self.set_configs()
+        self.set_configs(mode)
         super().__init__()
         if mode == '3D':
             self.predict = self.predict_2dto3d
+        elif mode == 'sliding_window':
+            self.predict = self.predict_sliding_window
+            self.test = self.test_sliding_window
 
-    def set_configs(self):
-        config.dataset['prediction'] = "test cases/sample_image"
-        config.dataset['training'] = "Temp2D/Train/"
-        config.dataset['testing'] = "Temp2D/Test/"
-        config.training['batch_size'] = 2
-        config.training['optimizer_parameters'] = { "lr" : 0.01 }
-        config.training['scheduler_parameters'] = { 
-                                                    "step_size" : 200, 
-                                                    "gamma" : 0.5, 
-                                                    "verbose" : False 
-                                                  }
-        config.network_parameters['dropout'] = 0
-        config.network_parameters['spatial_dims'] = 2
-        config.network_parameters['channels'] = [64, 128, 256, 512, 1024]
-        config.network_parameters["out_channels"] = 10
-        config.network_parameters['strides'] = [2 ,2, 2, 2]
-        config.network_parameters['num_res_units'] =  6
-        config.network_parameters['norm'] = "INSTANCE"
-        config.network_parameters['bias'] = True
-        config.save['lobe_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/lobe_cp'
-        config.training['loss_parameters'] = { 
-                                                "softmax" : True, 
-                                                "batch" : True, 
-                                                "include_background" : True, 
-                                                "to_onehot_y" : False 
-                                             }
-        config.training['metrics_parameters'] = { 
-                                                    "ignore_empty" : True, 
-                                                    "include_background" : False, 
-                                                    "reduction" : "mean" 
+
+    def set_configs(self, mode):
+        if mode in ['2D', '3D']:
+            config.dataset['prediction'] = "test cases/sample_image"
+            config.dataset['training'] = "Temp2D/Train/"
+            config.dataset['testing'] = "Temp2D/Test/"
+            config.training['batch_size'] = 2
+            config.training['optimizer_parameters'] = { "lr" : 0.01 }
+            config.training['scheduler_parameters'] = { 
+                                                        "step_size" : 200, 
+                                                        "gamma" : 0.5, 
+                                                        "verbose" : False 
+                                                    }
+            config.network_parameters['dropout'] = 0
+            config.network_parameters['spatial_dims'] = 2
+            config.network_parameters['channels'] = [64, 128, 256, 512, 1024]
+            config.network_parameters["out_channels"] = 10
+            config.network_parameters['strides'] = [2 ,2, 2, 2]
+            config.network_parameters['num_res_units'] =  6
+            config.network_parameters['norm'] = "INSTANCE"
+            config.network_parameters['bias'] = True
+            config.save['lobe_checkpoint'] = 'lobe_cp'
+            config.training['loss_parameters'] = { 
+                                                    "softmax" : True, 
+                                                    "batch" : True, 
+                                                    "include_background" : True, 
+                                                    "to_onehot_y" : False 
                                                 }
-        config.transforms['mode'] = "3D"
-        config.transforms["train_transform"] = "2DUnet_transform"
-        config.transforms["test_transform"] = "2DUnet_transform"
-        config.transforms["post_transform"] = "2DUnet_transform"
+            config.training['metrics_parameters'] = { 
+                                                        "ignore_empty" : True, 
+                                                        "include_background" : False, 
+                                                        "reduction" : "mean" 
+                                                    }
+            config.transforms["train_transform"] = "2DUnet_transform"
+            config.transforms["test_transform"] = "2DUnet_transform"
+            config.transforms["post_transform"] = "2DUnet_transform"
+
+        elif mode == 'sliding_window':
+            config.dataset['training'] = "MedSeg_Lobes/Train/"
+            config.dataset['testing'] = "MedSeg_Lobes/Test/"
+            config.dataset['prediction'] = "test cases/sample_volume"
+            config.training['batch_size'] = 1
+            config.training['optimizer_parameters'] = { "lr" : 0.01 }
+            config.training['scheduler_parameters'] = {
+                                                        "step_size" : 250,
+                                                        "gamma" : 0.5, 
+                                                        "verbose" : False
+                                                        }
+            config.training['loss_parameters'] = { 
+                                                    "softmax" : True, 
+                                                    "batch" : True, 
+                                                    "include_background" : True, 
+                                                    "to_onehot_y" : False 
+                                                }
+            config.training['metrics_parameters'] = { 
+                                                        "ignore_empty" : False, 
+                                                        "include_background" : False, 
+                                                        "reduction" : "mean_batch" 
+                                                    }
+            config.network_parameters['dropout'] = 0.5
+            config.network_parameters["out_channels"] = 10
+            config.network_parameters['channels'] = [16, 32, 64, 128, 256]
+            config.network_parameters['spatial_dims'] = 3
+            config.network_parameters['strides'] =  [2, 2, 2, 2]
+            config.network_parameters['num_res_units'] =  4
+            config.network_parameters['norm'] = "BATCH"
+            config.network_parameters['bias'] = False
+            config.save['lobe_checkpoint'] = 'lobe_cp_sliding_window'
+            config.transforms['sw_batch_size'] = 2
+            config.transforms['roi_size'] = (192, 192, 32)
+            config.transforms['overlap'] = 0.25
+            config.transforms['train_transform'] = "3DUnet_transform"
+            config.transforms['test_transform'] = "3DUnet_transform"
+            config.transforms['post_transform'] = "3DUnet_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -117,33 +167,73 @@ class LobeSegmentation(Engine):
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     OrientationD(
                         Keys.all(), 
-                        axcodes = "LAS", 
+                        axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
-                    ResizeD(
-                        Keys.all(), 
-                        resize_size, 
-                        mode = ("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
-                        ),
-                    RandFlipd(
-                        Keys.all(), 
-                        prob = 0.5, 
-                        spatial_axis = 1, 
-                        allow_missing_keys = True
-                        ),
+                    # RandZoomd(
+                    #     Keys.all(),
+                    #     prob = 0.5, 
+                    #     min_zoom = 0.8, 
+                    #     max_zoom = 1.2, 
+                    #     allow_missing_keys = True
+                    #     ),
+                    # RandFlipd(
+                    #     Keys.all(), 
+                    #     prob = 0.5, 
+                    #     spatial_axis = 1, 
+                    #     allow_missing_keys = True
+                    #     ),
+                    # RandFlipd(
+                    #     Keys.all(), 
+                    #     prob = 0.5, 
+                    #     spatial_axis = 0, 
+                    #     allow_missing_keys = True
+                    #     ),
                     RandRotated(
-                        Keys.all(),
-                        range_x = 0.1,
-                        range_y = 0.1,
-                        range_z = 0.1,
-                        prob = 0.5,
-                        keep_size = True,
+                        Keys.all(), 
+                        range_x = 1.5,
+                        range_y = 0, 
+                        range_z = 0, 
+                        prob = 0.5, 
+                        allow_missing_keys = True
+                        ),
+                    # RandAdjustContrastd(Keys.IMAGE, prob = 0.5),
+                    Spacingd(
+                        Keys.all(), 
+                        pixdim = [1, 1, 5], 
+                        mode = ("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    CropForegroundd(
+                        Keys.all(), 
+                        source_key = Keys.IMAGE,
+                        allow_missing_keys = True),
+                    SpatialPadd(
+                        Keys.all(), 
+                        config.transforms['roi_size'], 
+                        mode = 'minimum',
+                        allow_missing_keys = True
+                        ),
+                    ScaleIntensityRanged(
+                        Keys.IMAGE,
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0,
+                        b_max = 1,
+                        clip = True, 
                         allow_missing_keys = True
                     ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    RandSpatialCropSamplesd(
+                        Keys.all(), 
+                        config.transforms['roi_size'], 
+                        num_samples = config.transforms['sw_batch_size'], 
+                        random_center = True, 
+                        random_size = False, 
+                        allow_missing_keys = True
+                        ),
+                    EnsureTyped(Keys.all(), allow_missing_keys = True),
+                    AsDiscreteD(Keys.LABEL, to_onehot = 10)   # mandatory during training
+
                 ]
             ),
             "2DUnet_transform" : Compose(
@@ -216,23 +306,37 @@ class LobeSegmentation(Engine):
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     OrientationD(
                         Keys.all(), 
-                        axcodes = "LAS", 
+                        axcodes = "RAS", 
                         allow_missing_keys = True
                         ),
-                    ResizeD(
+                    Spacingd(
                         Keys.all(), 
-                        resize_size, 
-                        mode = ("trilinear", "nearest", "nearest"), 
+                        pixdim = [1, 1, 5],
+                        mode = ("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(
-                        Keys.LABEL, 
-                        threshold = 0.5, 
-                        invert = True, 
+                    CropForegroundd(
+                        Keys.all(), 
+                        source_key = Keys.IMAGE,
+                        allow_missing_keys = True),
+                    SpatialPadd(
+                        Keys.all(), 
+                        config.transforms['roi_size'], 
+                        mode ='minimum',
                         allow_missing_keys = True
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    ScaleIntensityRanged(
+                        Keys.IMAGE,
+                        a_min = -135,
+                        a_max = 215,
+                        b_min = 0,
+                        b_max = 1,
+                        clip = True, 
+                        allow_missing_keys = True
+                    ),
+                    EnsureTyped(Keys.all(), allow_missing_keys = True),
+                    # AsDiscreteD(Keys.LABEL, to_onehot = 10)   # mandatory during training
+
                 ]
             ),
             "2DUnet_transform" : Compose(
@@ -269,15 +373,36 @@ class LobeSegmentation(Engine):
         """
 
         transforms= {
-        '2DUnet_transform': Compose(
-            [
-                ActivationsD(Keys.PRED, softmax = True),
-                AsDiscreteD(Keys.PRED, argmax = True),
-                FillHolesD(Keys.PRED),
-                KeepLargestConnectedComponentD(Keys.PRED),
-                # AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
-            ]
-        )
+            "3DUnet_transform": Compose(
+                [
+                    Invertd(
+                        (Keys.LABEL, Keys.PRED),
+                        transform = self.test_transform,
+                        orig_keys = Keys.IMAGE,
+                        meta_keys = (Keys.LABEL + "_meta_dict", Keys.PRED + "_meta_dict"),
+                        orig_meta_keys = Keys.IMAGE + "_meta_dict",
+                        meta_key_postfix = "meta_dict",
+                        nearest_interp = False,
+                        to_tensor = True,
+                        device = self.device,
+                        allow_missing_keys = True
+                    ),
+                    Activationsd(Keys.PRED, softmax = True),
+                    AsDiscreted(Keys.PRED, argmax = True),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),
+                    # AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
+                ]
+            ),
+            '2DUnet_transform': Compose(
+                [
+                    ActivationsD(Keys.PRED, softmax = True),
+                    AsDiscreteD(Keys.PRED, argmax = True),
+                    FillHolesD(Keys.PRED),
+                    KeepLargestConnectedComponentD(Keys.PRED),
+                    # AsDiscreteD(Keys.PRED, to_onehot = 10)   # mandatory during training
+                ]
+            )
         } 
         return transforms[transform_name] 
     
@@ -354,15 +479,15 @@ class LobeSegmentation(Engine):
         """
 
         print("\nTraining Loss=", training_loss)
-        print("Training Metric=", training_metric)
+        print("Training Metric=", training_metric.mean().item(),':\n', training_metric.cpu().numpy())
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
-        summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        summary_writer.add_scalar("\nTraining Metric", training_metric.mean(), epoch)
         if valid_loss is not None:
-            print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
+            print("\nValidation Loss=", valid_loss)
+            print("Validation Metric=", valid_metric.mean().item(),':\n', valid_metric.cpu().numpy())
 
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
-            summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            summary_writer.add_scalar("\nValidation Metric", valid_metric.mean(), epoch)
 
 
     def predict(self, data_dir, liver_mask):
@@ -417,7 +542,7 @@ class LobeSegmentation(Engine):
                 #predict lobes in isolated liver
                 batch[Keys.PRED] = self.network(suppressed_volume)
                 #Apply post processing transforms
-                batch = self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -505,12 +630,144 @@ class LobeSegmentation(Engine):
         # to (1,channel,length,width,batch) 
         batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
         #Apply post processing transforms
-        batch = self.post_process(batch,Keys.PRED)
+        batch = self.post_process(batch)
         #delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
-    
 
+
+    def predict_sliding_window(self, volume_path, liver_mask, temp_path = "temp/"):
+        """
+        predict the label of the given input
+        Parameters
+        ----------
+        volume_path: str
+            path of the input directory. expects nifti or png files.
+        liver_mask: tensor
+            liver mask predicted by the liver model.
+        temp_path: str
+            A temporary path to save 3d liver mask as nifti. 
+            Default is "temp/".
+            Automatically deleted before returning the prediction.
+        Returns
+        -------
+        tensor
+            tensor of the predicted labels
+        """
+        #create temporary folder to store 2d png files 
+        if os.path.exists(temp_path) == False:
+          os.mkdir(temp_path)
+        original_header = nib.load(volume_path).header
+        original_affine = nib.load(volume_path).affine
+        liver_volume = liver_mask[0, 0].cpu().numpy()
+        # Delete extension from filename
+        volume_file_name = os.path.splitext(volume_path)[0].split("/")[-1]
+        liver_volume_path = os.path.join(temp_path, volume_file_name) + ".nii.gz"
+        liver_volume = nib.Nifti1Image(
+                            liver_volume, 
+                            affine = original_affine, 
+                            header = original_header
+                            )
+        nib.save(liver_volume, liver_volume_path)
+        self.network.eval()
+        with torch.no_grad():
+            predict_files = [{
+                                Keys.IMAGE : volume_path,
+                                Keys.LABEL : liver_volume_path
+                              }] 
+            predict_set = Dataset(
+                            data = predict_files, 
+                            transform = self.test_transform
+                            )
+            predict_loader = MonaiLoader(
+                                predict_set,
+                                batch_size = self.batch_size,
+                                num_workers = 0,
+                                pin_memory = False,
+                            )
+            prediction_list = []
+            for batch in predict_loader:
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                #isolate the liver and suppress other organs
+                suppressed_volume = np.where(
+                                        batch[Keys.LABEL] == 1,
+                                        batch[Keys.IMAGE],
+                                        batch[Keys.IMAGE].min()
+                                        )
+                suppressed_volume = ToTensor()(suppressed_volume).to(self.device)
+                # Predict by sliding window
+                batch[Keys.PRED] = sliding_window_inference(
+                                        suppressed_volume, 
+                                        config.transforms['roi_size'], 
+                                        config.transforms['sw_batch_size'],      
+                                        self.network
+                                        )
+                # Apply post processing transforms
+                batch = self.post_process(batch)    
+                prediction_list.append(batch[Keys.PRED])
+            prediction_list = torch.cat(prediction_list, dim = 0)
+        shutil.rmtree(temp_path)
+        return prediction_list
+
+
+    def test_sliding_window(self, dataloader = None, callback = False):
+        """
+        calculates loss on input dataset
+
+        Parameters
+        ----------
+        dataloader: dict
+                Iterator of the dataset to evaluate on.
+                If not specified, the test_dataloader will be used.
+        callback: bool
+                Flag to call per_batch_callback or not. Default is False.
+
+        Returns
+        -------
+        float
+            the averaged loss calculated during testing
+        float
+            the averaged metric calculated during testing
+        """
+        if dataloader is None: #test on test set by default
+            dataloader = self.test_dataloader
+        num_batches = len(dataloader)
+        test_loss = 0
+        test_metric = 0
+        self.network.eval()
+        with torch.no_grad():
+            for batch_num,batch in enumerate(dataloader):
+                batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
+                batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
+                batch[Keys.PRED] = sliding_window_inference(
+                                        batch[Keys.IMAGE], 
+                                        config.transforms['roi_size'], 
+                                        config.transforms['sw_batch_size'], 
+                                        self.network,
+                                        config.transforms['overlap']
+                                        )
+                test_loss += self.loss(
+                    batch[Keys.PRED],
+                    batch[Keys.LABEL]
+                    ).item()
+                #Apply post processing transforms on prediction
+                batch = self.post_process(batch)
+                self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                if callback:
+                  self.per_batch_callback(
+                      batch_num,
+                      batch[Keys.IMAGE],
+                      batch[Keys.LABEL],
+                      batch[Keys.PRED]
+                      )
+            test_loss /= num_batches
+            # aggregate the final metric result
+            test_metric = self.metrics.aggregate()
+            # reset the status for next computation round
+            self.metrics.reset()
+        return test_loss, test_metric
+    
+    
 def segment_lobe(*args):
     """
     A function used to segment the liver lobes using
@@ -518,7 +775,7 @@ def segment_lobe(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation(mode = '2D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lobe_model = LobeSegmentation(mode = '2D')
     lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
@@ -537,7 +794,7 @@ def segment_lobe_3d(*args):
     of a 3d volume using the liver and the lobes models.
     """
     set_seed()
-    liver_model = LiverSegmentation(mode = '3D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lobe_model = LobeSegmentation(mode = '3D')
     lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
@@ -549,6 +806,24 @@ def segment_lobe_3d(*args):
     lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
     return lobe_prediction
 
+
+def segment_lobe_sliding_window(*args):
+    """
+    a function used to segment the lobes of a 3d volume using a 3D model and sliding window technique
+
+    """
+    set_seed()
+    liver_model = LiverSegmentation(modality = 'CT', inference = '3D')
+    liver_model.load_checkpoint(config.save["liver_checkpoint"])
+    lobe_model = LobeSegmentation(mode = 'sliding_window')
+    lobe_model.load_checkpoint(config.save["lobe_checkpoint"])
+    liver_prediction = liver_model.predict(volume_path = args[0])
+    lobe_prediction = lobe_model.predict(
+                            volume_path = args[0],
+                            liver_mask = liver_prediction
+                            )
+    lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
+    return lobe_prediction
 
 
 def train_lobe(*args):

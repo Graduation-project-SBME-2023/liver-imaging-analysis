@@ -406,7 +406,7 @@ class LesionSegmentation(Engine):
                 #predict lesions in isolated liver
                 batch[Keys.PRED] = self.network(suppressed_volume)
                 #Apply post processing transforms
-                batch = self.post_process(batch,Keys.PRED)
+                batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
@@ -492,7 +492,7 @@ class LesionSegmentation(Engine):
         # to (1,channel,length,width,batch) 
         batch[Keys.PRED] = batch[Keys.PRED].permute(1,2,3,0).unsqueeze(dim=0) 
         # Apply post processing transforms
-        batch = self.post_process(batch,Keys.PRED)
+        batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
         return batch[Keys.PRED]
@@ -505,7 +505,7 @@ def segment_lesion(*args):
     """
 
     set_seed()
-    liver_model = LiverSegmentation(mode = '2D')
+    liver_model = LiverSegmentation(modality = 'CT', inference = '2D')
     liver_model.load_checkpoint(config.save["liver_checkpoint"])
     lesion_model = LesionSegmentation(mode = '2D')
     lesion_model.load_checkpoint(config.save["lesion_checkpoint"])

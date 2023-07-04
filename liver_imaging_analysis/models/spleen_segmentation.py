@@ -29,10 +29,19 @@ from monai.transforms import (
     AsDiscreted,
     Activationsd
 )
+from monai.visualize import plot_2d_or_3d_image
+from torch.utils.tensorboard import SummaryWriter
+from monai.metrics import DiceMetric
+import os
 from monai.data import DataLoader as MonaiLoader
 from monai.data import Dataset
 import torch
-
+import numpy as np
+import SimpleITK
+import cv2
+import shutil
+import natsort
+import nibabel as nib
 
 
 class SpleenSegmentation(Engine):
@@ -66,7 +75,7 @@ class SpleenSegmentation(Engine):
         config.network_parameters['num_res_units'] =  2
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = True
-        config.save['spleen_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/spleen_cp'
+        config.save['spleen_checkpoint'] = 'spleen_cp'
         config.transforms['sw_batch_size'] = 4
         config.transforms['roi_size'] = (96, 96, 96)
         config.transforms['overlap'] = 0.25

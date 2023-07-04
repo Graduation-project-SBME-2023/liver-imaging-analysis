@@ -28,5 +28,8 @@ liver_cp_sliding_window
 lobe_cp
 temp
 mri_cp
+spleen_cp
+lobe_cp_sliding_window
+
 report.json
 Liver-Segmentation-Website/models_checkpoints/spleen_cp
