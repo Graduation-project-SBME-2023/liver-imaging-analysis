@@ -399,7 +399,8 @@ class Overlay:
         Parameters
         ----------
         view : int
-            integer value to select the view of the slicing of the 3D volume where (0 -> sagittal , 1 -> coronal , 2 -> axial)
+            integer value to select the view of the slicing of the 3D volume 
+            where (0 -> sagittal , 1 -> coronal , 2 -> axial)
         
         output_filename : str
             The name of the generated GIF.
@@ -442,9 +443,18 @@ class Overlay:
         self.gray_to_colored()
         self.animate(output_filename,view)
 
-    def generate_slice(self, mask,save_path):
+    def create_biggest_slice(self, mask, save_path):
         '''
-        takes mask and draws the biggest slice in the given path
+        Creates a PNG image for the slice which has the biggest
+        overlayed mask 
+
+        Parameters
+        ----------
+        mask : 3D tensor
+        it's supposed to be an overlayed tensor (mask over volume)
+        
+        save_path: str
+        the path at which the slice will be saved
         '''
         depth_sum = torch.sum(mask, dim=(1,2))
         slice_index = int(torch.argmax(depth_sum))
@@ -881,3 +891,26 @@ class Report:
         with open("report.json", "w") as json_file:
             json.dump(report, json_file)
         return report
+
+def round_dict(d,n = 2):
+    """
+    Rounds all the numbers inside a dictionary to the nearest 2 digits
+
+    Args:
+        d : dict 
+        the input dictionary
+        m : int 
+        number of digits to round at , default to 2
+
+    Returns:
+        d : dict
+        the rounded dictionary
+    """
+    for k, v in d.items():
+        if isinstance(v, dict):
+            round_dict(v, n)
+        elif isinstance(v, float):
+            d[k] = round(v, n)
+
+    return d
+

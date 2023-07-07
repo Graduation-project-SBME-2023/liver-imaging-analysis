@@ -7,9 +7,17 @@ import sys
 import gc
 import torch
 import matplotlib.pyplot as plt
-from flask import Flask, render_template, request, send_file, jsonify, make_response
+from flask import (
+    Flask,
+    render_template,
+    request,
+    send_file,
+    jsonify,
+    make_response
+    )
 import nibabel as nib
 import monai
+
 # import pdfkit
 
 sys.path.append(".")
@@ -21,12 +29,18 @@ from liver_imaging_analysis.models.lesion_segmentation import segment_lesion
 from liver_imaging_analysis.models.lobe_segmentation import segment_lobe
 from liver_imaging_analysis.models.spleen_segmentation import segment_spleen
 from liver_imaging_analysis.engine.config import config
-from liver_imaging_analysis.engine.utils import Overlay, Report, create_image_grid
 from visualize_tumors import visualize_tumor, parameters
-import json
-from monai.transforms import( ToTensor, NormalizeIntensity, Compose
-                             ,ScaleIntensityRange)
-
+from liver_imaging_analysis.engine.utils import (
+    Overlay,
+    Report,
+    create_image_grid,
+    round_dict
+)
+from monai.transforms import (
+    ToTensor,
+    Compose,
+    ScaleIntensityRange
+)
 
 
 ######## Initialization ########
@@ -38,50 +52,37 @@ report_json = {}
 lobes_img_path = "../static/images/lobes.PNG"
 segmented_slice_path = "../static/images/liver_slice.png"
 
-longest_diameter_sum = 0 
-data = 0  
+longest_diameter_sum = 0
+data = 0
 volume_processing = Compose(
-                [
-                     ScaleIntensityRange(
-                        a_min = -135,
-                        a_max = 215,
-                        b_min = 0.0,
-                        b_max = 1.0,
-                        clip = True,
-                    )
-                ]
-            )
+    [
+        ScaleIntensityRange(
+            a_min=-135,
+            a_max=215,
+            b_min=0.0,
+            b_max=1.0,
+            clip=True,
+        )
+    ]
+)
 
 
-def round_dict(d):
-    '''
-    Rounds all the numbers inside a dictionary to the nearest 2 digits
-
-    Args:
-        d : dict
-
-    Returns:
-        d : dict 
-    '''
-    for k, v in d.items():
-        if isinstance(v, dict):
-            round_dict(v)
-        elif isinstance(v, float):
-            d[k] = round(v, 2)
-
-    return d
 
 
 def delete_previous_results():
-    '''
+    """
     Function used to clear the previous generated data from the static folder
-    '''
+    """
 
-    if (os.path.isdir("temp")):
-        shutil.rmtree('temp')  
+    if os.path.isdir("temp"):
+        shutil.rmtree("temp")
 
-    for folder in ["box", "zoom", "contour"]:  # remove the images generated from previous runs 
-        previous_images_dir = 'Liver-Segmentation-Website/static/' + folder
+    for folder in [
+        "box",
+        "zoom",
+        "contour",
+    ]:  # remove the images generated from previous runs
+        previous_images_dir = "Liver-Segmentation-Website/static/" + folder
         previous_images = os.listdir(previous_images_dir)
         for f in previous_images:
             os.remove(os.path.join(previous_images_dir, f))
@@ -95,17 +96,15 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/segment", methods = ["GET", "POST"])
+@app.route("/segment", methods=["GET", "POST"])
 def success():
     """
     Start segmentation , create and display the gifs
     """
     if request.method == "GET":
         global data
-        return render_template(
-            "segmentation.html", data=data
-        )
-    
+        return render_template("segmentation.html", data=data)
+
     elif request.method == "POST":
         delete_previous_results()
         file = request.files["file"]
@@ -117,11 +116,11 @@ def success():
         header = nib.load(volume_location).header
         affine = nib.load(volume_location).affine
 
-        volume = ToTensor()(volume).unsqueeze(dim = 0).unsqueeze(dim = 0)
-        volume = volume_processing(volume).squeeze(dim = 0).squeeze(dim = 0)
+        volume = ToTensor()(volume).unsqueeze(dim=0).unsqueeze(dim=0)
+        volume = volume_processing(volume).squeeze(dim=0).squeeze(dim=0)
 
         liver_lesion = segment_lesion(volume_location)[0][0]
-        lobes  = segment_lobe(volume_location)[0][0]
+        lobes = segment_lobe(volume_location)[0][0]
         spleen = segment_spleen(volume_location)[0][0]
 
         new_nii_volume = nib.Nifti1Image(volume, affine=affine, header=header)
@@ -130,48 +129,73 @@ def success():
         nib.save(new_nii_mask, mask_location)
 
         report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
-        rep = report.build_report()
+        report = report.build_report()
         global report_json
-        report_json = round_dict(rep)
+        report_json = round_dict(report)
 
-        visualize_tumor(volume_location, liver_lesion, mode='contour')
-        visualize_tumor(volume_location, liver_lesion, mode='box')
-        visualize_tumor(volume_location, liver_lesion, mode='zoom')
-        create_image_grid("Liver-Segmentation-Website/static/contour","Liver-Segmentation-Website/static/images/contour_grid.jpg")
+        visualize_tumor(volume_location, liver_lesion, mode="contour")
+        visualize_tumor(volume_location, liver_lesion, mode="box")
+        visualize_tumor(volume_location, liver_lesion, mode="zoom")
+        create_image_grid(
+            "Liver-Segmentation-Website/static/contour",
+            "Liver-Segmentation-Website/static/images/contour_grid.jpg",
+        )
 
-        transform = monai.transforms.Resize((256, 256, 256), mode = "nearest")
+        transform = monai.transforms.Resize((256, 256, 256), mode="nearest")
         volume = transform(volume[None]).squeeze(0)
         liver_lesion = transform(liver_lesion[None]).squeeze(0)
         lobes = transform(lobes[None]).squeeze(0)
 
-        original_volume = Overlay( volume, torch.zeros(volume.shape), mask2_path = None, alpha = 0.2)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/axial/original.gif", 2)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/coronal/original.gif", 1)
-        original_volume.generate_animation("Liver-Segmentation-Website/static/sagittal/original.gif", 0)
+        original_volume = Overlay(
+            volume, torch.zeros(volume.shape), mask2_path=None, alpha=0.2
+        )
+        original_volume.generate_animation(
+            "Liver-Segmentation-Website/static/axial/original.gif", 2
+        )
+        original_volume.generate_animation(
+            "Liver-Segmentation-Website/static/coronal/original.gif", 1
+        )
+        original_volume.generate_animation(
+            "Liver-Segmentation-Website/static/sagittal/original.gif", 0
+        )
 
-        liver_lesion_overlay = Overlay( volume, liver_lesion ,mask2_path = None, alpha = 0.2)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1)
-        liver_lesion_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0)
-        liver_lesion_overlay.generate_slice(liver_lesion,"Liver-Segmentation-Website/static/images/liver_slice.png")
+        liver_lesion_overlay = Overlay(volume, liver_lesion, mask2_path=None, alpha=0.2)
+        liver_lesion_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/axial/liver_lesion.gif", 2
+        )
+        liver_lesion_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/coronal/liver_lesion.gif", 1
+        )
+        liver_lesion_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0
+        )
+        liver_lesion_overlay.create_biggest_slice(
+            liver_lesion, "Liver-Segmentation-Website/static/images/liver_slice.png"
+        )
 
-        lobes_overlay = Overlay( volume, lobes ,mask2_path = None, alpha = 0.2)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/axial/lobes.gif", 2)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/coronal/lobes.gif", 1)
-        lobes_overlay.generate_animation("Liver-Segmentation-Website/static/sagittal/lobes.gif", 0)
-        lobes_overlay.generate_slice(liver_lesion, "Liver-Segmentation-Website/static/images/lobes.PNG")
+        lobes_overlay = Overlay(volume, lobes, mask2_path=None, alpha=0.2)
+        lobes_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/axial/lobes.gif", 2
+        )
+        lobes_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/coronal/lobes.gif", 1
+        )
+        lobes_overlay.generate_animation(
+            "Liver-Segmentation-Website/static/sagittal/lobes.gif", 0
+        )
+        lobes_overlay.create_biggest_slice(
+            liver_lesion, "Liver-Segmentation-Website/static/images/lobes.PNG"
+        )
 
         global longest_diameter_sum
         for item in parameters:
             max_axis = max(item[0], item[1])
             longest_diameter_sum += max_axis
-        longest_diameter_sum = round(longest_diameter_sum,2)
+        longest_diameter_sum = round(longest_diameter_sum, 2)
         data = {"Data": parameters, "sum_longest": longest_diameter_sum}
         report_json["Sum Of Longest Diameters"] = longest_diameter_sum
 
-        return render_template(
-            "segmentation.html", data=data 
-        )
+        return render_template("segmentation.html", data=data)
 
 
 @app.route("/download")
@@ -216,7 +240,10 @@ def report():
     """
 
     if request.method == "POST":
-        if ('Lesions Information' in report_json and len(report_json['Lesions Information']) ) > 0:
+        if (
+            "Lesions Information" in report_json
+            and len(report_json["Lesions Information"])
+        ) > 0:
             flag = True
             tumor_img_path = "../static/zoom/tumor_1.png"
         else:
@@ -234,7 +261,7 @@ def report():
             ["Gender", gender],
         ]
         global patient_info
-        patient_info = [id,age,phone_number,gender]
+        patient_info = [id, age, phone_number, gender]
 
         return render_template(
             "report.html",
@@ -243,15 +270,15 @@ def report():
             tumor_path=tumor_img_path,
             lobes_path=lobes_img_path,
             rep=report_json,
-            liver_slice=segmented_slice_path
+            liver_slice=segmented_slice_path,
         )
 
     return render_template("form.html")
 
 
-@app.route('/pdf')
+@app.route("/pdf")
 def pdf():
-    if len(report_json['Lesions Information'])>0:
+    if len(report_json["Lesions Information"]) > 0:
         flag = True
         tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_1.png"
     else:
@@ -259,20 +286,30 @@ def pdf():
         tumor_img_path = ""
     lobes_img_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/lobes.PNG"
     segmented_slice_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/liver_slice.png"
-    rendered = render_template('pdf.html' ,rep = report_json,
-                               longest_diam=longest_diameter_sum, my_flag = flag,
-                               tumor_path = tumor_img_path, lobes_path = lobes_img_path_global,
-                               liver_slice = segmented_slice_path_global,
-                               patient_data = patient_info )
-    config = pdfkit.configuration(wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe")
-    pdf = pdfkit.from_string(rendered, False, configuration=config,options={"enable-local-file-access": ""})
+    rendered = render_template(
+        "pdf.html",
+        rep=report_json,
+        longest_diam=longest_diameter_sum,
+        my_flag=flag,
+        tumor_path=tumor_img_path,
+        lobes_path=lobes_img_path_global,
+        liver_slice=segmented_slice_path_global,
+        patient_data=patient_info,
+    )
+    config = pdfkit.configuration(
+        wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
+    )
+    pdf = pdfkit.from_string(
+        rendered, False, configuration=config, options={"enable-local-file-access": ""}
+    )
 
     response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'attachment; filename=patient report.pdf'
+    response.headers["Content-Type"] = "application/pdf"
+    response.headers["Content-Disposition"] = "attachment; filename=patient report.pdf"
     return response
+
 
 if __name__ == "__main__":
     app.debug = True
     port = int(os.environ.get("PORT", 8001))
-    app.run(host = "0.0.0.0", port = port, debug = True)
+    app.run(host="0.0.0.0", port=port, debug=True)
