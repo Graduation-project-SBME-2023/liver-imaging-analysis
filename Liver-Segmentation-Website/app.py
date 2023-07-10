@@ -272,13 +272,13 @@ def report():
             rep=report_json,
             liver_slice=segmented_slice_path,
         )
-
+    
     return render_template("form.html")
 
 
 @app.route("/pdf")
 def pdf():
-    if len(report_json["Lesions Information"]) > 0:
+    if len(report_json["Lesions Information"]) > 0: 
         flag = True
         tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_1.png"
     else:
