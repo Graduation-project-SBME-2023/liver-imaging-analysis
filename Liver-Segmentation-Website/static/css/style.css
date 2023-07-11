@@ -312,3 +312,9 @@ body {
   .box select option {
     padding: 30px;
   }
+  /* Rounded border */
+  hr.rounded {
+    border-top: 15px solid #000000;
+    border-radius: 10px  #000000;
+    color:   #000000;
+  }
