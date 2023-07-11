@@ -60,6 +60,7 @@
     </div>
     <div class="first">
       <br>
+      {% if patient_data %}
       <p style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
         Patient Demographics
       </p>
@@ -77,11 +78,12 @@
           <td style="width:29%;">{{patient_data[3]}}</td>
         </tr>
       </table>
+      {%endif%}
     </div>
     <div class="second">
       <br>
       <p style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
-        General Details
+        Global Measurements
       </p>
       <table style="border: solid 1px #becbdc;">
         <tr>
@@ -130,9 +132,10 @@
       <img src="{{ liver_slice }}" alt="My Image" id="liver_image" >
       <br><br><br><br>
     </div>
+    <hr>
     <div>
       <h2 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
-        Lesions
+        Lesions Analysis
       </h2>
       <br>
       <h4 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
@@ -185,9 +188,10 @@
           <p>No Lesions To Show</p>
       {% endif %}
     </div>
+    <hr>
     <div>
       <h2 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
-        Lobes
+        Lobes Analysis
       </h2>
       <br>
       <!-- Lobes Start -->
@@ -226,6 +230,7 @@
     <br><br><br><br>
     <br><br><br><br>
     <br><br><br><br>
+    <hr>
     <h1 style="font-weight:bolder; margin-left:70px; font-family: Verdana, sans-serif;">
       Patient Report
     </h1>
