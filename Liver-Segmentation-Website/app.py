@@ -290,13 +290,15 @@ def pdf():
 
     if len(report_json["Lesions Information"]) > 0: 
         flag = True
-        tumor_img_path = os.path.join(static_path, "report_slices/zoom/tumor_1.png")
+        tumor_img_path = os.path.join(static_path, "zoom/tumor_1.png")
     else:
         flag = False
         tumor_img_path = ""
     
     lobes_img_path =os.path.join(static_path, "report_slices/lobes.PNG")
     segmented_slice_path_global = os.path.join(static_path,"report_slices/liver_slice.png")
+    contour_grid_path = os.path.join(static_path,"report_slices/contour_grid.jpg")
+
     rendered = render_template(
         "pdf.html",
         rep=report_json,
@@ -305,6 +307,7 @@ def pdf():
         tumor_path=tumor_img_path,
         lobes_path=lobes_img_path,
         liver_slice=segmented_slice_path_global,
+        contour_grid_path = contour_grid_path,
         patient_data=patient_info,
     )
     # config = pdfkit.configuration(
