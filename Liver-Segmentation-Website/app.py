@@ -17,8 +17,8 @@ from flask import (
     )
 import nibabel as nib
 import monai
-
-# import pdfkit
+import pdfkit
+import json
 
 sys.path.append(".")
 plt.switch_backend("Agg")
@@ -43,14 +43,13 @@ from monai.transforms import (
 )
 
 
-######## Initialization ########
+################ Initialization ################
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 save_folder = "Liver-Segmentation-Website/static/img/"
 
-report_json = {}
-lobes_img_path = "../static/images/lobes.PNG"
-segmented_slice_path = "../static/images/liver_slice.png"
+with open('Liver-Segmentation-Website/report_template.json') as json_file:
+  report_json = json.load(json_file)
 
 longest_diameter_sum = 0
 data = 0
@@ -66,9 +65,6 @@ volume_processing = Compose(
     ]
 )
 
-
-
-
 def delete_previous_results():
     """
     Function used to clear the previous generated data from the static folder
@@ -81,6 +77,10 @@ def delete_previous_results():
         "box",
         "zoom",
         "contour",
+        "axial",
+        "coronal",
+        "sagittal",
+        "report_slices"
     ]:  # remove the images generated from previous runs
         previous_images_dir = "Liver-Segmentation-Website/static/" + folder
         previous_images = os.listdir(previous_images_dir)
@@ -88,6 +88,9 @@ def delete_previous_results():
             os.remove(os.path.join(previous_images_dir, f))
 
 
+
+
+################ Flask ################
 @app.route("/")
 def index():
     """
@@ -132,13 +135,14 @@ def success():
         report = report.build_report()
         global report_json
         report_json = round_dict(report)
+        print (report_json)
 
         visualize_tumor(volume_location, liver_lesion, mode="contour")
         visualize_tumor(volume_location, liver_lesion, mode="box")
         visualize_tumor(volume_location, liver_lesion, mode="zoom")
         create_image_grid(
             "Liver-Segmentation-Website/static/contour",
-            "Liver-Segmentation-Website/static/images/contour_grid.jpg",
+            "Liver-Segmentation-Website/static/report_slices/contour_grid.jpg",
         )
 
         transform = monai.transforms.Resize((256, 256, 256), mode="nearest")
@@ -170,7 +174,7 @@ def success():
             "Liver-Segmentation-Website/static/sagittal/liver_lesion.gif", 0
         )
         liver_lesion_overlay.create_biggest_slice(
-            liver_lesion, "Liver-Segmentation-Website/static/images/liver_slice.png"
+            liver_lesion, "Liver-Segmentation-Website/static/report_slices/liver_slice.png"
         )
 
         lobes_overlay = Overlay(volume, lobes, mask2_path=None, alpha=0.2)
@@ -184,7 +188,7 @@ def success():
             "Liver-Segmentation-Website/static/sagittal/lobes.gif", 0
         )
         lobes_overlay.create_biggest_slice(
-            liver_lesion, "Liver-Segmentation-Website/static/images/lobes.PNG"
+            liver_lesion, "Liver-Segmentation-Website/static/report_slices/lobes.PNG"
         )
 
         global longest_diameter_sum
@@ -262,7 +266,8 @@ def report():
         ]
         global patient_info
         patient_info = [id, age, phone_number, gender]
-
+        lobes_img_path = "../static/report_slices/lobes.PNG"
+        segmented_slice_path = "../static/report_slices/liver_slice.png"
         return render_template(
             "report.html",
             patient_data=patient_data,
@@ -278,29 +283,38 @@ def report():
 
 @app.route("/pdf")
 def pdf():
+    '''
+    Function used to convert the html to a PDF file
+    '''
+    static_path = os.path.abspath("Liver-Segmentation-Website/static")
+
     if len(report_json["Lesions Information"]) > 0: 
         flag = True
-        tumor_img_path = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/zoom/tumor_1.png"
+        tumor_img_path = os.path.join(static_path, "report_slices/zoom/tumor_1.png")
     else:
         flag = False
         tumor_img_path = ""
-    lobes_img_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/lobes.PNG"
-    segmented_slice_path_global = "C:/Users/roro1/PycharmProjects/pythonProject5/Liver-Segmentation-Website/static/images/liver_slice.png"
+    
+    lobes_img_path =os.path.join(static_path, "report_slices/lobes.PNG")
+    segmented_slice_path_global = os.path.join(static_path,"report_slices/liver_slice.png")
     rendered = render_template(
         "pdf.html",
         rep=report_json,
         longest_diam=longest_diameter_sum,
         my_flag=flag,
         tumor_path=tumor_img_path,
-        lobes_path=lobes_img_path_global,
+        lobes_path=lobes_img_path,
         liver_slice=segmented_slice_path_global,
         patient_data=patient_info,
     )
-    config = pdfkit.configuration(
-        wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
-    )
+    # config = pdfkit.configuration(
+    #     wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
+    # )
+    # pdf = pdfkit.from_string(
+    #     rendered, False, configuration=config, options={"enable-local-file-access": ""}
+    # )
     pdf = pdfkit.from_string(
-        rendered, False, configuration=config, options={"enable-local-file-access": ""}
+        rendered, False, options={"enable-local-file-access": ""}
     )
 
     response = make_response(pdf)
@@ -308,8 +322,9 @@ def pdf():
     response.headers["Content-Disposition"] = "attachment; filename=patient report.pdf"
     return response
 
-
+################ Main/Run ################
 if __name__ == "__main__":
     app.debug = True
     port = int(os.environ.get("PORT", 8001))
     app.run(host="0.0.0.0", port=port, debug=True)
+    delete_previous_results()

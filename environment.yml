@@ -339,6 +339,7 @@ dependencies:
       - torch-tb-profiler==0.4.0
       - vtk==9.2.6
       - wrapt==1.15.0
+      - pdfkit==1.0.0
 variables:
   PYTORCH_ENABLE_MPS_FALLBACK: '1'
-prefix: /Users/mn3n3/opt/miniconda3/envs/gProject
+

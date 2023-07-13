@@ -889,7 +889,7 @@ class Report:
             msg,tokens=generate_report(report)
             report["msg"]=msg
         with open("report.json", "w") as json_file:
-            json.dump(report, json_file)
+            json.dump(report, json_file, indent=4)
         return report
 
 def round_dict(d,n = 2):
