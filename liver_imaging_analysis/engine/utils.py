@@ -460,7 +460,7 @@ class Overlay:
         slice_index = int(torch.argmax(depth_sum))
         print(f"dest shape:{self.dest.shape}")
         new_vol = self.dest.transpose((2, 0, 1,3))
-        slice_data = new_vol[slice_index,:,:] # needs to rearrange dims
+        slice_data = np.rot90(new_vol[slice_index,:,:],k=1,axes=(0,1)) # needs to rearrange dims
         # Create a PNG image of the slice data using matplotlib
         fig = plt.figure()
         ax = fig.add_subplot(111)
