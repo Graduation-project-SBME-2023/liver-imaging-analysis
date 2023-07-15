@@ -1,0 +1,35 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="../static/css/form_styles.css">
+
+<div class="container">  
+    <form  id="contact"  method="post">
+      <h3>Patient profile</h3>
+      <h4></h4>
+      <fieldset>
+        <input name="id" placeholder="Patient Identifier" type="text" tabindex="1" autofocus>
+      </fieldset>
+      <fieldset>
+        <input name="age" placeholder="Age" type="text" tabindex="2">
+      </fieldset>
+      <fieldset>
+        <input type="radio" id="male" name="gender" value="male">
+          <label for="male">Male</label><br>
+        <input type="radio" id="female" name="gender" value="female">
+          <label for="female">Female</label><br>
+      </fieldset>
+      <fieldset>
+        <input name="phone" placeholder="Phone Number" type="tel" tabindex="4">
+      </fieldset>
+      <fieldset>
+        <textarea placeholder="Notes" tabindex="6"></textarea>
+      </fieldset>
+      <fieldset>
+        <button href="/table"  name="submit" type="submit" id="contact-submit" data-submit="...Sending">Submit</button>
+      </fieldset>
+    </form>
+   
+  </div>
+{% endblock %}

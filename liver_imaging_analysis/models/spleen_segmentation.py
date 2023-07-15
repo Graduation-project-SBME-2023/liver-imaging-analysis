@@ -42,7 +42,7 @@ import cv2
 import shutil
 import natsort
 import nibabel as nib
-
+import argparse
 
 class SpleenSegmentation(Engine):
     """
@@ -59,9 +59,9 @@ class SpleenSegmentation(Engine):
         """
         Sets new values for config parameters.
         """
-        config.dataset['prediction']="test cases/sample_volume"
+        
+        config.dataset['prediction'] = "test cases/volume/volume-64.nii"
         config.training['batch_size'] = 1
-
         config.training['scheduler_parameters'] = {
                                                     "step_size":20,
                                                     "gamma":0.5, 
@@ -75,13 +75,13 @@ class SpleenSegmentation(Engine):
         config.network_parameters['num_res_units'] =  2
         config.network_parameters['norm'] = "BATCH"
         config.network_parameters['bias'] = True
-        config.save['spleen_checkpoint'] = 'spleen_cp'
+        config.save['spleen_checkpoint'] = 'Liver-Segmentation-Website/models_checkpoints/spleen_cp'
         config.transforms['sw_batch_size'] = 4
         config.transforms['roi_size'] = (96, 96, 96)
         config.transforms['overlap'] = 0.25
-        config.transforms['train_transform'] = "3DUnet_transform"
-        config.transforms['test_transform'] = "3DUnet_transform"
-        config.transforms['post_transform'] = "3DUnet_transform"
+        config.transforms['train_transform'] = "3d_transform"
+        config.transforms['test_transform'] = "3d_transform"
+        config.transforms['post_transform'] = "3d_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -97,7 +97,7 @@ class SpleenSegmentation(Engine):
         """
 
         transforms = {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -141,7 +141,7 @@ class SpleenSegmentation(Engine):
         """
 
         transforms = {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
@@ -185,7 +185,7 @@ class SpleenSegmentation(Engine):
                 Stack of selected transforms.
         """
         transforms= {
-            "3DUnet_transform": Compose(
+            "3d_transform": Compose(
                 [
                     Invertd(
                         Keys.PRED,
@@ -242,28 +242,68 @@ class SpleenSegmentation(Engine):
                                         self.network
                                         )
                 # Apply post processing transforms
-                batch = self.post_process(batch,Keys.PRED)    
+                batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
         return prediction_list
     
 
-def segment_spleen(volume_path):
+def segment_spleen(prediction_path = None, cp_path = None):
     """
     a function used to segment the spleen of a 3d volume 
     using sliding window inference
 
     Parameters
     ----------
-        volume_path: str
-            3D volume path, expects a nifti file.
+    prediciton_path: str
+        expects a path of a 3D nii volume.
+        if not defined, prediction dataset will be loaded from configs
+    cp_path : str
+        path of the model weights to be used for prediction. 
+        if not defined, spleen_checkpoint will be loaded from configs.
 
     Returns
     ----------
         tensor: predicted 3D spleen mask
     """
-    set_seed()
     spleen_model = SpleenSegmentation()
-    spleen_model.load_checkpoint(config.save["spleen_checkpoint"])
-    spleen_prediction = spleen_model.predict(volume_path = volume_path)
+    if prediction_path is None:
+        prediction_path = config.dataset['prediction']
+    if cp_path is None:
+        cp_path = config.save["spleen_checkpoint"]
+    spleen_model.load_checkpoint(cp_path)
+    spleen_prediction = spleen_model.predict(prediction_path)
     return spleen_prediction
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = 'Spleen Segmentation')
+    parser.add_argument(
+                '--predict_path', type = str, default = None,
+                help = 'predicts the volume at the provided path (default: prediction config path)'
+                )
+    parser.add_argument(
+                '--cp_path', type = bool, default = None,
+                help = 'path of model weights (default: spleen_checkpoint config path)'
+                )
+    args = parser.parse_args()
+    SpleenSegmentation() # to set configs
+    if args.predict_path is None:
+        args.predict_path = config.dataset['prediction']
+    if args.cp_path is None:
+        args.cp_path = config.save["spleen_checkpoint"]
+    prediction = segment_spleen(
+                    prediction_path = args.predict_path, 
+                    cp_path = args.cp_path
+                    )
+    #save prediction as a nifti file
+    original_header = nib.load(args.predict_path).header
+    original_affine = nib.load(args.predict_path).affine
+    spleen_volume = nib.Nifti1Image(
+                        prediction[0,0].cpu(), 
+                        affine = original_affine, 
+                        header = original_header
+                        )
+    nib.save(spleen_volume, args.predict_path.split('.')[0] + '_spleen.nii')
+    print('Prediction saved at', args.predict_path.split('.')[0] + '_spleen.nii')
+    print("Run Complete")

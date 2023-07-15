@@ -1,0 +1,33 @@
+{
+    "Spleen Volume": 0,
+    "Spleen Attenuation": 0,
+    "Liver Volume": 0,
+    "Liver/Spleen Attenuation Ratio": 0,
+    "Lesions Information": {
+        
+    },
+    "Each Lobe Volume": {
+        " Lobe 1 ": 0,
+        " Lobe 2 ": 0,
+        " Lobe 3 ": 0,
+        " Lobe 4 ": 0,
+        " Lobe 5 ": 0,
+        " Lobe 6 ": 0,
+        " Lobe 7 ": 0,
+        " Lobe 8 ": 0,
+        " Lobe 9 ": 0
+    },
+    "Each Lobe/Spleen Attenuation Ratio": {
+        " Lobe 1 ": 0,
+        " Lobe 2 ": 0,
+        " Lobe 3 ": 0,
+        " Lobe 4 ": 0,
+        " Lobe 5 ": 0,
+        " Lobe 6 ": 0,
+        " Lobe 7 ": 0,
+        " Lobe 8 ": 0,
+        " Lobe 9 ": 0
+    },
+    "LSVR Metric": 0,
+    "msg": "No Information"
+}

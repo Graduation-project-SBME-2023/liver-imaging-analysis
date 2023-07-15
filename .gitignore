@@ -26,6 +26,14 @@ test cases
 model.pt
 liver_cp_sliding_window
 lobe_cp
+temp
 mri_cp
 spleen_cp
 lobe_cp_sliding_window
+
+
+Liver-Segmentation-Website/models_checkpoints/spleen_cp
+Liver-Segmentation-Website/static/report_slices/contour_grid.jpg
+Liver-Segmentation-Website/static/report_slices/liver_slice.png
+Liver-Segmentation-Website/static/report_slices/lobes.PNG
+report.json

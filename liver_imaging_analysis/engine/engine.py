@@ -298,7 +298,7 @@ class Engine:
             The path of the checkpoint to be loaded.
             Default path is the one specified in config.
         """
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path , map_location=torch.device(self.device))
         if ('state_dict' in checkpoint.keys()): #dict checkpoint
             self.network.load_state_dict(checkpoint['state_dict'])
             if ('optimizer' in checkpoint.keys()):
