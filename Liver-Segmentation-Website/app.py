@@ -19,6 +19,7 @@ import nibabel as nib
 import monai
 import pdfkit
 import json
+import subprocess
 
 sys.path.append(".")
 plt.switch_backend("Agg")
@@ -324,6 +325,20 @@ def pdf():
     response.headers["Content-Type"] = "application/pdf"
     response.headers["Content-Disposition"] = "attachment; filename=patient report.pdf"
     return response
+
+@app.route('/execute_function', methods=['GET'])  #newly added
+def execute_function():
+    # Start the First command in a CMD window
+    subprocess.Popen(['start', 'cmd', '/c', 'cd C:/Users/Me/Desktop/button/Monai & monailabel start_server --app workspace/radiology --studies workspace/images --conf models segmentation_liver'], shell=True)
+    # Start the second command in a new CMD window
+    subprocess.Popen(['start', 'cmd', '/c', 'C:/Users/Me/Desktop/button/NA-MIC/Slicer 5.0.3/Slicer.exe'], shell=True)
+    return 'Commands started successfully.'
+
+
+@app.route('/active_learning', methods=['GET'])  #newly added
+def active_learning():
+    return render_template("active_learning.html")
+
 
 ################ Main/Run ################
 if __name__ == "__main__":
