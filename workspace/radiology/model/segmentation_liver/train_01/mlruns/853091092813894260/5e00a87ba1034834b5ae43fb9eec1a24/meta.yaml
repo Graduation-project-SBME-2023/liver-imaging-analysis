@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Me/Desktop/button/Monai/workspace/radiology/model/segmentation_liver/train_01/mlruns/853091092813894260/5e00a87ba1034834b5ae43fb9eec1a24/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '853091092813894260'
+lifecycle_stage: active
+run_id: 5e00a87ba1034834b5ae43fb9eec1a24
+run_name: run_20230711_011155
+run_uuid: 5e00a87ba1034834b5ae43fb9eec1a24
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1689027127347
+status: 1
+tags: []
+user_id: unknown

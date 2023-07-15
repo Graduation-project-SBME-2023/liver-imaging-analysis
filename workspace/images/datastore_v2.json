@@ -1,0 +1,39 @@
+{
+  "name": "new-dataset",
+  "description": "New Dataset",
+  "images_dir": ".",
+  "labels_dir": "labels",
+  "objects": {
+    "volume-20": {
+      "image": {
+        "ext": ".nii",
+        "info": {
+          "ts": 1688743119,
+          "name": "volume-20.nii",
+          "strategy": {
+            "random": {
+              "ts": 1689026832,
+              "client_id": "user-xyz"
+            }
+          }
+        }
+      },
+      "labels": {
+        "final": {
+          "ext": ".nii.gz",
+          "info": {
+            "label_info": [
+              {
+                "name": "liver",
+                "idx": 1
+              }
+            ],
+            "client_id": "user-xyz",
+            "ts": 1689027091,
+            "name": "volume-20.nii.gz"
+          }
+        }
+      }
+    }
+  }
+}

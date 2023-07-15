@@ -37,3 +37,8 @@ Liver-Segmentation-Website/static/report_slices/contour_grid.jpg
 Liver-Segmentation-Website/static/report_slices/liver_slice.png
 Liver-Segmentation-Website/static/report_slices/lobes.PNG
 report.json
+workspace/images/volume-20.nii
+workspace/radiology/logs/logging.json
+workspace/radiology/logs/app.log
+workspace/radiology/model/pretrained_liver.pt
+workspace/radiology/model/segmentation_liver/train_01/events_20230711_011155/events.out.tfevents.1689027115.DESKTOP-9SLOUFA.19168.0

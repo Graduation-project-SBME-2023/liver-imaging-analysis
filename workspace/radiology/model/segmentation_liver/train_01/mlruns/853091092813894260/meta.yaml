@@ -1,0 +1,6 @@
+artifact_location: file:///C:/Users/Me/Desktop/button/Monai/workspace/radiology/model/segmentation_liver/train_01/mlruns/853091092813894260
+creation_time: 1689027127345
+experiment_id: '853091092813894260'
+last_update_time: 1689027127345
+lifecycle_stage: active
+name: segmentation_liver
