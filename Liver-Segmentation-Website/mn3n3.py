@@ -132,19 +132,19 @@ def success():
         new_nii_mask = nib.Nifti1Image(liver_lesion, affine=affine, header=header)
         nib.save(new_nii_mask, mask_location)
 
-        # report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
-        # report = report.build_report()
-        # global report_json
-        # report_json = round_dict(report)
-        # print (report_json)
+        report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
+        report = report.build_report()
+        global report_json
+        report_json = round_dict(report)
+        print (report_json)
 
-        # visualize_tumor(volume_location, liver_lesion, mode="contour")
-        # visualize_tumor(volume_location, liver_lesion, mode="box")
-        # visualize_tumor(volume_location, liver_lesion, mode="zoom")
-        # create_image_grid(
-        #     "Liver-Segmentation-Website/static/contour",
-        #     "Liver-Segmentation-Website/static/report_slices/contour_grid.jpg",
-        # )
+        visualize_tumor(volume_location, liver_lesion, mode="contour")
+        visualize_tumor(volume_location, liver_lesion, mode="box")
+        visualize_tumor(volume_location, liver_lesion, mode="zoom")
+        create_image_grid(
+            "Liver-Segmentation-Website/static/contour",
+            "Liver-Segmentation-Website/static/report_slices/contour_grid.jpg",
+        )
 
         transform = monai.transforms.Resize((256, 256, 256), mode="nearest")
         volume = transform(volume[None]).squeeze(0)
@@ -311,12 +311,7 @@ def pdf():
         contour_grid_path = contour_grid_path,
         patient_data=patient_info,
     )
-    # config = pdfkit.configuration(
-    #     wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
-    # )
-    # pdf = pdfkit.from_string(
-    #     rendered, False, configuration=config, options={"enable-local-file-access": ""}
-    # )
+
     pdf = pdfkit.from_string(
         rendered, False, options={"enable-local-file-access": ""}
     )
@@ -330,12 +325,15 @@ def pdf():
 def execute_function():
     # Start the First command in a CMD window
     # subprocess.Popen(['start', 'cmd', '/c', 'cd C:/Users/Me/Desktop/button/Monai & monailabel start_server --app workspace/radiology --studies workspace/images --conf models segmentation_liver'], shell=True)
-    # Start the second command in a new CMD window
-    subprocess.Popen(['start', 'cmd', '/c', 'C:/Users/youse/AppData/Local/NA-MIC/Slicer 5.2.2/Slicer.exe'], shell=True)
+    # subprocess.run(['cp Liver-Segmentation-Website/static/img/volume.nii /Users/mn3n3/Documents/GP/interactive-learning/workspace/images/volummme.nii'], shell=True)
+    src = "Liver-Segmentation-Website/static/img/volume.nii"
+    dst = "../interactive learning/workspace/images/volume.nii"
+    shutil.copyfile(src, dst)
+    subprocess.run(['/Applications/Slicer.app/Contents/MacOS/Slicer'], shell=True)
     return 'Commands started successfully.'
 
 
-@app.route('/active_learning', methods=['GET'])  #newly added
+@app.route('/active_learning', methods=['GET'])  
 def active_learning():
     return render_template("active_learning.html")
 

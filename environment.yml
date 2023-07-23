@@ -340,6 +340,5 @@ dependencies:
       - vtk==9.2.6
       - wrapt==1.15.0
       - pdfkit==1.0.0
-variables:
-  PYTORCH_ENABLE_MPS_FALLBACK: '1'
+
 
