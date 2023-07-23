@@ -44,6 +44,7 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
     while(np.unique(mask).any()==1):
         fig, ax1 = plt.subplots()
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(CUDA/cpu)
+        print(temp_mask.shape)
         temp_mask=EnsureChannelFirst()(temp_mask)
         largest_tumor=KeepLargestConnectedComponent()(temp_mask)
         idx , max_volume =calculate_largest_tumor(largest_tumor[0],volume_to_pix_dim)

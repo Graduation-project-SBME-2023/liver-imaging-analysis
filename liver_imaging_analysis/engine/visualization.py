@@ -107,7 +107,9 @@ def major_axis_recursive(volume, mask, mode="volume",plot=True):
     while np.unique(mask).any() == 1:
 
         temp_mask = mask.clone()
-        temp_mask = EnsureChannelFirst()(temp_mask)
+        print(temp_mask.shape)
+        # temp_mask = EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         total_pixels = np.unique(largest_tumor[0], return_counts=True)[1][1]
         if mode == "volume":

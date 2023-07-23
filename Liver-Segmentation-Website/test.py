@@ -65,7 +65,7 @@ volume = ToTensor()(volume).unsqueeze(dim=0).unsqueeze(dim=0)
 volume = volume_processing(volume).squeeze(dim=0).squeeze(dim=0)
 
 liver_lesion = nib.load(mask_location).get_fdata()
-print(liver_lesion.shape)
+# print(liver_lesion.shape)
 # liver_lesion = segment_lesion(volume_location)[0][0]
 # lobes = segment_lobe(volume_location)[0][0]
 # spleen = segment_spleen(volume_location)[0][0]

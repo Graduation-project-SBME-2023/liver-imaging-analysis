@@ -132,19 +132,19 @@ def success():
         new_nii_mask = nib.Nifti1Image(liver_lesion, affine=affine, header=header)
         nib.save(new_nii_mask, mask_location)
 
-        # report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
-        # report = report.build_report()
-        # global report_json
-        # report_json = round_dict(report)
-        # print (report_json)
+        report = Report(volume, mask=liver_lesion, lobes_mask=lobes, spleen_mask=spleen)
+        report = report.build_report()
+        global report_json
+        report_json = round_dict(report)
+        print (report_json)
 
-        # visualize_tumor(volume_location, liver_lesion, mode="contour")
-        # visualize_tumor(volume_location, liver_lesion, mode="box")
-        # visualize_tumor(volume_location, liver_lesion, mode="zoom")
-        # create_image_grid(
-        #     "Liver-Segmentation-Website/static/contour",
-        #     "Liver-Segmentation-Website/static/report_slices/contour_grid.jpg",
-        # )
+        visualize_tumor(volume_location, liver_lesion, mode="contour")
+        visualize_tumor(volume_location, liver_lesion, mode="box")
+        visualize_tumor(volume_location, liver_lesion, mode="zoom")
+        create_image_grid(
+            "Liver-Segmentation-Website/static/contour",
+            "Liver-Segmentation-Website/static/report_slices/contour_grid.jpg",
+        )
 
         transform = monai.transforms.Resize((256, 256, 256), mode="nearest")
         volume = transform(volume[None]).squeeze(0)
@@ -311,12 +311,12 @@ def pdf():
         contour_grid_path = contour_grid_path,
         patient_data=patient_info,
     )
-    # config = pdfkit.configuration(
-    #     wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
-    # )
-    # pdf = pdfkit.from_string(
-    #     rendered, False, configuration=config, options={"enable-local-file-access": ""}
-    # )
+    config = pdfkit.configuration(
+        wkhtmltopdf="C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe"
+    )
+    pdf = pdfkit.from_string(
+        rendered, False, configuration=config, options={"enable-local-file-access": ""}
+    )
     pdf = pdfkit.from_string(
         rendered, False, options={"enable-local-file-access": ""}
     )
