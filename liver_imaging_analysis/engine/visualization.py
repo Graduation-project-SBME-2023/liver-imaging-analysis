@@ -107,7 +107,7 @@ def major_axis_recursive(volume, mask, mode="volume",plot=True):
     while np.unique(mask).any() == 1:
 
         temp_mask = mask.clone()
-        print(temp_mask.shape)
+        # print(temp_mask.shape)
         # temp_mask = EnsureChannelFirst()(temp_mask)
         temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
@@ -328,7 +328,8 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
 
     while np.unique(mask_slice).any() == 1:
         temp_mask = mask_slice.clone()
-        temp_mask = EnsureChannelFirst()(temp_mask)
+        # temp_mask = EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         total_pixels = np.unique(largest_tumor[0], return_counts=True)[1][1]
 
@@ -377,7 +378,8 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
     i = 0
     while np.unique(mask).any() == 1:
         temp_mask = mask.clone()
-        temp_mask = EnsureChannelFirst()(temp_mask)
+        # temp_mask = EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         idx = calculate_largest_tumor(largest_tumor[0])
         plt.imshow(volume[:, :, idx], cmap="gray")
@@ -496,7 +498,8 @@ def plot_tumor_volume(volume, mask):
     while np.unique(mask).any() == 1:
 
         temp_mask = mask.clone()
-        temp_mask = EnsureChannelFirst()(temp_mask)
+        # temp_mask = EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         idx = calculate_largest_tumor(largest_tumor[0])
         plot_tumor(volume[:, :, idx], largest_tumor[0][:, :, idx])

@@ -44,8 +44,9 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
     while(np.unique(mask).any()==1):
         fig, ax1 = plt.subplots()
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(CUDA/cpu)
-        print(temp_mask.shape)
-        temp_mask=EnsureChannelFirst()(temp_mask)
+        # print(temp_mask.shape)
+        temp_mask = temp_mask.unsqueeze(dim=0)
+        # temp_mask=EnsureChannelFirst()(temp_mask)
         largest_tumor=KeepLargestConnectedComponent()(temp_mask)
         idx , max_volume =calculate_largest_tumor(largest_tumor[0],volume_to_pix_dim)
         mask=torch.subtract(mask,largest_tumor[0])
@@ -61,6 +62,7 @@ def plot_axis_call(mask,volume,volume_to_pix_dim):
         first_tumor=False
         plt.axis('off')
         fig.savefig(f'Liver-Segmentation-Website/static/contour/tumor_{i}.png')
+        plt.close(fig)  
         i += 1
         parameters.append([round(axis1, 2),round(axis2, 2),round(max_volume,2)])
 
@@ -70,7 +72,8 @@ def plot_bbox_image_call(image, mask,volume_to_pix_dim, crop_margin=0):
     i=0
     while(np.unique(mask).any()==1):
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(CUDA/cpu)
-        temp_mask=EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
+        # temp_mask=EnsureChannelFirst()(temp_mask)
         largest_tumor=KeepLargestConnectedComponent()(temp_mask)
         idx , _ =calculate_largest_tumor(largest_tumor[0],volume_to_pix_dim)
         mask=torch.subtract(mask,largest_tumor[0])
@@ -89,7 +92,8 @@ def plot_tumor_call(volume,mask,volume_to_pix_dim):
     i = 0
     while(np.unique(mask).any()==1): 
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(cuda/cpu)
-        temp_mask=EnsureChannelFirst()(temp_mask)
+        # temp_mask=EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor=KeepLargestConnectedComponent()(temp_mask)
         idx , _=calculate_largest_tumor(largest_tumor[0],volume_to_pix_dim)
         mask=torch.subtract(mask,largest_tumor[0])
@@ -128,28 +132,45 @@ def get_bounding_box(mask, crop_margin=0):
             break
     return xmin, ymin, xmax, ymax
 
-def get_colors():
-    numbers = [0, 0.5, 1]
-    perm = permutations(numbers)
-    colors = [color for color in perm]
+# def get_colors():
+#     numbers = [0, 0.5, 1]
+#     perm = permutations(numbers)
+#     colors = [color for color in perm]
+#     return colors
+
+
+# Modify the get_colors() function
+def get_colors(num_colors):
+    colors = []
+    predefined_colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', "magenta", "indigo", 'violet', 'pink', 'maroon',
+                         'lime']  # Add more colors as needed
+    for i in range(num_colors):
+        colors.append(predefined_colors[i % len(predefined_colors)])
     return colors
+
         
 def plot_bbox_image(mask,volume_to_pix_dim, crop_margin=0):
 
     dimensions=[]
     while(np.unique(mask).any()==1):
         temp_mask=ToTensor()(np.copy(mask)).to('cpu') # change to your device(CUDA/cpu)
-        temp_mask=EnsureChannelFirst()(temp_mask)
+        # temp_mask=EnsureChannelFirst()(temp_mask)
+        temp_mask = temp_mask.unsqueeze(dim=0)
         largest_tumor=KeepLargestConnectedComponent()(temp_mask)
         total_pixels=np.unique(largest_tumor[0],return_counts=True)[1][1]
         xmin, ymin, xmax, ymax = get_bounding_box(largest_tumor[0], crop_margin)
         dimensions.append((xmin,ymin,xmax,ymax,total_pixels))
         mask=torch.subtract(mask,largest_tumor[0])
 
-    colors=get_colors()
+    num_lesions = len(dimensions)
+    colors = get_colors(num_lesions)
+    # colors=get_colors()
+    # print(colors.shape)
+    # print(colors)
     for i in range(len(dimensions)):
         xmin,ymin,xmax,ymax,_ =dimensions[i]
         plt.axis('off')
+        
         plt.plot([xmin, xmax], [ymin, ymin], color=colors[i], label=f"Lesion {i+1}")
         plt.plot([xmax, xmax], [ymin, ymax], color=colors[i])
         plt.plot([xmin, xmin], [ymin, ymax], color=colors[i])
