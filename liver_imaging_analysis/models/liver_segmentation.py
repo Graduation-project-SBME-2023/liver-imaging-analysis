@@ -359,7 +359,6 @@ class LiverSegmentation(Engine):
                     AsDiscreteD(Keys.PRED,threshold = 0.5),
                     FillHolesD(Keys.PRED),
                     KeepLargestConnectedComponentD(Keys.PRED),
-                    MorphologicalClosingd(Keys.PRED, iters = 4)
                 ]
             ),
             '2d_mri_transform': Compose(
