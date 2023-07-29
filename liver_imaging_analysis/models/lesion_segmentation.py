@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+from liver_imaging_analysis.engine.transforms import MorphologicalClosing
 from monai.transforms import (
     Compose,
     EnsureChannelFirstD,
@@ -485,14 +486,18 @@ def segment_lesion(
     liver_model.load_checkpoint(liver_cp)
     lesion_model.load_checkpoint(lesion_cp)
     liver_prediction = liver_model.predict(prediction_path)
+    close = MorphologicalClosing(iters = 4)
     lesion_prediction = lesion_model.predict(
                             prediction_path,
-                            liver_mask = liver_prediction[0].permute(3,0,1,2) 
+                            liver_mask = close(liver_prediction[0]).permute(3,0,1,2) 
                                          if lesion_inference == '3D' 
                                          else liver_prediction
                             )
-    lesion_prediction = lesion_prediction * liver_prediction #no liver -> no lesion
-    liver_lesion_prediction = lesion_prediction + liver_prediction #lesion label is 2
+    liver_lesion_prediction = torch.tensor(np.where(
+                                                lesion_prediction == 1,
+                                                2, 
+                                                liver_prediction
+                                                )).to(liver_prediction.device)
     return liver_lesion_prediction
 
 

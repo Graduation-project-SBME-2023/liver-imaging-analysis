@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+from liver_imaging_analysis.engine.transforms import Dilation, ConvexHull
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
     Compose,
@@ -820,11 +821,15 @@ def segment_lobe(
     liver_model.load_checkpoint(liver_cp)
     lobe_model.load_checkpoint(lobe_cp)
     liver_prediction = liver_model.predict(prediction_path)
+    extract = Compose([
+                Dilation(), 
+                ConvexHull()
+                ])
     lobe_prediction = lobe_model.predict(
                         prediction_path, 
-                        liver_mask = liver_prediction[0].permute(3,0,1,2) 
+                        liver_mask = extract(liver_prediction[0]).permute(3,0,1,2) 
                                      if lobe_inference == '3D' 
-                                     else liver_prediction
+                                     else extract(liver_prediction[0])[None]
                         )
     lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
     return lobe_prediction
