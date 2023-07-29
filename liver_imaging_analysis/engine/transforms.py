@@ -232,7 +232,6 @@ class MorphologicalClosing(Transform):
         tensor
             resultant tensor after applying closing to the input mask.
         """
-        import numpy as np
         channels = self.channels if self.channels is not None else range(mask.shape[0])
         device = mask.device
         dtype = mask.dtype
