@@ -1,3 +1,4 @@
+import os
 import pytest
 import torch
 from liver_imaging_analysis.engine.utils import VolumeSlicing,Overlay ,calculate_largest_tumor,liver_isolate_crop,find_pix_dim
@@ -7,8 +8,8 @@ import numpy as np
 
 
 # test input files
-volume_dir="C:/Users/Hager/Downloads/test/liver/volume"
-mask_dir="C:/Users/Hager/Downloads/test/liver/mask"
+volume_dir="test/liver/volume"
+mask_dir="test/liver/mask"
 vol_path=os.path.join(volume_dir,'resized_liver.nii')
 mask_path= os.path.join(mask_dir,'resized_mask.nii')   # 0 background, 1 liver, 2 lesion
 mask=nib.load(mask_path)
@@ -22,6 +23,8 @@ def temp_dir(tmpdir):
     temp_vol=tmpdir.mkdir("vol")
     temp_mask=tmpdir.mkdir("mask")
     return  temp_vol,temp_mask
+
+
 
 def test_liver_isolate_crop(temp_dir):
     """
@@ -96,6 +99,7 @@ def test_overlay(temp_dir):
     
     assert os.path.exists(path) 
 
+   
     
 
 @pytest.mark.parametrize("extension", ['.nii.gz','.png'])
