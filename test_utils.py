@@ -8,8 +8,8 @@ import numpy as np
 
 
 # test input files
-volume_dir="test/liver/volume"
-mask_dir="test/liver/mask"
+volume_dir="test/testdata/volume"
+mask_dir="test/testdata/mask"
 vol_path=os.path.join(volume_dir,'resized_liver.nii')
 mask_path= os.path.join(mask_dir,'resized_mask.nii')   # 0 background, 1 liver, 2 lesion
 mask=nib.load(mask_path)
