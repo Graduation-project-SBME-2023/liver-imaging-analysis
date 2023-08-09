@@ -1,9 +1,8 @@
-################################################### IMPORT ############################################################
 import os
 import pytest
 import torch
 import monai
-from monai.metrics import DiceMetric, MeanIoU
+import numpy as np
 import torch.optim.lr_scheduler as lr_scheduler
 from monai.data import DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
@@ -25,212 +24,166 @@ from monai.transforms import (
     ActivationsD,
     AsDiscreteD,
 )
-#######################################################################################################################
+
+
 def set_configs():
     """
-        Description: Sets new values for config parameters.
+    Sets new values for config parameters.
 
-        Parameters: None
+    Parameters
+    ----------
+        None
 
-        Returns: None
-        """
-    config.dataset['prediction'] = "test cases/sample"
-    config.device="cpu"
-    config.dataset['training'] = "Temp2D/Train/"
-    config.dataset['testing'] = "Temp2D/Test/"
-    config.training['batch_size'] = 8
-    config.training['scheduler_parameters'] = {
-                                                "step_size" : 20,
-                                                "gamma" : 0.5, 
-                                                "verbose" : False
-                                                }
-    config.network_parameters['dropout'] = 0
-    config.network_parameters['spatial_dims']= 3 
-    config.network_parameters['channels'] = [8,16,32,64]
-    config.network_parameters['strides'] =  [2, 2, 2]
-    config.network_parameters['num_res_units'] =  0
-    config.network_parameters['norm'] = "INSTANCE"
-    config.network_parameters['bias'] = True
+    Returns
+    ----------
+        None
+    """
+    config.dataset["prediction"] = "test cases/sample"
+    config.device = "cuda"
+    config.dataset["training"] = "Temp2D/Train/"
+    config.dataset["testing"] = "Temp2D/Test/"
+    config.training["batch_size"] = 8
+    config.training["scheduler_parameters"] = {
+        "step_size": 20,
+        "gamma": 0.5,
+        "verbose": False,
+    }
+    config.network_parameters["dropout"] = 0
+    config.network_parameters["spatial_dims"] = 3
+    config.network_parameters["channels"] = [8, 16, 32, 64]
+    config.network_parameters["strides"] = [2, 2, 2]
+    config.network_parameters["num_res_units"] = 0
+    config.network_parameters["norm"] = "INSTANCE"
+    config.network_parameters["bias"] = True
 
-#######################################################################################################################
-@pytest.fixture   
+
+@pytest.fixture
 def engine():
     """
-        Description: Pytest fixture that initializes an instance of the Engine class with the configured parameters.
+    Pytest fixture that initializes an instance of the Engine class with the configured parameters.
 
-        Parameters: None
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
 
-        Returns: An instance of the Engine class.
-     """
+    Returns
+    ----------
+        None
+    """
     set_configs()
     set_seed()
-    engine= Engine()
+    engine = Engine()
     return engine
 
-#######################################################################################################################
-def test_get_optimizer_adam(engine):
+
+def test_set_configs(engine):
     """
-    Description: Tests the get_optimizer method of the engine with the Adam optimizer.
+    Tests the get_optimizer method of the engine with the Adam optimizer.
 
-    Parameters: engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
 
-    Returns: None
+    Returns
+    ----------
+        None
     """
 
-    opt = engine.get_optimizer('Adam', lr=0.001)
-    assert isinstance(opt, torch.optim.Adam)
-    assert opt.defaults['lr'] == 0.001
+    assert isinstance(engine.optimizer, torch.optim.Adam)
+    assert engine.optimizer.defaults["lr"] == 0.01
 
-def test_get_optimizer_sgd(engine):
-    """
-   Description: Tests the get_optimizer method of the engine with the SGD optimizer.
+    assert isinstance(engine.scheduler, lr_scheduler.StepLR)
+    assert engine.scheduler.step_size == 20
+    assert engine.scheduler.gamma == 0.5
 
-    Parameters: engine(object) : An instance of the Engine class.
+    assert isinstance(engine.network, monai.networks.nets.UNet)
 
-    Returns: None
-    """
-    opt = engine.get_optimizer('SGD', lr=0.01, momentum=0.9)
-    assert isinstance(opt, torch.optim.SGD)
-    assert opt.defaults['lr'] == 0.01
-    assert opt.defaults['momentum'] == 0.9
-    
-def test_get_scheduler_steplr(engine):
-    """
-   Description: Tests the get_scheduler method of the engine with the StepLR scheduler.
-
-    Parameters: engine(object) : An instance of the Engine class.
-
-    Returns: None
-    """
-    scheduler = engine.get_scheduler('StepLR', step_size=10, gamma=0.1)
-    assert isinstance(scheduler, lr_scheduler.StepLR)
-    assert scheduler.step_size == 10
-    assert scheduler.gamma == 0.1
-
-def test_get_network_unet(engine):
-    """
-    Description: Tests if the network attribute of the engine is an instance of monai.networks.nets.UNet.
-
-    Parameters: engine(object) : An instance of the Engine class.
-
-    Returns: None
-    """
-    assert isinstance(engine.network ,monai.networks.nets.UNet ) 
+    assert isinstance(engine.loss, monaiDiceLoss)
 
 
-def test_get_loss_monai_dice(engine):
-    """
-    Description: Tests the get_loss method of the engine with the "monai_dice" loss.
-
-    Parameters: engine(object) : An instance of the Engine class.
-
-    Returns: None
-    """
-    loss_fn = engine.get_loss('monai_dice')
-    assert isinstance(loss_fn, monaiDiceLoss) 
-
-def test_get_metrics_dice(engine):
-    """
-    Description: Tests the get_metrics method of the engine with the "dice" metric.
-
-    Parameters: engine(object) : An instance of the Engine class.
-
-    Returns: None
-    """
-    metric = engine.get_metrics('dice')
-    assert isinstance(metric, DiceMetric)
-
-def test_get_metrics_jaccard(engine):
-    """
-    Description: Tests the get_metrics method of the engine with the "jaccard" metric.
-
-    Parameters: engine : An instance of the Engine class.
-
-    Returns: None
-    """
-    metric = engine.get_metrics('jaccard')
-    assert isinstance(metric, MeanIoU)
-
-#########################################################################################################################
 def get_transforms(engine):
     """
-    Description: Sets the pre-processing, and post-processing transforms for the engine.
+    Sets the pre-processing, and post-processing transforms for the engine.
 
-    Parameters: engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
 
-    Returns: None
+    Returns
+    ----------
+        None
     """
-    engine.train_transform =Compose(
-                    [
-                        LoadImageD(Keys.all(), allow_missing_keys = True),
-                        EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                        ResizeD(
-                            Keys.all(), 
-                            spatial_size=[256, 256,128], 
-                            mode=("trilinear", "nearest", "nearest"), 
-                            allow_missing_keys = True
-                            ),
-                        RandZoomd(
-                            Keys.all(),
-                            prob = 0.5, 
-                            min_zoom = 0.8, 
-                            max_zoom = 1.2, 
-                            allow_missing_keys = True
-                            ),
-                        RandFlipd(
-                            Keys.all(),
-                            prob = 0.5, 
-                            spatial_axis = 1, 
-                            allow_missing_keys = True
-                            ),
-                        RandRotated(
-                            Keys.all(),
-                            range_x = 1.5, 
-                            range_y = 0, 
-                            range_z = 0, 
-                            prob = 0.5, 
-                            allow_missing_keys = True
-                            ),
-                        RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
-                        NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                        ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
-                        ToTensorD(Keys.all(), allow_missing_keys = True),
-                    ]
-                )
-    
+    engine.train_transform = Compose(
+        [
+            LoadImageD(Keys.all(), allow_missing_keys=True),
+            EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+            ResizeD(
+                Keys.all(),
+                spatial_size=[256, 256, 128],
+                mode=("trilinear", "nearest", "nearest"),
+                allow_missing_keys=True,
+            ),
+            RandZoomd(
+                Keys.all(),
+                prob=0.5,
+                min_zoom=0.8,
+                max_zoom=1.2,
+                allow_missing_keys=True,
+            ),
+            RandFlipd(Keys.all(), prob=0.5, spatial_axis=1, allow_missing_keys=True),
+            RandRotated(
+                Keys.all(),
+                range_x=1.5,
+                range_y=0,
+                range_z=0,
+                prob=0.5,
+                allow_missing_keys=True,
+            ),
+            RandAdjustContrastd(Keys.IMAGE, prob=0.25),
+            NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+            ForegroundMaskD(Keys.LABEL, threshold=0.5, invert=True),
+            ToTensorD(Keys.all(), allow_missing_keys=True),
+        ]
+    )
+
     engine.test_transform = Compose(
-                [
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
-                    ResizeD(
-                        Keys.all(),
-                        spatial_size=[256, 256,128], 
-                        mode=("trilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True,
-                    ),
-                    NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
-                    ForegroundMaskD(
-                        Keys.LABEL,
-                        threshold = 0.5, 
-                        invert = True, 
-                        allow_missing_keys = True
-                    ),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
-                ]
-            )
-    engine.postprocessing_transforms = Compose([
-    ActivationsD(Keys.PRED,sigmoid = True),
-    AsDiscreteD(Keys.PRED,threshold = 0.5)
-    
-])
-#########################################################################################################################
+        [
+            LoadImageD(Keys.all(), allow_missing_keys=True),
+            EnsureChannelFirstD(Keys.all(), allow_missing_keys=True),
+            ResizeD(
+                Keys.all(),
+                spatial_size=[256, 256, 128],
+                mode=("trilinear", "nearest", "nearest"),
+                allow_missing_keys=True,
+            ),
+            NormalizeIntensityD(Keys.IMAGE, channel_wise=True),
+            ForegroundMaskD(
+                Keys.LABEL, threshold=0.5, invert=True, allow_missing_keys=True
+            ),
+            ToTensorD(Keys.all(), allow_missing_keys=True),
+        ]
+    )
+
+    engine.postprocessing_transforms = Compose(
+        [ActivationsD(Keys.PRED, sigmoid=True), AsDiscreteD(Keys.PRED, threshold=0.5)]
+    )
+
+
 def test_load_data(engine):
     """
-    Description: Tests the load_data method of the engine.
+    Tests the load_data method of the engine.
 
-    Parameters: engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
 
-    Returns: None
+    Returns
+    ----------
+        None
     """
 
     get_transforms(engine)
@@ -243,40 +196,60 @@ def test_load_data(engine):
     assert isinstance(engine.test_dataloader, MonaiLoader)
 
 
-#########################################################################################################################
-def test_save_checkpoint(engine,ckpt_path='Checkpoint'):
+def test_save_checkpoint(engine, ckpt_path="Checkpoint"):
     """
-    Description: Tests the save_checkpoint method of the engine.
+    Tests the save_checkpoint method of the engine.
 
-    Parameters:
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
+        ckpt_path: str
+            Path of the input directory.
 
-      engine(object) : An instance of the Engine class.
-
-      ckpt_path (str): path of the input directory.
-
-    Returns: None
+    Returns
+    ----------
+        None
     """
-
-    engine.save_checkpoint(ckpt_path) 
 
     assert os.path.exists(ckpt_path)
-    
-#########################################################################################################################
-def test_load_checkpoint(engine,checkpoint_path = 'Checkpoint'):
+
+    loaded_checkpoint = torch.load(ckpt_path)
+
+    engine.load_checkpoint(ckpt_path)
+
+    # verify network state dict match
+    assert set(engine.network.state_dict()) == set(loaded_checkpoint["state_dict"])
+    # verify optimizer state dict match
+    assert set(engine.optimizer.state_dict()) == set(loaded_checkpoint["optimizer"])
+    # verify scheduler state dict match
+    assert set(engine.scheduler.state_dict()) == set(loaded_checkpoint["scheduler"])
+
+
+def test_load_checkpoint(
+    engine, checkpoint_path="Checkpoint", ref_path="ref_Checkpoint"
+):
     """
-    Description:  Tests the load_checkpoint method of the engine.
+    Tests the load_checkpoint method of the engine.
 
-    Parameters:
-       
-      engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
+        checkpoint_path: str
+            Path of the input directory.
+        ref_path: str
+            Path to check the model weights.
 
-      checkpoint_path (str): path of the input directory.
-
-    Returns: None
+    Returns
+    ----------
+        None
     """
-    get_transforms(engine) 
+    get_transforms(engine)
 
-    init_weights = engine.network.state_dict()
+    engine.load_checkpoint(ref_path)
+
+    ref_weights = engine.network.state_dict()
 
     engine.load_checkpoint(checkpoint_path)
 
@@ -284,60 +257,65 @@ def test_load_checkpoint(engine,checkpoint_path = 'Checkpoint'):
     loaded_weights = engine.network.state_dict()
 
     # Check that weights match
-    for i in init_weights.keys():
-        assert torch.allclose(init_weights[i], loaded_weights[i])
-#########################################################################################################################
+    for i in ref_weights.keys():
+        assert torch.allclose(ref_weights[i], loaded_weights[i], atol=1e-3)
 
-def test_fit(engine,
-        epochs = 2, 
-        evaluate_epochs = 1,
-        batch_callback_epochs = 100,
-        save_weight =False,
-        save_path ='Checkpoint',
 
-        ):
+def test_fit(engine, save_path="Checkpoint", ref_path="ref_checkpoint"):
     """
-    Description: Tests the fit method of the engine.
+    Tests the fit method of the engine.
 
-    Parameters:
-       
-        engine(object): An instance of the Engine class.
+    Parameters
+    ----------
 
-        epochs (int): Number of training epochs.
+        engine: object
+            An instance of the Engine class.
 
-        evaluate_epochs (int): Number of epochs between model evaluation.
+        save_path: str
+            Path to save the model weights.
 
-        batch_callback_epochs (int): Number of epochs between batch-level callbacks.
+        ref_path: str
+            Path to check the model weights.
 
-        save_weight (bool): Whether to save the model weights.
-
-        save_path (str): Path to save the model weights.
-
-    Returns: None
+    Returns
+    ----------
+        None
     """
     get_transforms(engine)
     engine.load_data()
 
-    engine.fit(
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
-    )
+    # Get initial weights
+    init_weights = [p.clone() for p in engine.network.parameters()]
+
+    # Get loaded weights
+    engine.load_checkpoint(ref_path)
+    ref_weights = engine.network.parameters()
+
+    engine.fit(save_path=save_path)
 
     assert os.path.exists(save_path)
 
-#########################################################################################################################
+    # Verify weights were updated
+    for p0, p1 in zip(init_weights, engine.network.parameters()):
+        assert not torch.equal(p0, p1)
+
+    # Check that weights match
+    for p0, p1 in zip(ref_weights, engine.network.parameters()):
+        assert torch.allclose(p0, p1, atol=1e-3)
+
+
 def test_test(engine):
     """
-    Description: Tests the test method of the engine.
+    Tests the test method of the engine.
 
-    Parameters:
-       
-      engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
 
-    Returns: None
+    Returns
+    ----------
+        None
     """
 
     get_transforms(engine)
@@ -345,28 +323,38 @@ def test_test(engine):
 
     loss, metric = engine.test()
 
-    assert loss != 0
-    assert metric != 0
+    assert np.allclose(loss, 0.954, atol=1e-3)
+    assert np.allclose(metric, 0.0429, atol=1e-3)
 
-#########################################################################################################################
-def test_predict(engine,path="temp/"):
+
+def test_predict(engine, path="temp/", pred_path="test_temp\predicted.npy"):
     """
-    Description: Tests the predict method of the engine.
+    Tests the predict method of the engine.
 
-    Parameters:
-       
-      engine(object) : An instance of the Engine class.
+    Parameters
+    ----------
+        engine: object
+            An instance of the Engine class.
+        path: str
+            Path of the input directory.
+        pred_path: str
+            The path to the predicted 3D numpy array. In this test case, it is set to "predicted.npy".
 
-      path (str): path of the input directory.
-
-    Returns: None
+    Returns
+    ----------
+        None
     """
-    
+
     get_transforms(engine)
     engine.load_data()
 
     predicted = engine.predict(path)
+    prediction = predicted.cpu()
+    prediction = prediction.numpy()
+    final_path = pred_path
+    np.save(final_path, prediction)
+    true = np.load(final_path)
 
-    assert predicted.shape == torch.Size([1,1,256,256,128])
-
-#########################################################################################################################
+    assert predicted.shape == torch.Size([1, 1, 256, 256, 128])
+    assert predicted.shape == true.shape
+    assert np.allclose(prediction, true, 1e-2)
