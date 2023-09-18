@@ -185,10 +185,8 @@ def test_get_postprocessing_transforms(transform_name, liver_obj):
         assert isinstance(t, e)
 
 
-@pytest.mark.parametrize(
-    ("modality", "inference", "path"), [("CT", "3D", "tests/testdata/predicted_3d.npy")]
-)
-def test_segment_liver_2d(modality, inference, path):
+
+def test_segment_liver_2d(modality="CT", inference= "3D", path= "tests/testdata/predicted_3d.npy"):
     """ "
     Tests segment_liver function (liver_inference = '3D').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
@@ -289,7 +287,7 @@ def test_test_sliding_window(liver_object_sw):
         num_workers=0,
         pin_memory=False,
         test_size=1,
-        mode=config.dataset["mode"],
+        mode= "2D",
         shuffle=config.training["shuffle"],
     )
     test_dataload = test_dataloader.get_testing_data()
@@ -297,15 +295,13 @@ def test_test_sliding_window(liver_object_sw):
         dataloader=test_dataload
     )
 
-    assert test_loss <= 1
-    assert test_metric <= 0.5
+    assert round(test_loss,1) == 0.9
+    assert test_metric.item() <= 0.5
 
 
-@pytest.mark.parametrize(
-    ("modality", "inference", "path"),
-    [("CT", "sliding_window", "tests/testdata/predicted_sliding.npy")],
-)
-def test_segment_liver(modality, inference, path):
+
+
+def test_segment_liver(modality = "CT" , inference = "sliding_window", path = "tests/testdata/predicted_sliding.npy"):
     """
     Tests segment_liver function (liver_inference = 'sliding_window').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
@@ -370,3 +366,5 @@ def test_train():
     # Check that weights match
     for i in init_weights.keys():
         assert torch.allclose(init_weights[i], loaded_weights[i])
+
+

@@ -140,8 +140,7 @@ def test_predict_2dto3d(lesion_obj):
     prediction = lesion_obj.predict_2dto3d(
         volume_path=volume_dir,
         liver_mask=close(liver_mask[0]).permute(3, 0, 1, 2)
-        if lesion_inference == "3D"
-        else liver_mask,
+
     )
 
     assert isinstance(prediction, torch.Tensor)
@@ -164,7 +163,7 @@ def test_segment_lesion():
         liver_inference="sliding_window",
         lesion_inference="3D",
         liver_cp=config.test["reference_sliding_window"],
-        lesion_cp=config.test["lesion_cp"],
+        lesion_cp=config.test["reference_lesion_cp"],
     )
 
     # Assertion checks for lesion_prediction
@@ -178,6 +177,7 @@ def test_segment_lesion():
 
     lesion_prediction = lesion_prediction.cpu()
     lesion_prediction = lesion_prediction.numpy()
+
 
     ref_path = "tests/testdata/predicted_array_lesion.npy"
     true = np.load(ref_path)

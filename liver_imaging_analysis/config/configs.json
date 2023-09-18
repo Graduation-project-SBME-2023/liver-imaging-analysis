@@ -1,10 +1,10 @@
 {
     "device": "cuda",
     "dataset": {
-        "mode": "2D",
-        "training": "tests/testdata/resized_train_liver/",
-        "testing": "tests/testdata/resized_liver/",
-        "unittest": "Temp2D/Test/"
+        "training": "Temp2D/Train/",
+        "testing": "Temp2D/Test/",
+        "unittest": "Temp2D/Test/",
+        "mode":"2D"
     },
     "visualization": {"volume": "volume-0.nii", "mask": "segmentation-0.nii"},
     "unittest_size": [16, 16, 8],
@@ -59,12 +59,11 @@
         "test_folder": "tests/testdata/resized_liver/",
         "test_volume": "tests/testdata/resized_liver/volume/resized_liver.nii",
         "test_label": "tests/testdata/resized_liver/mask/resized_mask.nii",
-        "liver_cp": "tests/testdata/liver_cp",
         "reference_sliding_window": "tests/testdata/reference_liver_sw",
-        "liver_sliding_window": "tests/testdata/liver_cp_sliding_window",
+        "liver_cp": "tests/testdata/liver_cp",
         "lesion_cp": "tests/testdata/lesion_cp",
-        "reference_lesion_cp": "tests/testdata/reference_lesion_cp",
-        "lobe_sliding_window": "tests/testdata/lobe_cp_sliding_window"
+        "reference_lesion_cp": "tests/testdata/reference_lesion_cp"
+
     },
     "seed": 0
 }
