@@ -177,7 +177,7 @@ def test_get_postprocessing_transforms(transform_name, lobe_obj):
 
 @pytest.mark.parametrize(
     ("liver_inference", "lobe_inference", "path"),
-    [("3D", "sliding_window", "tests/testdata/predicted_lobe.npy")],
+    [("3D", "sliding_window", "tests/testdata/testcases/predicted_lobe.npy")],
 )
 def test_segment_lobe_sw(liver_inference, lobe_inference, path):
     """
@@ -198,7 +198,7 @@ def test_segment_lobe_sw(liver_inference, lobe_inference, path):
         liver_inference=liver_inference,
         lobe_inference=lobe_inference,
         liver_cp=config.test["liver_cp"],
-        lobe_cp="tests/testdata/lobe_cp_sliding_window",
+        lobe_cp= config.test["lobe_cp_sw"],
     )
     # Assertion checks for liver_prediction
     assert isinstance(lobe_prediction, torch.Tensor)
@@ -275,7 +275,7 @@ def test_predict_sliding_window(lobe_object_sw):
     )
 
     prediction = lobe_object_sw.predict_sliding_window(
-        volume_path="tests/testdata/resized_liver/volume/resized_liver.nii",
+        volume_path= config.test["test_volume"],
         liver_mask=liver_mask,
     )
     assert isinstance(prediction, torch.Tensor)

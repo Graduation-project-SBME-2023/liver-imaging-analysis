@@ -110,8 +110,8 @@ class LiverSegmentation(Engine):
             elif inference == "sliding_window":
                 config.dataset["prediction"] = "test cases/volume/volume-64.nii"
                 config.dataset["training"], config.dataset["testing"] = (
-                    "tests/testdata/resized_train_liver/",
-                    "tests/testdata/resized_liver/",
+                    "tests/testdata/data/resized_train_liver/",
+                    "tests/testdata/data/resized_liver/",
                 )
                 config.training["batch_size"] = 1
                 config.training["scheduler_parameters"] = {

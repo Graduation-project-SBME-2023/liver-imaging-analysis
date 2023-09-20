@@ -70,8 +70,8 @@ class LesionSegmentation(Engine):
 
         config.dataset["prediction"] = "test cases/volume/volume-64.nii"
         config.dataset["training"], config.dataset["testing"] = (
-            "tests/testdata/Temporary lessions/Train/",
-            "tests/testdata/Temporary lessions/Test/",
+            "tests/testdata/data/Temporary lessions/Train/",
+            "tests/testdata/data/Temporary lessions/Test/",
         )
         config.training["batch_size"] = 8
         config.training["optimizer_parameters"] = {"lr": 0.01}

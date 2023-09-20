@@ -186,7 +186,7 @@ def test_get_postprocessing_transforms(transform_name, liver_obj):
 
 
 
-def test_segment_liver_2d(modality="CT", inference= "3D", path= "tests/testdata/predicted_3d.npy"):
+def test_segment_liver_2d(modality="CT", inference= "3D", path= "tests/testdata/testcases/predicted_3d.npy"):
     """ "
     Tests segment_liver function (liver_inference = '3D').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
@@ -301,7 +301,7 @@ def test_test_sliding_window(liver_object_sw):
 
 
 
-def test_segment_liver(modality = "CT" , inference = "sliding_window", path = "tests/testdata/predicted_sliding.npy"):
+def test_segment_liver(modality = "CT" , inference = "sliding_window", path = "tests/testdata/testcases/predicted_sliding.npy"):
     """
     Tests segment_liver function (liver_inference = 'sliding_window').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
@@ -315,7 +315,7 @@ def test_segment_liver(modality = "CT" , inference = "sliding_window", path = "t
     ----------
     """
     liver_prediction = segment_liver(
-        prediction_path="tests/testdata/resized_liver/volume/resized_liver.nii",
+        prediction_path=config.test["test_volume"],
         modality=modality,
         inference=inference,
         cp_path=config.test["reference_sliding_window"],
@@ -352,15 +352,15 @@ def test_train():
         modality="CT",
         inference="sliding_window",
         pretrained=False,
-        cp_path="tests/testdata/liver_sw",
+        cp_path=config.test["liver_cp_sw"],
         epochs=1,
         evaluate_epochs=1,
         batch_callback_epochs=100,
         save_weight=True,
-        save_path="tests/testdata/liver_sw",
+        save_path=config.test["liver_cp_sw"],
         test_batch_callback=False,
     )
-    model.load_checkpoint("tests/testdata/liver_sw")
+    model.load_checkpoint(config.test["liver_cp_sw"])
     loaded_weights = model.network.state_dict()
 
     # Check that weights match
