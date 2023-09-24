@@ -1,12 +1,20 @@
 """
 This module provides various visualization functions for tumors.
 """
+import sys
+import os
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from skimage.measure import find_contours
 import cv2 as cv
 import matplotlib.pyplot as plt
 from monai.transforms import KeepLargestConnectedComponent, EnsureChannelFirst
-from utils import visualization,calculate_largest_tumor,find_pix_dim,get_colors
+from liver_imaging_analysis.engine.utils import (
+    visualization,
+    calculate_largest_tumor,
+    find_pix_dim,
+    get_colors,
+)
 import numpy as np
 from torch import subtract
 import SimpleITK as sitk
@@ -14,7 +22,7 @@ import SimpleITK as sitk
 first_tumor = False  # to add plot titles for first tumor only not on every plot
 
 
-def visualize_tumor(volume, mask, idx=None, mode='contour'):
+def visualize_tumor(volume, mask, idx=None, mode="contour", save_path=None):
     """
     Initiate the tumor visualization based on the chosen mode and whether to calculate the tumor
     for the whole volume or a specific slice.
@@ -32,43 +40,42 @@ def visualize_tumor(volume, mask, idx=None, mode='contour'):
             - 'contour': Draws the major axis and contour around the tumor.
             - 'box': Draws a bounding box around the tumor.
             - 'zoom': Zooms in and draws the major axis and contours on the tumor.
+    save_path : str, optional
+        The path to save the figure(s) in. If None, the figure(s) are not saved.
 
     """
     fig, ax = plt.subplots()
     ax.axes.get_yaxis().set_visible(False)
     ax.axes.get_xaxis().set_visible(False)
     if mode == "contour":
-
         if idx is not None:
-
-            major_axis_recursive(volume[:, :, idx], mask[:, :, idx], mode="slice")
+            major_axis_recursive(
+                volume[:, :, idx], mask[:, :, idx], mode="slice", save_path=save_path
+            )
 
         else:
-            major_axis_recursive(volume, mask)
+            major_axis_recursive(volume, mask, save_path=save_path)
 
     if mode == "box":
         if idx is not None:
-
             ax.imshow(volume[:, :, idx], interpolation=None, cmap="gray")
 
-            plot_bbox_image(mask[:, :, idx], crop_margin=0)
+            plot_bbox_image(mask[:, :, idx], crop_margin=0, save_path=save_path)
         else:
-            plot_bbox_image_volume(volume, mask, crop_margin=0)
+            plot_bbox_image_volume(volume, mask, crop_margin=0, save_path=save_path)
 
     if mode == "zoom":
         if idx is not None:
             # ax.imshow(volume[:,:,idx], interpolation=None, cmap=plt.cm.Greys_r)
 
-            plot_tumor(
-                volume[:, :, idx], mask[:, :, idx]
-            )  
+            plot_tumor(volume[:, :, idx], mask[:, :, idx], save_path=save_path)
 
         else:
-            plot_tumor_volume(volume, mask)
+            plot_tumor_volume(volume, mask, save_path=save_path)
     fig.show()
 
 
-def major_axis_recursive(volume, mask, mode="volume"):
+def major_axis_recursive(volume, mask, mode="volume", save_path=None):
     """
     Calls the 'major_axis' function independently for each tumor in the volume.
 
@@ -84,18 +91,19 @@ def major_axis_recursive(volume, mask, mode="volume"):
         If 'volume', the code is performed for each tumor in the volume,
           and each tumor is plotted individually in the slice with the largest volume.
         If 'slice', the code is performed on all tumors in a specific slice.
+    save_path : str, optional
+        The path to save the figure(s) in. If None, the figure(s) are not saved.
     """
 
     global first_tumor
     first_tumor = True
     fig, ax = plt.subplots()
-
-
-#    It removes all tumors in the volume/slice except the largest one and then calls the 'major_axis' function for it.
-#    This process is repeated until all tumors have been processed.
+    idx_tumor_counter = {}
+    #    It removes all tumors in the volume/slice except the largest one and then calls the 'major_axis' function for it.
+    #    This process is repeated until all tumors have been processed.
+    # Initialize a counter for each idx
 
     while np.unique(mask).any() == 1:
-
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
@@ -103,20 +111,35 @@ def major_axis_recursive(volume, mask, mode="volume"):
             idx = calculate_largest_tumor(largest_tumor[0])
 
             major_axes(volume[:, :, idx], largest_tumor[0][:, :, idx], ax)
-
             contours = find_contours(largest_tumor[0][:, :, idx], 0)
             for contour in contours:
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
+
+            if save_path is not None:
+                # Increment the counter for each new tumor in the same idx
+                if idx in idx_tumor_counter:
+                    idx_tumor_counter[idx] += 1
+                else:
+                    idx_tumor_counter[idx] = 1
+                filename = os.path.join(
+                    "{0}/slice_{1}_tumor_{2}.png".format(
+                        save_path, idx, idx_tumor_counter[idx]
+                    )
+                )
+                plt.savefig(filename)
+
             plt.show()
             fig, ax = plt.subplots()
 
         elif mode == "slice":
             major_axes(volume, largest_tumor[0], ax)
-
-            contours = find_contours(mask, 0)
+            print(mask.shape)
+            contours = find_contours(mask.numpy(), 0)
             for contour in contours:
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
 
+            if save_path is not None:
+                plt.savefig(os.path.join("{0}/slice.png".format(save_path)))
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
     plt.show()
@@ -175,7 +198,11 @@ def major_axes(volume_slice, mask_slice, ax):
     dmin_2 = distances_pc2.min()
 
     # the total diameter is the difference in these distances
-    (x,y,z,) = find_pix_dim() 
+    (
+        x,
+        y,
+        z,
+    ) = find_pix_dim()
     print("Distance along major axis:", (dmax_1 - dmin_1) * x)
     print("Distance along minor axis:", (dmax_2 - dmin_2) * y)
 
@@ -184,8 +211,7 @@ def major_axes(volume_slice, mask_slice, ax):
     # ax.imshow(arr, interpolation=None, cmap=plt.cm.Greys_r)
     ax.imshow(volume_slice, cmap="gray")
 
-    if first_tumor:  
-
+    if first_tumor:
         ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99, label="Center")
     else:
         ax.scatter(com_y, com_x, c="g", marker="o", s=2, zorder=99)
@@ -263,7 +289,6 @@ def get_bounding_box(mask_slice, crop_margin=0):
     xmin, ymin, xmax, ymax = 0, 0, 0, 0
 
     for row in range(mask_slice.shape[0]):
-
         if mask_slice[row, :].max() != 0:
             ymin = row + crop_margin
             break
@@ -285,7 +310,7 @@ def get_bounding_box(mask_slice, crop_margin=0):
     return xmin, ymin, xmax, ymax
 
 
-def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
+def plot_bbox_image(mask_slice, crop_margin=0, j=-1, save_path=None):
     """
     Plots the bounding box around tumors in a specific slice.
 
@@ -297,6 +322,8 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
         The margin of the bounding box.
     j : int, optional
         An additional parameter for the function to track and number each tumor in volume. (Default: -1)
+    save_path : str, optional
+        The path to save the figure in. If None, the figure is not saved.
     """
 
     dimensions = []
@@ -318,10 +345,12 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
     x_dim, y_dim, z_dim = find_pix_dim()  # again same calculation
 
     for i in range(len(dimensions)):
-        if j != -1: # if j is not equal to -1, then it's the number of tumor in volume and should be tracked.
+        if (
+            j != -1
+        ):  # if j is not equal to -1, then it's the number of tumor in volume and should be tracked.
             n = j
         else:
-            n = i # if j equals -1 then it's a single tumor 
+            n = i  # if j equals -1 then it's a single tumor
         xmin, ymin, xmax, ymax, pixels = dimensions[i]
 
         plt.plot([xmin, xmax], [ymin, ymin], color=colors[i], label=f"Lesion {n+1}")
@@ -333,10 +362,16 @@ def plot_bbox_image(mask_slice, crop_margin=0, j=-1):
             f"Lesion {n+1} Length = {(xmax-xmin)*x_dim}, Width = {(ymax-ymin) * y_dim }, Tumor Volume = {pixels*x_dim*y_dim*z_dim}"
         )
 
+    if save_path is not None :
+        if not save_path.endswith(".png"):
+            plt.savefig(os.path.join("{0}/slice.png".format(save_path)))
+        else:
+            plt.savefig(save_path)
+
     plt.show()
 
 
-def plot_bbox_image_volume(volume, mask, crop_margin=0):
+def plot_bbox_image_volume(volume, mask, crop_margin=0, save_path=None):
     """
     Plots the bounding box around tumors in the volume by calculating for each tumor independently.
 
@@ -348,7 +383,11 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
         The tumor mask. (0: background, 1: tumor)
     crop_margin : int, optional
         The margin of the bounding box.
+    save_path : str, optional
+        The path to save the figure(s) in. If None, the figure(s) are not saved.
     """
+    idx_tumor_counter = {}
+    tumor_save_path = None
     i = 0
     while np.unique(mask).any() == 1:
         temp_mask = mask.clone()
@@ -356,7 +395,17 @@ def plot_bbox_image_volume(volume, mask, crop_margin=0):
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         idx = calculate_largest_tumor(largest_tumor[0])
         plt.imshow(volume[:, :, idx], cmap="gray")
-        plot_bbox_image(largest_tumor[0][:, :, idx], crop_margin, i)
+
+        if save_path is not None:
+            # Increment the counter for each new tumor in the same idx
+            if idx in idx_tumor_counter:
+                idx_tumor_counter[idx] += 1
+            else:
+                idx_tumor_counter[idx] = 1
+            tumor_filename = "slice_{0}_tumor_{1}.png".format(idx, idx_tumor_counter[idx])
+            tumor_save_path = os.path.join(save_path, tumor_filename)
+
+        plot_bbox_image(largest_tumor[0][:, :, idx], crop_margin, i, tumor_save_path)
         i = i + 1
 
         mask = subtract(mask, largest_tumor[0])
@@ -393,7 +442,7 @@ def crop_to_bbox(image, bbox, crop_margin=0, pad=40):
     return image[y1:y2, x1:x2]
 
 
-def plot_tumor(volume_slice, mask_slice):
+def plot_tumor(volume_slice, mask_slice, save_path=None):
     """
     Draws a box around the tumor, zooms in, and plots contours and major axes for the tumor in a specific slice.
 
@@ -403,7 +452,8 @@ def plot_tumor(volume_slice, mask_slice):
         Specific slice of the patient's volume.
     mask_slice : np.ndarray
         Specific slice of the patient's tumor mask (0: background, 1:tumor).
-
+    save_path : str, optional
+        The path to save the figure in. If None, the figure is not saved.
     """
     image = np.asarray(volume_slice)
     mask = np.asarray(mask_slice)
@@ -426,7 +476,9 @@ def plot_tumor(volume_slice, mask_slice):
     croped_image = cv.resize(
         croped_image, dsize=(512, 512), interpolation=cv.INTER_CUBIC
     )
-    croped_masks = crop_to_bbox(mask, bbox, crop_margin=0)
+    croped_masks = crop_to_bbox(mask, bbox, crop_margin=0, pad=5)
+    
+    croped_masks = np.array(croped_masks, dtype='uint8')
     croped_masks = cv.resize(
         croped_masks, dsize=(512, 512), interpolation=cv.INTER_CUBIC
     )
@@ -451,10 +503,15 @@ def plot_tumor(volume_slice, mask_slice):
     ax[2].axes.get_xaxis().set_visible(False)
 
     plt.subplots_adjust(wspace=0.02)
+    if save_path is not None :
+        if not save_path.endswith(".png"):
+            plt.savefig(os.path.join("{0}/slice.png".format(save_path)))
+        else:
+            plt.savefig(save_path)
     plt.show()
 
 
-def plot_tumor_volume(volume, mask):
+def plot_tumor_volume(volume, mask, save_path=None):
     """
     Draws a box around tumors, zooms in, and plots contours and major axes for all tumors in the volume.
 
@@ -464,16 +521,28 @@ def plot_tumor_volume(volume, mask):
         Patient volume.
     mask : np.ndarray
         Tumor mask volume.
+    save_path : str, optional
+        The path to save the figure(s) in. If None, the figure(s) are not saved.
 
     """
+    idx_tumor_counter = {}
     global first_tumor
     first_tumor = True
+    tumor_save_path = None
     while np.unique(mask).any() == 1:
-
         temp_mask = mask.clone()
         temp_mask = EnsureChannelFirst()(temp_mask)
         largest_tumor = KeepLargestConnectedComponent()(temp_mask)
         idx = calculate_largest_tumor(largest_tumor[0])
-        plot_tumor(volume[:, :, idx], largest_tumor[0][:, :, idx])
+
+        if save_path is not None:
+            # Increment the counter for each new tumor in the same idx
+            if idx in idx_tumor_counter:
+                idx_tumor_counter[idx] += 1
+            else:
+                idx_tumor_counter[idx] = 1
+            tumor_filename = "slice_{0}_tumor_{1}.png".format(idx, idx_tumor_counter[idx])
+            tumor_save_path = os.path.join(save_path, tumor_filename)
+        plot_tumor(volume[:, :, idx], largest_tumor[0][:, :, idx] , save_path=tumor_save_path)
         mask = subtract(mask, largest_tumor[0])
         first_tumor = False
