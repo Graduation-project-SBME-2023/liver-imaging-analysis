@@ -65,7 +65,6 @@
         "lobe_cp_sw":"tests/testdata/checkpoints/lobe_cp_sliding_window",
         "liver_cp_sw":"tests/testdata/checkpoints/liver_sw",
         "reference_lesion_cp": "tests/testdata/checkpoints/reference_lesion_cp"
-
     },
     "seed": 0
 }

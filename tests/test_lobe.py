@@ -235,13 +235,12 @@ def test_predict_2dto3(lobe_obj):
         inference="sliding_window",
         cp_path=config.test["reference_sliding_window"],
     )
-    lobe_inference = "3D"
+
     extract = Compose([Dilation(), ConvexHull()])
     prediction = lobe_obj.predict_2dto3d(
         volume_path=config.test["test_volume"],
         liver_mask=extract(liver_prediction[0]).permute(3, 0, 1, 2)
-        if lobe_inference == "3D"
-        else extract(liver_prediction[0])[None],
+
     )
     assert isinstance(prediction, torch.Tensor)
     assert prediction.shape[0] == 1
@@ -251,10 +250,10 @@ def test_predict_2dto3(lobe_obj):
         prediction.shape[2:] == nib.load(config.test["test_volume"]).get_fdata().shape
     )  # original volume dimension
 
-    assert torch.min(prediction) >= 0
 
-    assert torch.max(prediction) <= 9
-
+    assert torch.min(prediction).item() == 0
+    assert torch.max(prediction).item() == 9
+    
 
 @pytest.fixture
 def lobe_object_sw():
@@ -286,5 +285,6 @@ def test_predict_sliding_window(lobe_object_sw):
         prediction.shape[2:] == nib.load(config.test["test_volume"]).get_fdata().shape
     )  # original volume dimension
 
-    assert torch.min(prediction) >= 0
-    assert torch.max(prediction) <= 9
+
+    assert torch.min(prediction).item() == 0
+    assert torch.max(prediction).item() == 9

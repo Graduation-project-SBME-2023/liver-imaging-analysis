@@ -34,9 +34,7 @@ def lesion_obj():
     lesion_obj = LesionSegmentation()
     return lesion_obj
 
-
-@pytest.mark.parametrize("transform_name", [("2d_ct_transform")])
-def test_get_pretraining_transforms(transform_name, lesion_obj):
+def test_get_pretraining_transforms(lesion_obj):
     """
     Tests get_pretraining_transforms function.
     verifies the functionality by comparing the output transforms with the expected transforms based on the provided transform_name.
@@ -47,12 +45,11 @@ def test_get_pretraining_transforms(transform_name, lesion_obj):
     lesion_obj (object): The lesion object that provides the get_pretraining_transforms method.
     ----------
     """
-
+    transform_name = "2d_ct_transform"
     output_transform = lesion_obj.get_pretraining_transforms(transform_name)
     assert isinstance(output_transform, Compose)
-
-    if transform_name == "2d_ct_transform":
-        expected_transfom = [
+  
+    expected_transfom = [
             LoadImageD,
             EnsureChannelFirstD,
             ScaleIntensityRanged,
@@ -68,8 +65,8 @@ def test_get_pretraining_transforms(transform_name, lesion_obj):
         assert isinstance(t, e)
 
 
-@pytest.mark.parametrize("transform_name", [("2d_ct_transform")])
-def test_get_pretesting_transforms(transform_name, lesion_obj):
+
+def test_get_pretesting_transforms(lesion_obj):
     """
     Tests the get_pretesting_transforms function.
     verifies the functionality by comparing the output transforms with the expected transforms based on the provided transform_name.
@@ -80,11 +77,11 @@ def test_get_pretesting_transforms(transform_name, lesion_obj):
     lesion_obj (object): The lesion object that provides the get_pretesting_transforms method.
     ----------
     """
+    transform_name = "2d_ct_transform"
     output_transform = lesion_obj.get_pretesting_transforms(transform_name)
     assert isinstance(output_transform, Compose)
 
-    if transform_name == "2d_ct_transform":
-        expected_transfom = [
+    expected_transfom = [
             LoadImageD,
             EnsureChannelFirstD,
             ScaleIntensityRanged,
@@ -95,8 +92,8 @@ def test_get_pretesting_transforms(transform_name, lesion_obj):
         assert isinstance(t, e)
 
 
-@pytest.mark.parametrize("transform_name", [("2d_ct_transform")])
-def test_get_postprocessing_transforms(transform_name, lesion_obj):
+
+def test_get_postprocessing_transforms(lesion_obj):
     """
     Tests get_postprocessing_transforms function.
     verifies the functionality by comparing the output transforms with the expected transforms based on the provided transform_name.
@@ -107,14 +104,16 @@ def test_get_postprocessing_transforms(transform_name, lesion_obj):
     lesion_obj (object): The lesion object that provides the get_postprocessing_transforms function.
     ----------
     """
+    transform_name = "2d_ct_transform"
     output_transform = lesion_obj.get_postprocessing_transforms(transform_name)
     assert isinstance(output_transform, Compose)
 
-    if transform_name == "2d_ct_transform":
-        expected_transfom = [ActivationsD, AsDiscreteD, FillHolesD, RemoveSmallObjectsD]
+
+    expected_transfom = [ActivationsD, AsDiscreteD, FillHolesD, RemoveSmallObjectsD]
 
     for t, e in zip(output_transform.transforms, expected_transfom):
         assert isinstance(t, e)
+
 
 
 def test_predict_2dto3d(lesion_obj):
