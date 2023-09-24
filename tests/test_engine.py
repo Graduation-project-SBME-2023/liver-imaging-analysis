@@ -64,6 +64,7 @@ class TestEngine(Engine):
         config.transforms["test_transform"] = "3d_ct_transform"
         config.transforms["post_transform"] = "3d_ct_transform"
         config.save["engine_checkpoint"] = "tests/testdata/checkpoints/engine_cp.pt"
+        config.save["reference_checkpoint"] = "tests/testdata/checkpoints/reference_cp.pt"
 
     def get_pretraining_transforms(self, transform_name):
         """
@@ -252,31 +253,36 @@ def test_save_load_checkpoint(engine):
     """
     # Path of the input directory
     ckpt_path = config.save["engine_checkpoint"]
-
-    # Get initial weights
-    init_weights =[p.clone() for p in engine.network.parameters()]
+    # Path of reference checkpoint
+    ref_path =  config.save["reference_checkpoint"]
 
     assert os.path.exists(ckpt_path)
+    assert os.path.exists(ref_path)
 
-    # Save checkpoint
-    engine.save_checkpoint(ckpt_path)
-
+    # Test for saving checkpoint
     # Load checkpoint
     loaded_checkpoint = torch.load(ckpt_path)
 
+    # verify network state dict match
+    assert  list(engine.network.state_dict() ) == list(loaded_checkpoint["state_dict"])
+    # verify optimizer state dict match
+    assert list(engine.optimizer.state_dict()) == list(loaded_checkpoint["optimizer"])
+    # verify scheduler state dict match
+    assert list(engine.scheduler.state_dict()) == list(loaded_checkpoint["scheduler"])
+
+
+    #  Test for loading checkpoint
     # Get loaded weights
     engine.load_checkpoint(ckpt_path)
-    loaded_weights = engine.network.parameters()
+    loaded_weights = [p.clone() for p in engine.network.parameters()]
 
-    # verify network state dict match
-    assert set(engine.network.state_dict()) == set(loaded_checkpoint["state_dict"])
-    # verify optimizer state dict match
-    assert set(engine.optimizer.state_dict()) == set(loaded_checkpoint["optimizer"])
-    # verify scheduler state dict match
-    assert set(engine.scheduler.state_dict()) == set(loaded_checkpoint["scheduler"])
+    # Get loaded refrence weights
+    engine.load_checkpoint(ref_path)
+    ref_weights = [p.clone() for p in engine.network.parameters()]
+
 
     # Check that weights match
-    for p0, p1 in zip(init_weights,loaded_weights):
+    for p0, p1 in zip(ref_weights,loaded_weights):
         assert torch.allclose(p0, p1, atol=1e-3)
     
 
