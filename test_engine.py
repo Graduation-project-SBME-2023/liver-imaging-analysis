@@ -259,9 +259,25 @@ def test_save_load_checkpoint(engine):
     assert os.path.exists(ckpt_path)
     assert os.path.exists(ref_path)
 
+    # Get initial weights
+    init_weights =[p.clone() for p in engine.network.parameters()]
+
+
+
     # Test for saving checkpoint
+   
+    assert not os.path.exists("saved_cp.pt")
+    engine.save_checkpoint("saved_cp.pt")
+    assert os.path.exists("saved_cp.pt")
+    engine.load_checkpoint("saved_cp.pt") 
+    saved_weights = engine.network.parameters()
+    for p0, p1 in zip(saved_weights , init_weights):
+        assert torch.allclose(p0, p1)
+    os.remove("saved_cp.pt")
+
     # Load checkpoint
     loaded_checkpoint = torch.load(ckpt_path)
+
 
     # verify network state dict match
     assert  list(engine.network.state_dict() ) == list(loaded_checkpoint["state_dict"])
@@ -282,8 +298,11 @@ def test_save_load_checkpoint(engine):
 
 
     # Check that weights match
-    for p0, p1 in zip(ref_weights,loaded_weights):
+    for p0, p1 in zip(ref_weights ,loaded_weights):
         assert torch.allclose(p0, p1, atol=1e-3)
+    
+
+
     
 
 def test_fit(engine):

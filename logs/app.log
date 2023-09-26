@@ -1,0 +1,302 @@
+[2023-09-26 01:53:47,186] [INFO] [root] (main.py:30) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 01:53:47,186] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
+[2023-09-26 01:53:47,186] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
+[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
+[2023-09-26 01:53:47,199] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
+[2023-09-26 01:53:47,199] [INFO] [root] (main.py:35) - App finished
+[2023-09-26 11:24:34,726] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:24:34,730] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
+[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
+[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
+[2023-09-26 11:24:34,731] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
+[2023-09-26 11:24:34,731] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:25:56,827] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:25:56,827] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
+[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
+[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
+[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
+[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
+[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
+[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
+[2023-09-26 11:25:56,828] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
+[2023-09-26 11:25:56,828] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:29:04,266] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:29:04,266] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:32:53,404] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:32:53,404] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:35:18,962] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:35:18,962] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:36:29,596] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:36:29,596] [INFO] [root] (engine.py:33) - Initializing Engine
+[2023-09-26 11:43:39,580] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:43:39,580] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:43:41,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,186] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,188] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,189] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,189] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,193] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,193] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,194] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,197] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,197] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,200] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,201] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,202] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,203] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,204] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,204] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:43:41,205] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:45:16,252] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:45:16,252] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:45:17,715] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,716] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,717] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,720] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,721] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,722] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,725] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,726] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,727] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,730] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,731] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,732] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,733] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,734] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,735] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,736] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,736] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:45:17,737] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:49:54,824] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:49:54,824] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:49:56,377] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,377] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,378] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,380] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,381] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,382] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,384] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,385] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,386] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,388] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,389] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,389] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,390] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,391] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,392] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,393] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,394] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,394] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:49:56,395] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:52:53,153] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:52:53,153] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:52:54,616] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,616] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,617] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,620] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,621] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,622] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,625] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,626] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,626] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,629] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,630] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,630] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,632] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,632] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,633] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,634] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,635] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,636] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:52:54,637] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:54:16,693] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:54:16,693] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:54:18,163] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,164] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,165] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,168] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,169] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,170] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,174] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,175] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,177] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,181] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,184] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,184] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,187] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,187] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,188] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:54:18,189] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:58:32,394] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:58:32,394] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:58:33,911] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,912] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,913] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,914] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,915] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,915] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,919] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,919] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,920] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,922] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,923] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,924] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,925] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,926] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,927] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,928] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,928] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,929] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:58:33,930] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 11:59:22,038] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 11:59:22,038] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 11:59:23,531] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,532] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,532] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,535] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,536] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,537] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,541] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,542] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,544] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,545] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,546] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,547] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,549] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,550] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,550] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 11:59:23,552] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 12:05:07,870] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:05:07,870] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:05:09,658] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,658] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,690] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,690] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:05:09,690] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 12:05:58,753] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:05:58,753] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:06:00,538] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,559] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,570] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:06:00,572] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 12:10:35,396] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:10:35,396] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,190] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:10:37,222] [INFO] [root] (main.py:45) - App finished
+[2023-09-26 12:13:42,561] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:13:42,569] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:13:42,594] [INFO] [root] (main.py:46) - App finished
+[2023-09-26 12:24:44,264] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:24:44,264] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,282] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,282] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,284] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:44,284] [INFO] [root] (main.py:46) - App finished
+[2023-09-26 12:24:56,833] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:24:56,833] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:24:56,857] [INFO] [root] (main.py:46) - App finished
+[2023-09-26 12:25:07,721] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
+[2023-09-26 12:25:07,721] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
+[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,737] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
+[2023-09-26 12:25:07,737] [INFO] [root] (main.py:46) - App finished
