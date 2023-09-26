@@ -251,17 +251,31 @@ def test_save_load_checkpoint(engine):
     ----------
         None
     """
-    # Path of the input directory
-    ckpt_path = config.save["engine_checkpoint"]
     # Path of reference checkpoint
     ref_path =  config.save["reference_checkpoint"]
 
-    assert os.path.exists(ckpt_path)
     assert os.path.exists(ref_path)
 
+    # Get initial weights
+    init_weights =[p.clone() for p in engine.network.parameters()]
+
+
+
     # Test for saving checkpoint
+   
+    assert not os.path.exists("saved_cp.pt")
+    engine.save_checkpoint("saved_cp.pt")
+    assert os.path.exists("saved_cp.pt")
+    engine.load_checkpoint("saved_cp.pt") 
+    saved_weights = engine.network.parameters()
+    for p0, p1 in zip(saved_weights , init_weights):
+        assert torch.allclose(p0, p1)
+    os.remove("saved_cp.pt")
+
     # Load checkpoint
-    loaded_checkpoint = torch.load(ckpt_path)
+    loaded_checkpoint = torch.load(ref_path)
+    loadd_weights = loaded_checkpoint["state_dict"].values()
+
 
     # verify network state dict match
     assert  list(engine.network.state_dict() ) == list(loaded_checkpoint["state_dict"])
@@ -272,17 +286,13 @@ def test_save_load_checkpoint(engine):
 
 
     #  Test for loading checkpoint
-    # Get loaded weights
-    engine.load_checkpoint(ckpt_path)
-    loaded_weights = [p.clone() for p in engine.network.parameters()]
-
     # Get loaded refrence weights
     engine.load_checkpoint(ref_path)
     ref_weights = [p.clone() for p in engine.network.parameters()]
 
 
     # Check that weights match
-    for p0, p1 in zip(ref_weights,loaded_weights):
+    for p0, p1 in zip(list(ref_weights) , list(loadd_weights)):
         assert torch.allclose(p0, p1, atol=1e-3)
     
 
