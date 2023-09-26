@@ -98,6 +98,7 @@ def test_get_pretraining_transforms(transform_name, lobe_obj):
         assert isinstance(t, e)
 
 
+
 @pytest.mark.parametrize("transform_name", [("3d_transform"), ("2d_transform")])
 def test_get_pretesting_transforms(transform_name, lobe_obj):
     """
@@ -175,11 +176,11 @@ def test_get_postprocessing_transforms(transform_name, lobe_obj):
         assert isinstance(t, e)
 
 
-@pytest.mark.parametrize(
-    ("liver_inference", "lobe_inference", "path"),
-    [("3D", "sliding_window", "tests/testdata/testcases/predicted_lobe.npy")],
-)
-def test_segment_lobe_sw(liver_inference, lobe_inference, path):
+# @pytest.mark.parametrize(
+#     ("liver_inference", "lobe_inference", "path"),
+#     [("3D", "sliding_window", "tests/testdata/testcases/predicted_lobe.npy")],
+# )
+def test_segment_lobe_sw(liver_inference = "3D" , lobe_inference = "sliding_window", path = "tests/testdata/testcases/predicted_lobe.npy"):
     """
     Tests segment_lobe function (lobe_inference = 'sliding_window').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
@@ -195,7 +196,7 @@ def test_segment_lobe_sw(liver_inference, lobe_inference, path):
     config.transforms["transformation_size"] = [64, 64]
     lobe_prediction = segment_lobe(
         prediction_path=config.test["test_volume"],
-        liver_inference=liver_inference,
+        liver_inference= liver_inference,
         lobe_inference=lobe_inference,
         liver_cp=config.test["liver_cp"],
         lobe_cp= config.test["lobe_cp_sw"],

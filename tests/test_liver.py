@@ -3,6 +3,7 @@ from liver_imaging_analysis.models.liver_segmentation import (
     segment_liver,
     train_liver,
 )
+from liver_imaging_analysis.engine.engine import set_seed
 import pytest
 from liver_imaging_analysis.engine.config import config
 import torch
@@ -30,6 +31,11 @@ from monai.transforms import (
     FillHolesD,
 )
 
+@pytest.fixture
+def liver_obj():
+    config.transforms["transformation_size"] = [64, 64]
+    liver_obj = LiverSegmentation(modality="CT", inference="3D")
+    return liver_obj
 
 @pytest.mark.parametrize(
     "transform_name", [("3d_ct_transform"), ("2d_ct_transform"), ("2d_mri_transform")]
@@ -48,6 +54,7 @@ def test_get_pretraining_transforms(transform_name, liver_obj):
     output_transform = liver_obj.get_pretraining_transforms(transform_name)
     assert isinstance(output_transform, Compose)
 
+
     if transform_name == "3d_ct_transform":
         expected_transfom = [
             LoadImageD,
@@ -57,6 +64,7 @@ def test_get_pretraining_transforms(transform_name, liver_obj):
             RandCropByPosNegLabeld,
             ToTensorD,
         ]
+
 
     elif transform_name == "2d_ct_transform":
         expected_transfom = [
@@ -88,6 +96,7 @@ def test_get_pretraining_transforms(transform_name, liver_obj):
 
     for t, e in zip(output_transform.transforms, expected_transfom):
         assert isinstance(t, e)
+
 
 
 @pytest.mark.parametrize(
@@ -222,20 +231,22 @@ def test_segment_liver_2d(modality="CT", inference= "3D", path= "tests/testdata/
     assert np.allclose(prediction, true, 0.01)
 
 
-@pytest.fixture
-def liver_obj():
-    config.transforms["transformation_size"] = [64, 64]
-    liver_obj = LiverSegmentation(modality="CT", inference="3D")
-    return liver_obj
 
 
-def test_predict_2dto3d(liver_obj):
+@pytest.mark.parametrize("inference", [
+    ("3D"),
+    ("sliding_window")
+])
+def test_predict(inference):
     """
-    Tests predict_2dto3d function.
+    Tests predict_2dto3d function and sliding window function.
     verifies the functionality by performing predictions on a 3D volume (with size 64,64,...)
     """
 
-    prediction = liver_obj.predict_2dto3d(config.test["test_volume"])
+    # prediction = getattr(liver_object, predict_func)(config.test["test_volume"])
+    config.transforms["transformation_size"] = [64, 64]
+    liver_object  = LiverSegmentation(modality="CT", inference= inference)
+    prediction = liver_object.predict(config.test["test_volume"])
     assert isinstance(prediction, torch.Tensor)
     assert prediction.shape[0] == 1
     assert prediction.shape[1] == 1  # number of channels
@@ -244,41 +255,21 @@ def test_predict_2dto3d(liver_obj):
         prediction.shape[2:] == nib.load(config.test["test_volume"]).get_fdata().shape
     )  # original volume dimension
 
-    assert torch.min(prediction) >= 0
-    assert torch.max(prediction) <= 1
-
+    assert torch.min(prediction) == 0
+    assert torch.max(prediction) == 1
 
 @pytest.fixture
 def liver_object_sw():
+    set_seed()
     liver_object_sw = LiverSegmentation(modality="CT", inference="sliding_window")
     return liver_object_sw
-
-
-def test_predict_sliding_window(liver_object_sw):
-    """
-    Tests predict_sliding_window function.
-    verifies the functionality by performing predictions on a 3D volume (with size 64,64,...)
-    """
-    prediction = liver_object_sw.predict_sliding_window(
-        volume_path=config.test["test_volume"]
-    )
-    assert isinstance(prediction, torch.Tensor)
-    assert prediction.shape[0] == 1
-    assert prediction.shape[1] == 1  # number of channels
-
-    assert (
-        prediction.shape[2:] == nib.load(config.test["test_volume"]).get_fdata().shape
-    )  # original volume dimension
-
-    assert torch.min(prediction) >= 0
-    assert torch.max(prediction) <= 1
-
 
 def test_test_sliding_window(liver_object_sw):
     """
     Tests test_sliding_window function.
     verifies the functionality by comparing loss with true refrence loss on the same volume
     """
+    set_seed()
     test_dataloader = DataLoader(
         dataset_path=config.test["test_folder"],
         batch_size=config.training["batch_size"],
@@ -294,9 +285,10 @@ def test_test_sliding_window(liver_object_sw):
     test_loss, test_metric = liver_object_sw.test_sliding_window(
         dataloader=test_dataload
     )
+    print(test_loss,test_metric)
 
-    assert round(test_loss,1) == 0.9
-    assert test_metric.item() <= 0.5
+    assert round(test_loss,6) == 0.916104
+    assert round(test_metric.item(),4) == 0.0881
 
 
 
@@ -331,8 +323,7 @@ def test_segment_liver(modality = "CT" , inference = "sliding_window", path = "t
 
     prediction = liver_prediction.cpu()
     prediction = prediction.numpy()
-    final_path = path
-    true = np.load(final_path)
+    true = np.load(path)
     assert np.allclose(prediction, true, 0.01)
 
 
@@ -342,10 +333,11 @@ def test_train():
     Compares the weights of the resulted checkpoint with the reference checkpoint's weights.
     """
     model = LiverSegmentation(modality="CT", inference="sliding_window")
+    model.set_configs(modality="CT", inference="sliding_window")
 
     # load refrence checkpoint of training 1 epoch on the same volume
     model.load_checkpoint(config.test["reference_sliding_window"])
-    init_weights = model.network.state_dict()
+    reference_weights = model.network.state_dict()
 
     # Train a single epoch using the same volume and save the checkpoint to be compared with the reference
     train_liver(
@@ -361,10 +353,10 @@ def test_train():
         test_batch_callback=False,
     )
     model.load_checkpoint(config.test["liver_cp_sw"])
-    loaded_weights = model.network.state_dict()
+    trained_weights = model.network.state_dict()
 
     # Check that weights match
-    for i in init_weights.keys():
-        assert torch.allclose(init_weights[i], loaded_weights[i])
+    for i in reference_weights.keys():
+        assert torch.allclose(reference_weights[i], trained_weights[i])
 
 

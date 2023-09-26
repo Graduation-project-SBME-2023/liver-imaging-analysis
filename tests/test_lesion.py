@@ -66,6 +66,8 @@ def test_get_pretraining_transforms(lesion_obj):
 
 
 
+
+
 def test_get_pretesting_transforms(lesion_obj):
     """
     Tests the get_pretesting_transforms function.
@@ -93,6 +95,8 @@ def test_get_pretesting_transforms(lesion_obj):
 
 
 
+
+
 def test_get_postprocessing_transforms(lesion_obj):
     """
     Tests get_postprocessing_transforms function.
@@ -115,7 +119,6 @@ def test_get_postprocessing_transforms(lesion_obj):
         assert isinstance(t, e)
 
 
-
 def test_predict_2dto3d(lesion_obj):
     """
     Tests the prediction function for lesion object.
@@ -133,7 +136,7 @@ def test_predict_2dto3d(lesion_obj):
         inference="sliding_window",
         cp_path=config.test["reference_sliding_window"],
     )
-    lesion_inference = "3D"
+
     volume_dir = config.test["test_volume"]
     close = MorphologicalClosing(iters=4)
     prediction = lesion_obj.predict_2dto3d(
@@ -142,6 +145,7 @@ def test_predict_2dto3d(lesion_obj):
 
     )
 
+
     assert isinstance(prediction, torch.Tensor)
     assert prediction.shape[0] == 1
     assert prediction.shape[1] == 1  # number of channels
@@ -149,7 +153,8 @@ def test_predict_2dto3d(lesion_obj):
     assert (
         prediction.shape[2:] == nib.load(config.test["test_volume"]).get_fdata().shape
     )
-
+    assert torch.min(prediction).item() == 0
+    assert torch.max(prediction).item() == 1
 
 def test_segment_lesion():
     """
@@ -191,7 +196,7 @@ def test_train():
     model = LesionSegmentation(inference="3D")
     # load reference checkpoint of training 1 epoch on a volume
     model.load_checkpoint(config.test["reference_lesion_cp"])
-    init_weights = model.network.state_dict()
+    reference_weights = model.network.state_dict()
     # train a single epoch on the same volume
     train_lesion(
         pretrained=False,
@@ -204,7 +209,7 @@ def test_train():
         test_batch_callback=False,
     )
     model.load_checkpoint(config.test["lesion_cp"])
-    loaded_weights = model.network.state_dict()
+    trained_weights = model.network.state_dict()
     # Check that weights match
-    for i in init_weights.keys():
-        assert torch.allclose(init_weights[i], loaded_weights[i])
+    for i in reference_weights.keys():
+        assert torch.allclose(reference_weights[i], trained_weights[i])
