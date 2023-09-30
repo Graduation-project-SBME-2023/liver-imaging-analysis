@@ -284,3 +284,4 @@ def test_predict_sliding_window(lobe_object_sw):
 
     assert torch.min(prediction).item() == 0
     assert torch.max(prediction).item() == 9
+

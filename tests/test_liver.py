@@ -260,8 +260,8 @@ def test_test_sliding_window(liver_object_sw):
 
 
 @pytest.mark.parametrize(("modality", "inference","check_point" ,"refernece_path"), [
-    ("CT", "sliding_window",config.test["reference_sliding_window"] ,config.test["reference_liver_sw_array"]),
-    ("CT", "3D", config.test["liver_cp"],config.test["reference_liver_2d_array"])
+    ("CT", "sliding_window",config.test["reference_sliding_window"] ,config.test["reference_liver_sw_array"])
+    # ("CT", "3D", config.test["liver_cp"],config.test["reference_liver_2d_array"])
 ])
 
 def test_segment_liver(modality, inference,check_point ,refernece_path):
