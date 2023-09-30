@@ -260,8 +260,8 @@ def test_test_sliding_window(liver_object_sw):
 
 
 @pytest.mark.parametrize(("modality", "inference","check_point" ,"refernece_path"), [
-    ("CT", "sliding_window",config.test["reference_sliding_window"] ,config.test["reference_liver_sw_array"])
-    # ("CT", "3D", config.test["liver_cp"],config.test["reference_liver_2d_array"])
+    ("CT", "sliding_window",config.test["reference_sliding_window"] ,config.test["reference_liver_sw_array"]),
+    ("CT", "3D", config.test["liver_cp"],config.test["reference_liver_2d_array"])
 ])
 
 def test_segment_liver(modality, inference,check_point ,refernece_path):
@@ -278,13 +278,15 @@ def test_segment_liver(modality, inference,check_point ,refernece_path):
     refernece_path (str): The path to the reference 3D numpy array. 
     ----------
     """
-    config.transforms["transformation_size"] = [64, 64]
+
     liver_prediction = segment_liver(
         prediction_path=config.test["test_volume"],
         modality= modality,
         inference= inference,
         cp_path= check_point,
     )
+    config.transforms["transformation_size"] = [64, 64]
+
     # Assertion checks for liver_prediction
     assert isinstance(liver_prediction, torch.Tensor)
     assert liver_prediction.shape[0] == 1
@@ -296,6 +298,7 @@ def test_segment_liver(modality, inference,check_point ,refernece_path):
 
     prediction = liver_prediction.cpu()
     prediction = prediction.numpy()
+
     reference = np.load(refernece_path)
     assert np.allclose(prediction, reference, 0.01)
 
@@ -307,9 +310,7 @@ def test_train():
     Compares the weights of the resulted checkpoint with the reference checkpoint's weights.
     """
     model = LiverSegmentation(modality="CT", inference="sliding_window")
-        # load refrence checkpoint of training 1 epoch on the same volume
-    model.load_checkpoint(config.test["reference_sliding_window"])
-    reference_weights = model.network.state_dict()
+
 
     # Train a single epoch using the same volume and save the checkpoint to be compared with the reference
     train_liver(
@@ -327,6 +328,10 @@ def test_train():
     # load the previous checkpoint of training 1 epoch on a volume
     model.load_checkpoint(config.test["liver_cp_sw"])
     trained_weights = model.network.state_dict()
+
+    # load refrence checkpoint of training 1 epoch on the same volume
+    model.load_checkpoint(config.test["reference_sliding_window"])
+    reference_weights = model.network.state_dict()
 
 
     # Check that weights match

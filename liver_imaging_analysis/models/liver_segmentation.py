@@ -89,7 +89,7 @@ class LiverSegmentation(Engine):
         if modality == "CT":
             if inference in ["2D", "3D"]:
                 config.dataset["prediction"] = "test cases/volume/volume-64.nii"
-                config.training["batch_size"] = 8
+                config.training["batch_size"] = 2
                 config.training["scheduler_parameters"] = {
                     "step_size": 20,
                     "gamma": 0.5,
@@ -98,9 +98,12 @@ class LiverSegmentation(Engine):
                 config.network_parameters["dropout"] = 0
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters["spatial_dims"] = 2
-                config.network_parameters["channels"] = [64, 128, 256, 512]
-                config.network_parameters["strides"] = [2, 2, 2]
-                config.network_parameters["num_res_units"] = 4
+                # config.network_parameters["channels"] = [64, 128, 256, 512]
+                # config.network_parameters["strides"] = [2, 2, 2]
+                # config.network_parameters["num_res_units"] = 4
+                config.network_parameters["strides"] = [2]
+                config.network_parameters["num_res_units"] = 1
+                config.network_parameters["channels"] = [32, 64]
                 config.network_parameters["norm"] = "INSTANCE"
                 config.network_parameters["bias"] = True
                 config.save["liver_checkpoint"] = "liver_cp"
@@ -125,9 +128,9 @@ class LiverSegmentation(Engine):
                 config.network_parameters["strides"] = [2]
                 config.network_parameters["num_res_units"] = 1
                 # config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters["spatial_dims"] = 3
                 # config.network_parameters['strides'] =  [2, 2, 2]
                 # config.network_parameters['num_res_units'] =  6
+                config.network_parameters["spatial_dims"] = 3
                 config.network_parameters["norm"] = "BATCH"
                 config.network_parameters["bias"] = False
                 config.save["liver_checkpoint"] = "liver_cp_sliding_window"

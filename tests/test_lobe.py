@@ -206,6 +206,7 @@ def test_segment_lobe_sw():
     prediction = lobe_prediction.cpu()
     prediction = prediction.numpy()
     path = config.test["reference_lobe_array"]
+    # np.save(path,prediction)
     reference = np.load(path)
     assert np.allclose(prediction, reference, 0.01)
 
