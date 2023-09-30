@@ -49,10 +49,10 @@ import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
 import argparse
-
+import logging
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty = True, include_background = False)
-
+logger = logging.getLogger(__name__)
 class LobeSegmentation(Engine):
     """
     A class used for the lobe segmentation task. Inherits from Engine.
@@ -488,12 +488,16 @@ class LobeSegmentation(Engine):
         print("Training Metric=", training_metric.mean().item(),':\n', training_metric.cpu().numpy())
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric.mean(), epoch)
+        logger.debug(f"\nEpoch {epoch} Training Loss: {training_loss}")
+        logger.debug(f"\nEpoch {epoch} Training Metric: {training_metric.mean().item()}")
         if valid_loss is not None:
             print("\nValidation Loss=", valid_loss)
             print("Validation Metric=", valid_metric.mean().item(),':\n', valid_metric.cpu().numpy())
 
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric.mean(), epoch)
+            logger.debug(f"\nEpoch {epoch} Validation Loss: {valid_loss}")
+            logger.debug(f"\nEpoch {epoch} Validation Metric: {valid_metric.mean().item()}")
 
 
     def predict(self, data_dir, liver_mask):
@@ -898,12 +902,14 @@ def train_lobe(
         "Initial test loss:", 
         init_loss,
         )
+    logger.debug(f"Initial test loss: {init_loss}")
     print(
         "\nInitial average test metric:", 
         init_metric.mean().item(),
         ':\nInitial average test metric per lobe',
         init_metric.cpu().numpy()
         )
+    logger.debug(f"Initial average test metric: {init_metric.mean().item()}")
     model.fit(
         epochs = epochs,
         evaluate_epochs = evaluate_epochs,
@@ -921,12 +927,14 @@ def train_lobe(
         "Final test loss:", 
         final_loss,
         )
+    logger.debug(f"Final test loss: {final_loss}")
     print(
         "\nFinal average test metric:", 
         final_metric.mean().item(),
         ':\nFinal average test metric per lobe',
         final_metric.cpu().numpy()
         )
+    logger.debug(f"Final average test metric: {final_metric.mean().item()}")
     
 
 if __name__ == '__main__':

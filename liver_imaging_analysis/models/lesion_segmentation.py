@@ -41,6 +41,8 @@ import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty = True, include_background = False)
@@ -55,6 +57,7 @@ class LesionSegmentation(Engine):
             Expects "2D" for slice inference or "3D" for volume inference.
             Default is "3D"
     """
+    logger.info('LesionSegmentation')
 
     def __init__(self, inference = "3D"):
         self.set_configs()
@@ -289,11 +292,15 @@ class LesionSegmentation(Engine):
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        logger.debug(f"Training Loss={training_loss}")
+        logger.debug(f"Training Metric={training_metric}")
         if valid_loss is not None:
-            print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
+            print(f"\nValidation Loss={valid_loss}")
+            print(f"\nValidation Metric={valid_metric}")
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            logger.debug(f"\nValidation Loss={valid_loss}")
+            logger.debug(f"\nValidation Metric={valid_metric}")
 
     def predict(self, data_dir, liver_mask):
         """
@@ -309,6 +316,7 @@ class LesionSegmentation(Engine):
             tensor
                 Predicted Labels. Values: background: 0, liver: 1, lesion: 2.
         """
+        logger.info('predict')
 
         self.network.eval()
         with torch.no_grad():
@@ -371,6 +379,7 @@ class LesionSegmentation(Engine):
                 Predicted labels with shape (1, channel, length, width, depth).
                 Values: background: 0, liver: 1, lesion: 2.
         """
+        logger.info('predict_2dto3d')
 
         # Read volume
         img_volume_array=nib.load(volume_path).get_fdata()
@@ -475,6 +484,7 @@ def segment_lesion(
     ----------
         tensor : predicted lesions segmentation
     """
+    logger.info('segment_lesion')
     liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
     lesion_model = LesionSegmentation(inference = lesion_inference)
     if prediction_path is None:
@@ -538,8 +548,10 @@ def train_lesion(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+    logger.info('train_lesion')
     if cp_path is None:
         cp_path = config.save["potential_checkpoint"]
+        logger.debug(f"cp_path={cp_path}")
     if epochs is None:
         epochs = config.training["epochs"]
     if save_path is None:
@@ -559,10 +571,12 @@ def train_lesion(
         "Initial test loss:", 
         init_loss,
         )
+    logger.debug(f"Initial test loss={init_loss}")
     print(
         "\nInitial test metric:", 
         init_metric.mean().item(),
         )
+    logger.debug(f"Initial test metric={init_metric.mean().item()}")
     model.fit(
         epochs = epochs,
         evaluate_epochs = evaluate_epochs,
@@ -580,10 +594,12 @@ def train_lesion(
         "Final test loss:", 
         final_loss,
         )
+    logger.debug(f"Final test loss={final_loss}")
     print(
         "\nFinal test metric:", 
         final_metric.mean().item(),
         )
+    logger.debug(f"Final test metric={final_metric.mean().item()}")
 
 
 

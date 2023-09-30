@@ -41,9 +41,11 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+import logging
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+logger = logging.getLogger(__name__)
     
 class LiverSegmentation(Engine):
     """
@@ -60,6 +62,7 @@ class LiverSegmentation(Engine):
             or "sliding_window" for sliding window inference.
             Default is "3D"
     """
+    logger.info('LIVER_SEGMENTATION')
 
     def __init__(self, modality = 'CT', inference = '3D'):
         self.set_configs(modality, inference)
@@ -440,11 +443,15 @@ class LiverSegmentation(Engine):
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        logger.debug(f"\nTraining Loss={training_loss}")
+        logger.debug(f"\nTraining Metric={training_metric}")
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            logger.debug(f"\nValidation Loss={valid_loss}")
+            logger.debug(f"\nValidation Metric={valid_metric}")
 
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
@@ -464,6 +471,7 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
+        logger.info('PREDICT_2DTO3D')
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -528,6 +536,7 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
+        logger.info('PREDICT_SLIDING_WINDOW')
         self.network.eval()
         with torch.no_grad():
             predict_files = [{Keys.IMAGE : volume_path}] 
@@ -578,6 +587,7 @@ class LiverSegmentation(Engine):
         float
             the averaged metric calculated during testing
         """
+        logger.info('TEST_SLIDING_WINDOW')
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -647,6 +657,7 @@ def segment_liver(
     ----------
         tensor : predicted liver segmentation
     """
+    logger.info('SEGMENT_LIVER')
     liver_model = LiverSegmentation(modality, inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
@@ -704,8 +715,10 @@ def train_liver(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+    logger.info('TRAIN_LIVER')
     if cp_path is None:
         cp_path = config.save["potential_checkpoint"]
+        logger.debug(f"cp_path={cp_path}")
     if epochs is None:
         epochs = config.training["epochs"]
     if save_path is None:
@@ -725,10 +738,12 @@ def train_liver(
         "Initial test loss:", 
         init_loss,
         )
+    logger.debug(f"Initial test loss={init_loss}")
     print(
         "\nInitial test metric:", 
         init_metric.mean().item(),
         )
+    logger.debug(f"Initial test metric={init_metric.mean().item()}")
     model.fit(
         epochs = epochs,
         evaluate_epochs = evaluate_epochs,
@@ -746,10 +761,12 @@ def train_liver(
         "Final test loss:", 
         final_loss,
         )
+    logger.debug(f"Final test loss={final_loss}")
     print(
         "\nFinal test metric:", 
         final_metric.mean().item(),
         )
+    logger.debug(f"Final test metric={final_metric.mean().item()}")
 
 
 

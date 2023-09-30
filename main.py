@@ -45,5 +45,4 @@ def main():
 
     logger.info('App finished')
 
-if __name__ == '__main__':
-    main()
+main()
