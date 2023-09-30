@@ -55,8 +55,8 @@
         "tensorboard": "runs/"
     },
     "test": {
-        "train_folder": "tests/testdata/data/resized_train_liver/",
-        "test_folder": "tests/testdata/data/resized_liver/",
+        "train_folder": "tests/testdata/data/resized_train_liver",
+        "test_folder": "tests/testdata/data/resized_liver",
         "test_volume": "tests/testdata/data/resized_liver/volume/resized_liver.nii",
         "test_label": "tests/testdata/data/resized_liver/mask/resized_mask.nii",
         "reference_sliding_window": "tests/testdata/checkpoints/reference_liver_sw",
@@ -64,7 +64,11 @@
         "lesion_cp": "tests/testdata/checkpoints/lesion_cp_tr",
         "lobe_cp_sw":"tests/testdata/checkpoints/lobe_cp_sliding_window",
         "liver_cp_sw":"tests/testdata/checkpoints/liver_sw",
-        "reference_lesion_cp": "tests/testdata/checkpoints/reference_lesion_cp"
+        "reference_lesion_cp": "tests/testdata/checkpoints/reference_lesion_cp",
+        "refrence_lesions_array":"tests/testdata/testcases/predicted_array_lesion.npy",
+        "reference_liver_2d_array":"tests/testdata/testcases/predicted_3d.npy",
+        "reference_liver_sw_array": "tests/testdata/testcases/predicted_sliding.npy",
+        "reference_lobe_array":"tests/testdata/testcases/predicted_lobe.npy"
     },
     "seed": 0
 }

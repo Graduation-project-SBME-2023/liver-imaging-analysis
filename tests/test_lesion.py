@@ -9,6 +9,7 @@ from liver_imaging_analysis.models.liver_segmentation import segment_liver
 from liver_imaging_analysis.engine.config import config
 import torch
 import nibabel as nib
+from liver_imaging_analysis.engine.engine import set_seed
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
 import numpy as np
 from liver_imaging_analysis.engine.utils import VolumeSlicing
@@ -31,6 +32,7 @@ from monai.transforms import (
 
 @pytest.fixture
 def lesion_obj():
+    set_seed()
     lesion_obj = LesionSegmentation()
     return lesion_obj
 
@@ -41,7 +43,6 @@ def test_get_pretraining_transforms(lesion_obj):
 
     Parameters:
     ----------
-    transform_name (string): "2d_ct_transform".
     lesion_obj (object): The lesion object that provides the get_pretraining_transforms method.
     ----------
     """
@@ -75,7 +76,6 @@ def test_get_pretesting_transforms(lesion_obj):
 
     Parameters:
     ----------
-    transform_name (string): "2d_ct_transform".
     lesion_obj (object): The lesion object that provides the get_pretesting_transforms method.
     ----------
     """
@@ -104,7 +104,6 @@ def test_get_postprocessing_transforms(lesion_obj):
 
     Parameters:
     ----------
-    transform_name (string):"2d_ct_transform".
     lesion_obj (object): The lesion object that provides the get_postprocessing_transforms function.
     ----------
     """
@@ -183,9 +182,9 @@ def test_segment_lesion():
     lesion_prediction = lesion_prediction.numpy()
 
 
-    ref_path = "tests/testdata/testcases/predicted_array_lesion.npy"
-    true = np.load(ref_path)
-    assert np.allclose(lesion_prediction, true, 0.01)
+    ref_path = config.test["refrence_lesions_array"]
+    reference = np.load(ref_path)
+    assert np.allclose(lesion_prediction, reference, 0.01)
 
 
 def test_train():
@@ -194,9 +193,6 @@ def test_train():
     Compares the weights of the resulted checkpoint with the reference checkpoint's weights.
     """
     model = LesionSegmentation(inference="3D")
-    # load reference checkpoint of training 1 epoch on a volume
-    model.load_checkpoint(config.test["reference_lesion_cp"])
-    reference_weights = model.network.state_dict()
     # train a single epoch on the same volume
     train_lesion(
         pretrained=False,
@@ -208,8 +204,15 @@ def test_train():
         save_path=config.test["lesion_cp"],
         test_batch_callback=False,
     )
+
+   # load the previous checkpoint of training 1 epoch on a volume
     model.load_checkpoint(config.test["lesion_cp"])
     trained_weights = model.network.state_dict()
+
+    # load reference checkpoint of training 1 epoch on the same volume
+    model.load_checkpoint(config.test["reference_lesion_cp"])
+    reference_weights = model.network.state_dict()
+
     # Check that weights match
     for i in reference_weights.keys():
         assert torch.allclose(reference_weights[i], trained_weights[i])

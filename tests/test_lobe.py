@@ -8,6 +8,7 @@ from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.models.liver_segmentation import segment_liver
 import torch
 import nibabel as nib
+from liver_imaging_analysis.engine.engine import set_seed
 from liver_imaging_analysis.engine.dataloader import DataLoader
 import numpy as np
 import torch
@@ -40,6 +41,7 @@ from monai.transforms import (
 
 @pytest.fixture
 def lobe_obj():
+    set_seed()
     lobe_obj = LobeSegmentation()
     return lobe_obj
 
@@ -176,28 +178,19 @@ def test_get_postprocessing_transforms(transform_name, lobe_obj):
         assert isinstance(t, e)
 
 
-# @pytest.mark.parametrize(
-#     ("liver_inference", "lobe_inference", "path"),
-#     [("3D", "sliding_window", "tests/testdata/testcases/predicted_lobe.npy")],
-# )
-def test_segment_lobe_sw(liver_inference = "3D" , lobe_inference = "sliding_window", path = "tests/testdata/testcases/predicted_lobe.npy"):
+
+def test_segment_lobe_sw():
     """
     Tests segment_lobe function (lobe_inference = 'sliding_window').
     verifies the functionality by performing segmentation using a 3D volume (with size 64,64,...)
     Compares the results with the true reference segmentation.
 
-    Parameters:
-    ----------
-    liver_inference (str): The type of liver segmentation inference.
-    lobe_inference (str): The type of lobe segmentation inference. "Sliding_window".
-    path (str): The path to the predicted 3D numpy array. In this test case, it is set to "predicted_lobe.npy".
-    ----------
     """
     config.transforms["transformation_size"] = [64, 64]
     lobe_prediction = segment_lobe(
         prediction_path=config.test["test_volume"],
-        liver_inference= liver_inference,
-        lobe_inference=lobe_inference,
+        liver_inference= "3D",
+        lobe_inference="sliding_window",
         liver_cp=config.test["liver_cp"],
         lobe_cp= config.test["lobe_cp_sw"],
     )
@@ -212,13 +205,14 @@ def test_segment_lobe_sw(liver_inference = "3D" , lobe_inference = "sliding_wind
 
     prediction = lobe_prediction.cpu()
     prediction = prediction.numpy()
-    final_path = path
-    true = np.load(final_path)
-    assert np.allclose(prediction, true, 0.01)
+    path = config.test["reference_lobe_array"]
+    reference = np.load(path)
+    assert np.allclose(prediction, reference, 0.01)
 
 
 @pytest.fixture
 def lobe_obj():
+    set_seed()
     config.transforms["transformation_size"] = [64, 64]
     lobe_obj = LobeSegmentation(inference="3D")
     return lobe_obj
@@ -258,6 +252,7 @@ def test_predict_2dto3(lobe_obj):
 
 @pytest.fixture
 def lobe_object_sw():
+    set_seed()
     lobe_object_sw = LobeSegmentation(inference="sliding_window")
     return lobe_object_sw
 
