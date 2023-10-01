@@ -61,7 +61,13 @@ def images_similarity(image_one, image_two):
 @pytest.mark.parametrize("mode", ["contour", "box", "zoom"])
 def test_visualization_modes(volume_data, mask_data, temp_dir, mode):
     """
-    Test different visualization modes.
+    This test function visualizes tumor data in 'box', contour, and zoom modes using the
+    'visualize_tumor' function and compares the generated images with
+    reference images from the 'ref_path'. It ensures that
+    the generated images are similar to the reference images.
+    Raises:
+        AssertionError: If any generated image is different from the
+            reference image.
     """
     ref_path = f"tests/testdata/testcases/visualization_test_photos/{mode}/volume/"
     vs.visualize_tumor(
