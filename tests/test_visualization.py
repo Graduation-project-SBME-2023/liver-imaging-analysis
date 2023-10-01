@@ -1,4 +1,3 @@
-import liver_imaging_analysis.engine.visualization as vs
 import torch
 import nibabel as nib
 import numpy as np
@@ -6,30 +5,47 @@ import pytest
 from PIL import Image, ImageChops
 import matplotlib
 import os
+from liver_imaging_analysis.engine.config import config
+config.visualization['volume'] = 'tests/testdata/data/volume/resized_liver.nii'
+config.visualization['mask'] = 'tests/testdata/data/mask/resized_mask.nii'
+import liver_imaging_analysis.engine.visualization as vs
+
 
 
 # Prevents matplotlib from opening figure windows
 matplotlib.use("Agg")
 
 
-temp_folder_path = "tests/testdata/data/temp/"
-volume_path = "tests/testdata/data/volume/resized_liver.nii"
-mask_path = "tests/testdata/data/mask/resized_mask.nii"
+@pytest.fixture
+def volume_path():
+    return config.visualization['volume']
+# volume_path = config.visualization['volume']
+
+@pytest.fixture
+def mask_path():
+    return config.visualization['mask']
 
 
-def delete_temp_images():
-    # Check if the folder exists
-    if os.path.exists(temp_folder_path):
-        # Remove all the files in the folder
-        for item in os.listdir(temp_folder_path):
-            item_path = os.path.join(temp_folder_path, item)
-            os.remove(item_path)
+@pytest.fixture
+def volume_data(volume_path):
+    volume_data = nib.load(volume_path).get_fdata()
+    return  torch.tensor(volume_data)
 
 
-def load_nifti_file(file_path):
-    img = nib.load(file_path).get_fdata()
-    return img
+@pytest.fixture
+def mask_data(mask_path):
+    mask_data = nib.load(mask_path).get_fdata()
+    mask_data = np.where(mask_data == 2, 1, 0)
+    return torch.tensor(mask_data)
 
+@pytest.fixture
+def temp_dir(tmpdir):
+    """
+    provides temporary directories for some test functions
+    """
+    tmpdir = tmpdir.mkdir("temp_folder_path")
+    # temp_mask = tmpdir.mkdir("mask")
+    return tmpdir
 
 def read_image(image_path):
     return Image.open(image_path).convert("RGB")
@@ -43,97 +59,22 @@ def images_similarity(image_one, image_two):
     assert not bbox, "Images are different"
 
 
-# Load the refrence volume and mask data
-volume_data = load_nifti_file(volume_path)
-mask_data = load_nifti_file(mask_path)
-
-mask_data = np.where(mask_data == 2, 1, 0)
-volume_data = torch.tensor(volume_data)
-mask_data = torch.tensor(mask_data)
-
-
-
-def test_contour():
+@pytest.mark.parametrize("mode", ["contour", "box", "zoom"])
+def test_visualization_modes(volume_data, mask_data, temp_dir, mode):
     """
-    Test the 'contour' visualization mode.
-
-    This test function visualizes tumor data in 'contour' mode using the
-    'visualize_tumor' function and compares the generated images with
-    reference images from the 'contour_ref_path' folder. It ensures that
-    the generated images are similar to the reference images.
-
-    Raises:
-        AssertionError: If any generated image is different from the
-            reference image.
-
+    Test different visualization modes.
     """
-    contour_ref_path = (
-        "tests/testdata/testcases/visualization_test_photos/contour/volume/"
-    )
+    ref_path = f"tests/testdata/testcases/visualization_test_photos/{mode}/volume/"
     vs.visualize_tumor(
         volume=volume_data.numpy(),
         mask=mask_data,
-        mode="contour",
-        save_path="tests/testdata/data/temp",
+        mode=mode,
+        save_path=temp_dir,
     )
-    for item in os.listdir(temp_folder_path):
-        ref_image = read_image(os.path.join(contour_ref_path, item))
-        test_image = read_image(os.path.join(temp_folder_path, item))
+    for item in os.listdir(temp_dir):
+        ref_image = read_image(os.path.join(ref_path, item))
+        test_image = read_image(os.path.join(temp_dir, item))
         images_similarity(test_image, ref_image)
-    delete_temp_images()
+    
 
 
-def test_box():
-    """
-    Test the 'box' visualization mode.
-
-    This test function visualizes tumor data in 'box' mode using the
-    'visualize_tumor' function and compares the generated images with
-    reference images from the 'contour_ref_path' folder. It ensures that
-    the generated images are similar to the reference images.
-
-    Raises:
-        AssertionError: If any generated image is different from the
-            reference image.
-
-    """
-    contour_ref_path = "tests/testdata/testcases/visualization_test_photos/box/volume/"
-    vs.visualize_tumor(
-        volume=volume_data.numpy(),
-        mask=mask_data,
-        mode="box",
-        save_path="tests/testdata/data/temp",
-    )
-    for item in os.listdir(temp_folder_path):
-        ref_image = read_image(os.path.join(contour_ref_path, item))
-        test_image = read_image(os.path.join(temp_folder_path, item))
-        images_similarity(test_image, ref_image)
-    delete_temp_images()
-
-
-def test_zoom():
-    """
-    Test the 'zoom' visualization mode.
-
-    This test function visualizes tumor data in 'zoom' mode using the
-    'visualize_tumor' function and compares the generated images with
-    reference images from the 'contour_ref_path' folder. It ensures that
-    the generated images are similar to the reference images.
-
-    Raises:
-        AssertionError: If any generated image is different from the
-            reference image.
-
-    """
-    contour_ref_path = "tests/testdata/testcases/visualization_test_photos/zoom/volume/"
-    vs.visualize_tumor(
-        volume=volume_data.numpy(),
-        mask=mask_data,
-        mode="zoom",
-        save_path="tests/testdata/data/temp",
-    )
-    for item in os.listdir(temp_folder_path):
-        ref_image = read_image(os.path.join(contour_ref_path, item))
-        test_image = read_image(os.path.join(temp_folder_path, item))
-        images_similarity(test_image, ref_image)
-    delete_temp_images()

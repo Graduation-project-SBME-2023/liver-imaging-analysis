@@ -8,8 +8,8 @@
 
     },
     "visualization":{
-        "volume":"tests/testdata/data/volume/resized_liver.nii",
-        "mask":"tests/testdata/data/mask/resized_mask.nii"
+        "volume":"volume-0.nii",
+        "mask":"segmentation-0.nii"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,

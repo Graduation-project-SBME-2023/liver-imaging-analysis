@@ -1,10 +1,7 @@
 """
 This module provides various visualization functions for tumors.
 """
-import sys
 import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from skimage.measure import find_contours
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -133,7 +130,6 @@ def major_axis_recursive(volume, mask, mode="volume", save_path=None):
 
         elif mode == "slice":
             major_axes(volume, largest_tumor[0], ax)
-            print(mask.shape)
             contours = find_contours(mask.numpy(), 0)
             for contour in contours:
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=0.5, c="r")
@@ -198,11 +194,7 @@ def major_axes(volume_slice, mask_slice, ax):
     dmin_2 = distances_pc2.min()
 
     # the total diameter is the difference in these distances
-    (
-        x,
-        y,
-        z,
-    ) = find_pix_dim()
+    (x,y,z,) = find_pix_dim()
     print("Distance along major axis:", (dmax_1 - dmin_1) * x)
     print("Distance along minor axis:", (dmax_2 - dmin_2) * y)
 
