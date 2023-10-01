@@ -19,7 +19,7 @@ matplotlib.use("Agg")
 @pytest.fixture
 def volume_path():
     return config.visualization['volume']
-# volume_path = config.visualization['volume']
+
 
 @pytest.fixture
 def mask_path():
@@ -44,7 +44,6 @@ def temp_dir(tmpdir):
     provides temporary directories for some test functions
     """
     tmpdir = tmpdir.mkdir("temp_folder_path")
-    # temp_mask = tmpdir.mkdir("mask")
     return tmpdir
 
 def read_image(image_path):
