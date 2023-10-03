@@ -7,7 +7,7 @@ from liver_imaging_analysis.models.lesion_segmentation import (
 from unittest.mock import patch
 from liver_imaging_analysis.engine.transforms import MorphologicalClosing
 from liver_imaging_analysis.models.liver_segmentation import LiverSegmentation
-from tests.test_liver import set_configs as liver_set_configs
+from test_liver import set_configs as liver_set_configs
 from liver_imaging_analysis.models.liver_segmentation import segment_liver
 from liver_imaging_analysis.engine.config import config
 import torch

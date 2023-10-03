@@ -265,7 +265,7 @@ def set_configs(inference):
         config.dataset["prediction"] = config.test["test_volume"]
         config.training["batch_size"] = 1
         config.dataset["training"], config.dataset["testing"] = (
-            "tests\\testdata\\data\\resized_train_liver\\",
+            "tests\\testdata\\data\\resized_liver\\",
             "tests\\testdata\\data\\resized_liver\\",
         )
         config.network_parameters["dropout"] = 0
@@ -278,7 +278,7 @@ def set_configs(inference):
     elif inference == "sliding_window":
         config.dataset["prediction"] = "test cases/volume/volume-64.nii"
         config.dataset["training"], config.dataset["testing"] = (
-            "tests\\testdata\\data\\resized_train_liver\\",
+            "tests\\testdata\\data\\resized_liver\\",
             "tests\\testdata\\data\\resized_liver\\",
         )
         config.training["batch_size"] = 1
