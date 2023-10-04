@@ -8,6 +8,7 @@ from monai.transforms import (
 )
 import monai.data
 import numpy as np
+from liver_imaging_analysis.engine.config import config
 
 
 def test_data_loader():
@@ -17,9 +18,9 @@ def test_data_loader():
     """
     batch_size = 8
     test_size = 0.2
-    test_dir = "tests/testdata/liverslices"
-    image_batches_dir = "tests/testdata/batches/image_batches"
-    label_batches_dir = "tests/testdata/batches/label_batches"
+    test_dir = config.test["liver_slices"]
+    image_batches_dir = os.path.join(config.test["reference_batches"], "image_batches")
+    label_batches_dir = os.path.join(config.test["reference_batches"], "label_batches")
 
     transforms = Compose(
         [
