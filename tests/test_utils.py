@@ -7,6 +7,7 @@ from liver_imaging_analysis.engine.utils import (
     liver_isolate_crop,
     find_pix_dim,
 )
+from liver_imaging_analysis.engine.config import config
 import nibabel as nib
 import numpy as np
 from PIL import Image
@@ -15,39 +16,27 @@ import natsort
 
 
 @pytest.fixture
-def volume_dir():
-    return "tests/testdata/data/volume"
+def volume_array():
+    return nib.load(config.test["test_volume"]).get_fdata()
 
 
 @pytest.fixture
-def mask_dir():
-    return "tests/testdata/data/mask"
+def mask_array():
+    # 0 background, 1 liver, 2 lesions
+    return nib.load(config.test["test_label"]).get_fdata()
 
 
 @pytest.fixture
-def vol_path(volume_dir):
-    return os.path.join(volume_dir, "resized_liver.nii")
+def liver_isolated_volume(mask_array, volume_array):
+    return np.where(
+        (mask_array > 0.5), volume_array.astype(int), volume_array.astype(int).min()
+    )
 
 
 @pytest.fixture
-def mask_path(mask_dir):
-    # 0 background, 1 liver, 2 lesion
-    return os.path.join(mask_dir, "resized_mask.nii")
-
-
-@pytest.fixture
-def volume(vol_path):
-    return nib.load(vol_path)
-
-
-@pytest.fixture
-def mask(mask_path):
-    return nib.load(mask_path)
-
-
-@pytest.fixture
-def mask_array(mask):
-    return np.where(mask.get_fdata() == 2, 1, 0)
+def lesions_mask_array(mask_array):
+    # 0 background, 1 lesions
+    return np.where(mask_array == 2, 1, 0)
 
 
 @pytest.fixture
@@ -60,14 +49,18 @@ def temp_dir(tmpdir):
     return temp_vol, temp_mask
 
 
-def test_liver_isolate_crop(mask, volume, mask_dir, volume_dir, temp_dir):
+def test_liver_isolate_crop(lesions_mask_array, liver_isolated_volume, temp_dir):
     """
-    Tests volume and mask are cropped in z direcrion,
-    volume contains only liver while mask contains only lesions.
+    checks new volume and new mask are cropped in z direcrion,
+    new volume contains only liver, while new mask contains only lesions.
 
 
     Parameters
     ----------
+    lesions_mask_array: numpy.ndarray
+        A NumPy array containing only lesions mask       
+    liver_isolated_volume: numpy.ndarray
+        A NumPy array containing volume of isolated liver
     temp_dir: tuple of py._path.local.LocalPath
             Two temporary directories for saving new_volume and new_mask
     """
@@ -75,10 +68,15 @@ def test_liver_isolate_crop(mask, volume, mask_dir, volume_dir, temp_dir):
     new_mask_dir = temp_dir[1]
     min_slice = 10
     max_slice = 32
-    cropped_mask = mask.get_fdata()[:, :, min_slice:max_slice]
-    cropped_vol = volume.get_fdata()[:, :, min_slice:max_slice]
+    cropped_mask = lesions_mask_array[:, :, min_slice:max_slice]
+    cropped_vol = liver_isolated_volume[:, :, min_slice:max_slice]
 
-    liver_isolate_crop(volume_dir, mask_dir, new_vol_dir, new_mask_dir)
+    liver_isolate_crop(
+        os.path.join(config.test["test_folder"], "volume"),
+        os.path.join(config.test["test_folder"], "mask"),
+        new_vol_dir,
+        new_mask_dir,
+    )
 
     # testing on only one volume and one mask
     assert os.path.exists(new_vol_dir.join(os.listdir(new_vol_dir)[0]))
@@ -90,21 +88,14 @@ def test_liver_isolate_crop(mask, volume, mask_dir, volume_dir, temp_dir):
     assert (
         new_volume.shape == new_mask.shape == (64, 64, max_slice - min_slice)
     )  # shape after cropping
-    assert np.all(
-        new_mask == np.where(cropped_mask == 2, 1, 0)
-    )  # 0 background, 1 lesions
-    assert np.all(
-        new_volume
-        == np.where(
-            (cropped_mask > 0.5), cropped_vol.astype(int), cropped_vol.astype(int).min()
-        )
-    )  # liver isolated
+    assert np.all(new_mask == cropped_mask)
+    assert np.all(new_volume == cropped_vol)
 
 
 @pytest.mark.parametrize(
     "input,expected",
     [
-        (pytest.lazy_fixture("mask_array"), 16),
+        (pytest.lazy_fixture("lesions_mask_array"), 16),
         (np.zeros((5, 5, 5), dtype=int), -1),
     ],
 )
@@ -120,19 +111,20 @@ def test_largest_tumor(input, expected):
     expected: int
         expected slice number
     """
+    config.visualization["volume"] = config.test["test_volume"]
     slice_idx = calculate_largest_tumor(torch.from_numpy(input))
     assert slice_idx == expected
 
 
-def test_find_pix_dim(vol_path):
+def test_find_pix_dim():
     """
     Tests nifti file pixel dimensions
     """
-    x, y, z = find_pix_dim(vol_path)
+    x, y, z = find_pix_dim(config.test["test_volume"])
     assert np.allclose((x, y, z), (0.664062, 0.664062, 5.0))
 
 
-def test_overlay(mask_path, vol_path, temp_dir):
+def test_overlay(temp_dir):
     """
     Tests overlay gif is saved, and compares gif frames
 
@@ -143,7 +135,7 @@ def test_overlay(mask_path, vol_path, temp_dir):
             temporary directory for saving the gif
     """
     path = temp_dir[0].join("gif.gif")
-    overlay = Overlay(vol_path, mask_path, str(path))
+    overlay = Overlay(config.test["test_volume"], config.test["test_label"], str(path))
     overlay.generate_animation()
 
     assert os.path.exists(path)
@@ -157,22 +149,40 @@ def test_overlay(mask_path, vol_path, temp_dir):
         gif.seek(frame)
         assert np.all(
             np.asarray(gif)
-            == np.load(f"tests/testdata/testcases/gif_frames/gif_frame_{frame}.npy")
+            == np.load(
+                os.path.join(config.test["reference_gif"], f"gif_frame_{frame}.npy")
+            )
         )
 
 
 def png2array(file):
+    """
+    Returns NumPy array from a PNG image.
+
+    Parameters
+    ----------
+    file : str
+        Path to the PNG image of a volume slice.
+
+    Returns
+    -------
+    numpy.ndarray
+        A NumPy array representing the image.
+
+    """
     slice_image = Image.open(file)
     return np.asarray(slice_image)
 
 
 @pytest.mark.parametrize("extension", [".nii.gz", ".png"])
-def test_volumeslicing(volume, volume_dir, mask_dir, temp_dir, extension):
+def test_volumeslicing(volume_array, temp_dir, extension):
     """
     Tests all volume slices & mask slices are correctly saved
 
     Parameters
     ----------
+    volume_array: numpy.ndarray
+        A NumPy array containing original volume
     temp_dir: tuple of py._path.local.LocalPath
             Two temporary directories for saving volume slices & mask slices
     extension: str
@@ -182,13 +192,21 @@ def test_volumeslicing(volume, volume_dir, mask_dir, temp_dir, extension):
     temp_vol_slices = temp_dir[0]
     temp_mask_slices = temp_dir[1]
     test_shape = (64, 64)
-    test_num_of_slices = volume.get_fdata().shape[2]
+    test_num_of_slices = volume_array.shape[2]
 
     if extension == ".png":
-        VolumeSlicing.nii2png(volume_dir, mask_dir, temp_vol_slices, temp_mask_slices)
+        VolumeSlicing.nii2png(
+            os.path.join(config.test["test_folder"], "volume"),
+            os.path.join(config.test["test_folder"], "mask"),
+            temp_vol_slices,
+            temp_mask_slices,
+        )
     else:
         VolumeSlicing.nii3d_To_nii2d(
-            volume_dir, mask_dir, temp_vol_slices, temp_mask_slices
+            os.path.join(config.test["test_folder"], "volume"),
+            os.path.join(config.test["test_folder"], "mask"),
+            temp_vol_slices,
+            temp_mask_slices,
         )
 
     # checks number of slices
@@ -213,10 +231,10 @@ def test_volumeslicing(volume, volume_dir, mask_dir, temp_dir, extension):
             vol_slice_array = png2array(os.path.join(temp_vol_slices, vol_name))
             mask_slice_array = png2array(os.path.join(temp_mask_slices, mask_name))
             vol_ref = png2array(
-                f"tests/testdata/testcases/liverSlices_png/volume/{i}.png"
+                os.path.join(config.test["liver_png_slices"], f"volume/{i}.png")
             )
             mask_ref = png2array(
-                f"tests/testdata/testcases/liverSlices_png/mask/{i}.png"
+                os.path.join(config.test["liver_png_slices"], f"mask/{i}.png")
             )
 
         else:
@@ -227,10 +245,10 @@ def test_volumeslicing(volume, volume_dir, mask_dir, temp_dir, extension):
                 os.path.join(temp_mask_slices, mask_name)
             ).get_fdata()
             vol_ref = nib.load(
-                f"tests/testdata/testcases/liverSlices/volume/{i}.nii"
+                os.path.join(config.test["liver_slices"], f"volume/{i}.nii")
             ).get_fdata()
             mask_ref = nib.load(
-                f"tests/testdata/testcases/liverSlices/mask/{i}.nii"
+                os.path.join(config.test["liver_slices"], f"mask/{i}.nii")
             ).get_fdata()
 
         # checks slice dimensions
@@ -239,5 +257,3 @@ def test_volumeslicing(volume, volume_dir, mask_dir, temp_dir, extension):
         # checks pixel values per slice
         assert np.allclose(vol_slice_array, vol_ref)
         assert np.allclose(mask_slice_array, mask_ref)
-
-
