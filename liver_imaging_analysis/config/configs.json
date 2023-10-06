@@ -71,8 +71,8 @@
         "reference_lobe_array": "tests/testdata/testcases/predicted_lobe.npy",
         "reference_gif": "tests/testdata/testcases/gif_frames",
         "liver_slices": "tests/testdata/testcases/liverSlices",
-        "liver_png_slices": "tests/testdata/testcases/liverSlices_png"
-
+        "liver_png_slices": "tests/testdata/testcases/liverSlices_png",
+        "reference_batches" : "tests/testdata/testcases/batches"
     },
     "seed": 0
 }
