@@ -63,7 +63,7 @@ class LobeSegmentation(Engine):
             Expects "2D" for slice inference or "3D" for volume inference.
             Default is "2D"
     """
-
+    logger.info("LobeSegmentation")
     def __init__(self, inference = "sliding_window"):
         self.set_configs(inference)
         super().__init__()
@@ -515,11 +515,13 @@ class LobeSegmentation(Engine):
                 Predicted Labels. Values: background: 0, lobes: 1-9.
                 Label 4 and 5 represents lobe 4A and 4B.
         """
+        logger.info("Predict_liver_lobes")
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) 
                             for file_name in volume_names]
+            logger.info(f"Volume Paths: {volume_paths}")
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -555,6 +557,8 @@ class LobeSegmentation(Engine):
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
+            logger.info(f"Prediction List: {prediction_list}")
+            logger.info("Prediction Done")
         return prediction_list
     
     
@@ -578,7 +582,7 @@ class LobeSegmentation(Engine):
                 Values: background: 0, lobes: 1-9.
                 Label 4 and 5 represents lobe 4A and 4B.
         """
-
+        logger.info("Predicting on 2D Slices")
         #read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -602,6 +606,7 @@ class LobeSegmentation(Engine):
             volume_names = natsort.natsorted(os.listdir(temp_path))
             volume_paths = [os.path.join(temp_path, file_name) 
                             for file_name in volume_names]
+            logger.info(f"Volume Paths: {volume_paths}")
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -643,6 +648,8 @@ class LobeSegmentation(Engine):
         batch = self.post_process(batch)
         #delete temporary folder
         shutil.rmtree(temp_path)
+        logger.info(f"Prediction List: {batch[Keys.PRED]}")
+        logger.info("Prediction Done")
         return batch[Keys.PRED]
 
 
@@ -664,6 +671,7 @@ class LobeSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
+        logger.info("Predicting on Sliding Window")
         #create temporary folder to store 2d png files 
         if os.path.exists(temp_path) == False:
           os.mkdir(temp_path)
@@ -717,6 +725,7 @@ class LobeSegmentation(Engine):
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
         shutil.rmtree(temp_path)
+        logger.info(f"Prediction List: {prediction_list}")
         return prediction_list
 
 
@@ -739,6 +748,7 @@ class LobeSegmentation(Engine):
         float
             the averaged metric calculated during testing
         """
+        logger.info("Testing on Sliding Window")
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -775,6 +785,7 @@ class LobeSegmentation(Engine):
             test_metric = self.metrics.aggregate()
             # reset the status for next computation round
             self.metrics.reset()
+            logger.info("Testing Done")
         return test_loss, test_metric
     
     
@@ -814,14 +825,19 @@ def segment_lobe(
     ----------
         tensor : predicted lobes segmentation
     """
+
+    logger.info("Segmenting Lobes")
     liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
     lobe_model = LobeSegmentation(inference = lobe_inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
+        logger.info(f"Prediction Path: {prediction_path}")
     if liver_cp is None:
         liver_cp = config.save["liver_checkpoint"]
+        logger.info(f"Liver Checkpoint: {liver_cp}")
     if lobe_cp is None:
         lobe_cp = config.save["lobe_checkpoint"]
+        logger.info(f"Lobe Checkpoint: {lobe_cp}")
     liver_model.load_checkpoint(liver_cp)
     lobe_model.load_checkpoint(lobe_cp)
     liver_prediction = liver_model.predict(prediction_path)
@@ -836,6 +852,8 @@ def segment_lobe(
                                      else extract(liver_prediction[0])[None]
                         )
     lobe_prediction = lobe_prediction * liver_prediction #no liver -> no lobe
+    logger.info(f"Lobe Prediction: {lobe_prediction}")
+    logger.info("Lobes Segmented")
     return lobe_prediction
 
 
@@ -881,12 +899,16 @@ def train_lobe(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+    logger.info("Training Lobe Segmentation Model")
     if cp_path is None:
         cp_path = config.save["potential_checkpoint"]
+        logger.info(f"Checkpoint path: {cp_path}")
     if epochs is None:
         epochs = config.training["epochs"]
+        logger.info(f"Epochs: {epochs}")
     if save_path is None:
         save_path = config.save["potential_checkpoint"]
+        logger.info(f"Save path: {save_path}")
     set_seed()
     model = LobeSegmentation(inference)
     model.load_data()

@@ -40,7 +40,7 @@ class TestEngine(Engine):
 
         """
         config.dataset["prediction"] = "tests/testdata/data/volume"
-        config.device = "cpu"
+        config.device = "cuda" if torch.cuda.is_available() else "cpu"
         config.dataset["training"] = "tests/testdata/data"
         config.dataset["testing"] = "tests/testdata/data"
         config.training["batch_size"] = 8
@@ -169,9 +169,11 @@ def engine():
         engine: object
             An instance of the TestEngine class.
     """
+    # Set seed for reproducibility
     set_seed()
     engine = TestEngine()
     engine.load_data()
+
     return engine
 
 
@@ -188,16 +190,19 @@ def test_set_configs(engine):
     ----------
         None
     """
-
+    # Verify optimizer 
     assert isinstance(engine.optimizer, torch.optim.Adam)
     assert engine.optimizer.defaults["lr"] == 0.01
 
+    # Verify scheduler 
     assert isinstance(engine.scheduler, lr_scheduler.StepLR)
     assert engine.scheduler.step_size == 20
     assert engine.scheduler.gamma == 0.5
 
+    # Verify loss function 
     assert isinstance(engine.loss, monaiDiceLoss)
 
+    # Verify network 
     assert isinstance(engine.network, monai.networks.nets.UNet)
 
 
@@ -214,8 +219,6 @@ def test_load_data(engine):
     ----------
         None
     """
-
-    
         
     image_path="tests/testdata/testcases/engine_image.npy"
     label_path="tests/testdata/testcases/engine_label.npy"
@@ -227,12 +230,15 @@ def test_load_data(engine):
 
         assert train_batch[Keys.IMAGE].shape == expected_image.shape
         assert train_batch[Keys.LABEL].shape == expected_label.shape
-
         assert np.allclose(train_batch["image"].numpy(), expected_image, 1e-2)
         assert np.allclose(train_batch["label"].numpy(), expected_label, 1e-2)
 
+    # Verify length of training data 
     assert len(engine.train_dataloader) == 1
+    
+    # Verify length of testing data
     assert len(engine.test_dataloader) == 1
+   
     assert isinstance(engine.train_dataloader, MonaiLoader)
     assert isinstance(engine.val_dataloader, MonaiLoader)
     assert isinstance(engine.test_dataloader, MonaiLoader)
@@ -251,58 +257,53 @@ def test_save_load_checkpoint(engine):
     ----------
         None
     """
-    # Path of the input directory
-    ckpt_path = config.save["engine_checkpoint"]
     # Path of reference checkpoint
     ref_path =  config.save["reference_checkpoint"]
 
-    assert os.path.exists(ckpt_path)
+    # Path to save the checkpoint
+    saved_cp ="tests/testdata/checkpoints/saved_cp.pt"
+
+    # Assert reference checkpoint file exists
     assert os.path.exists(ref_path)
 
-    # Get initial weights
-    init_weights =[p.clone() for p in engine.network.parameters()]
-
-
-
     # Test for saving checkpoint
-   
-    assert not os.path.exists("saved_cp.pt")
-    engine.save_checkpoint("saved_cp.pt")
-    assert os.path.exists("saved_cp.pt")
-    engine.load_checkpoint("saved_cp.pt") 
-    saved_weights = engine.network.parameters()
-    for p0, p1 in zip(saved_weights , init_weights):
-        assert torch.allclose(p0, p1)
-    os.remove("saved_cp.pt")
+    reference_checkpoint = {
+        'state_dict': engine.network.state_dict(),
+        'optimizer': engine.optimizer.state_dict(),
+        'scheduler': engine.scheduler.state_dict(),
+        }
+    # Save checkpoint
+    engine.save_checkpoint(saved_cp)
 
-    # Load checkpoint
-    loaded_checkpoint = torch.load(ckpt_path)
+    # Assert checkpoint file exists
+    assert os.path.exists(saved_cp)
 
+    # load saved checkpoint
+    loaded_checkpoint = torch.load(saved_cp)
 
     # verify network state dict match
-    assert  list(engine.network.state_dict() ) == list(loaded_checkpoint["state_dict"])
+    assert list(reference_checkpoint["state_dict"]) == list(loaded_checkpoint["state_dict"])
     # verify optimizer state dict match
-    assert list(engine.optimizer.state_dict()) == list(loaded_checkpoint["optimizer"])
+    assert list(reference_checkpoint["optimizer"].values()) == list(loaded_checkpoint["optimizer"].values())
     # verify scheduler state dict match
-    assert list(engine.scheduler.state_dict()) == list(loaded_checkpoint["scheduler"])
+    assert list(reference_checkpoint["scheduler"].values()) == list(loaded_checkpoint["scheduler"].values())
+   
+    # Delete saved checkpoint
+    if os.path.exists(saved_cp):
+        os.remove(saved_cp)
 
-
-    #  Test for loading checkpoint
-    # Get loaded weights
-    engine.load_checkpoint(ckpt_path)
-    loaded_weights = [p.clone() for p in engine.network.parameters()]
+    # Test for loading checkpoint
+    # load reference checkpoint
+    loaded_checkpoint = torch.load(ref_path)
+    loadd_weights = [value.to(engine.device) for value in loaded_checkpoint["state_dict"].values()]
 
     # Get loaded refrence weights
     engine.load_checkpoint(ref_path)
     ref_weights = [p.clone() for p in engine.network.parameters()]
 
-
     # Check that weights match
-    for p0, p1 in zip(ref_weights ,loaded_weights):
+    for p0, p1 in zip(list(ref_weights) , list(loadd_weights)):
         assert torch.allclose(p0, p1, atol=1e-3)
-    
-
-
     
 
 def test_fit(engine):
@@ -322,17 +323,30 @@ def test_fit(engine):
     # Path to save the model weights
     save_path = config.save["engine_checkpoint"]
 
-    # Get initial weights
-    init_weights = [p.clone() for p in engine.network.parameters()]
+    # Path of reference checkpoint
+    ref_path =  config.save["reference_checkpoint"]
 
+    # Train model for one epoch
     engine.fit(epochs=1, save_weight=True, save_path=save_path)
 
+    # Assert checkpoint file exists
     assert os.path.exists(save_path)
 
-    # Verify weights were updated
-    for p0, p1 in zip(init_weights, engine.network.parameters()):
-        assert not torch.equal(p0, p1)
+    checkpoint_weights = [p.clone() for p in engine.network.parameters()]
+
+    # Get loaded refrence weights
+    engine.load_checkpoint(ref_path)
+    ref_weights = [p.clone() for p in engine.network.parameters()]
+
     
+    # verify the wights match the reference checkpoint
+    for p0, p1 in zip(checkpoint_weights, ref_weights):
+        assert torch.allclose(p0, p1, atol=1e-3)
+    
+    # Delete saved checkpoint
+    if os.path.exists(save_path):
+        os.remove(save_path)
+     
 
 def test_test(engine):
     """
@@ -347,9 +361,13 @@ def test_test(engine):
     ----------
         None
     """
+    # Test model
     loss, metric = engine.test()
 
+    # Verify loss 
     assert np.allclose(loss,0.913, atol=1e-3)
+
+    # verify metric
     assert np.allclose(metric, 0.082, atol=1e-3)
 
 
@@ -372,9 +390,14 @@ def test_predict(engine):
     # path to the predicted 3D numpy array
     pred_path="tests/testdata/testcases/engine_predicted.npy"
 
+    # Get prediction
     prediction = engine.predict(path).cpu().numpy()
 
+    # Load true prediction
     true = np.load(pred_path)
 
+    # Verify prediction shape
     assert prediction.shape == true.shape == torch.Size([1, 1, 16, 16, 8]) 
+
+    # Verify prediction values
     assert np.allclose(prediction, true, 1e-2)

@@ -62,7 +62,7 @@ class LiverSegmentation(Engine):
             or "sliding_window" for sliding window inference.
             Default is "3D"
     """
-    logger.info('LIVER_SEGMENTATION')
+    logger.info('LiverSegmentation')
 
     def __init__(self, modality = 'CT', inference = '3D'):
         self.set_configs(modality, inference)
@@ -471,7 +471,7 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
-        logger.info('PREDICT_2DTO3D')
+        logger.info('Predict_2dto3d')
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -495,6 +495,7 @@ class LiverSegmentation(Engine):
             volume_names = natsort.natsorted(os.listdir(temp_path))
             volume_paths = [os.path.join(temp_path, file_name) 
                             for file_name in volume_names]
+            logger.debug(f"volume_paths={volume_paths}")
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -521,6 +522,7 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
+        logger.info(f"batch[Keys.PRED]={batch[Keys.PRED]}")
         return batch[Keys.PRED]
 
 
@@ -536,7 +538,7 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
-        logger.info('PREDICT_SLIDING_WINDOW')
+        logger.info('Predict_sliding_window')
         self.network.eval()
         with torch.no_grad():
             predict_files = [{Keys.IMAGE : volume_path}] 
@@ -565,6 +567,7 @@ class LiverSegmentation(Engine):
                 batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
+            logger.info(f"prediction_list={prediction_list}")
         return prediction_list
 
 
@@ -587,7 +590,7 @@ class LiverSegmentation(Engine):
         float
             the averaged metric calculated during testing
         """
-        logger.info('TEST_SLIDING_WINDOW')
+        logger.info('Test_sliding_window')
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -657,14 +660,17 @@ def segment_liver(
     ----------
         tensor : predicted liver segmentation
     """
-    logger.info('SEGMENT_LIVER')
+    logger.info('Segment_liver')
     liver_model = LiverSegmentation(modality, inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
+        logger.debug(f"prediction_path={prediction_path}")
     if cp_path is None:
         cp_path = config.save["liver_checkpoint"]
+        logger.debug(f"cp_path={cp_path}")
     liver_model.load_checkpoint(cp_path)
     liver_prediction = liver_model.predict(prediction_path)
+    logger.info(f"liver_prediction={liver_prediction}")
     return liver_prediction
 
 
@@ -718,11 +724,13 @@ def train_liver(
     logger.info('TRAIN_LIVER')
     if cp_path is None:
         cp_path = config.save["potential_checkpoint"]
-        logger.debug(f"cp_path={cp_path}")
+        logger.info(f"cp_path={cp_path}")
     if epochs is None:
         epochs = config.training["epochs"]
+        logger.info(f"epochs={epochs}")
     if save_path is None:
         save_path = config.save["potential_checkpoint"]
+        logger.info(f"save_path={save_path}")
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()

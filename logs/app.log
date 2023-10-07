@@ -1,302 +1,120 @@
 [2023-09-26 01:53:47,186] [INFO] [root] (main.py:30) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 01:53:47,186] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
-[2023-09-26 01:53:47,186] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
-[2023-09-26 01:53:47,196] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
-[2023-09-26 01:53:47,199] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
-[2023-09-26 01:53:47,199] [INFO] [root] (main.py:35) - App finished
-[2023-09-26 11:24:34,726] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:24:34,730] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
-[2023-09-26 11:24:34,730] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
-[2023-09-26 11:24:34,731] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
-[2023-09-26 11:24:34,731] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
-[2023-09-26 11:24:34,731] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:25:56,827] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:25:56,827] [INFO] [liver_imaging_analysis.engine.config] (config.py:15) - Loading configuration from configs.json
-[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:22) - Loaded configuration: {'device': 'cuda', 'dataset': {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}, 'visualization': {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}, 'unittest_size': [16, 16, 8], 'unittest_batch': 1, 'network_name': 'monai_2DUNet', 'network_parameters': {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}, 'training': {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}, 'transforms': {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}, 'save': {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}, 'seed': 0}
-[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'device' to cuda
-[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'dataset' to {'mode': '2D', 'training': 'Temp2D/Train/', 'testing': 'Temp2D/Test/', 'unittest': 'Temp2D/Test/'}
-[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'visualization' to {'volume': 'volume-0.nii', 'mask': 'segmentation-0.nii'}
-[2023-09-26 11:25:56,827] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_size' to [16, 16, 8]
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'unittest_batch' to 1
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_name' to monai_2DUNet
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'network_parameters' to {'in_channels': 1, 'out_channels': 1, 'spatial_dims': 2, 'channels': [64, 128, 256, 512], 'strides': [2, 2, 2], 'num_res_units': 4, 'bias': 1, 'norm': 'INSTANCE', 'dropout': 0.4}
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'training' to {'epochs': 100, 'batch_size': 12, 'train_valid_split': 0, 'optimizer': 'Adam', 'optimizer_parameters': {'lr': 0.01}, 'lr_scheduler': 'StepLR', 'scheduler_parameters': {'step_size': 20, 'gamma': 0.5, 'verbose': 1}, 'loss_name': 'monai_dice', 'loss_parameters': {'sigmoid': '1', 'batch': 1, 'include_background': 1}, 'metrics': 'dice', 'metrics_parameters': {'ignore_empty': 1, 'include_background': 1}, 'shuffle': 1}
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'transforms' to {'transformation_size': [512, 512], 'img_key': 'image', 'label_key': 'label', 'pred_key': 'pred', 'sw_batch_size': 2, 'roi_size': [192, 192, 32], 'overlap': 0.25, 'train_transform': '3DUnet_transform', 'test_transform': '3DUnet_transform', 'post_transform': '3DUnet_transform'}
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'save' to {'volume_png_path': 'Temp2D/volume/', 'mask_png_path': 'Temp2D/mask/', 'model_checkpoint': 'model_checkpoint', 'potential_checkpoint': 'potential_checkpoint', 'tensorboard': 'runs/'}
-[2023-09-26 11:25:56,828] [DEBUG] [liver_imaging_analysis.engine.config] (config.py:26) - Setting config param 'seed' to 0
-[2023-09-26 11:25:56,828] [INFO] [liver_imaging_analysis.engine.config] (config.py:29) - Configuration loaded
-[2023-09-26 11:25:56,828] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:29:04,266] [INFO] [root] (main.py:31) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:29:04,266] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:32:53,404] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:32:53,404] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:35:18,962] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:35:18,962] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:36:29,596] [INFO] [root] (main.py:37) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:36:29,596] [INFO] [root] (engine.py:33) - Initializing Engine
-[2023-09-26 11:43:39,580] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:43:39,580] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:43:41,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,186] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,188] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,189] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,189] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,193] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,193] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,194] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,197] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,197] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,200] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,201] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,202] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,203] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,204] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,204] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:43:41,205] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:45:16,252] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:45:16,252] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:45:17,715] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,716] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,717] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,720] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,721] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,722] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,725] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,726] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,727] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,730] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,731] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,732] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,733] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,734] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,735] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,736] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,736] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:45:17,737] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:49:54,824] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:49:54,824] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:49:56,377] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,377] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,378] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,380] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,381] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,382] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,384] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,385] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,386] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,388] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,389] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,389] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,390] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,391] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,392] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,393] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,394] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,394] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:49:56,395] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:52:53,153] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:52:53,153] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:52:54,616] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,616] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,617] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,620] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,621] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,622] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,625] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,626] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,626] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,629] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,630] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,630] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,632] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,632] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,633] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,634] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,635] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,636] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:52:54,637] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:54:16,693] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:54:16,693] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:54:18,163] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,164] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,165] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,168] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,169] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,170] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,174] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,175] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,177] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,181] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,184] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,184] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,185] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,187] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,187] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,188] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:54:18,189] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:58:32,394] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:58:32,394] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:58:33,911] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,912] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,913] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,914] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,915] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,915] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,919] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,919] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,920] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,922] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,923] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,924] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,925] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,926] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,927] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,928] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,928] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,929] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:58:33,930] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 11:59:22,038] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 11:59:22,038] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 11:59:23,531] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,532] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,532] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,535] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,536] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,537] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,541] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,542] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,544] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,545] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,546] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,547] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,549] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,550] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,550] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 11:59:23,552] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 12:05:07,870] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:05:07,870] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:05:09,658] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,658] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,666] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,674] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,682] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,690] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,690] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:05:09,690] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 12:05:58,753] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:05:58,753] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:06:00,538] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,540] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,548] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,551] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,559] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,562] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,570] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:06:00,572] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 12:10:35,396] [INFO] [root] (main.py:38) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:10:35,396] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,182] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,190] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,198] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,206] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,214] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,222] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:10:37,222] [INFO] [root] (main.py:45) - App finished
-[2023-09-26 12:13:42,561] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:13:42,569] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,584] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,594] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:13:42,594] [INFO] [root] (main.py:46) - App finished
-[2023-09-26 12:24:44,264] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:24:44,264] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,274] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,282] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,282] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,284] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:44,284] [INFO] [root] (main.py:46) - App finished
-[2023-09-26 12:24:56,833] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:24:56,833] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,849] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:24:56,857] [INFO] [root] (main.py:46) - App finished
-[2023-09-26 12:25:07,721] [INFO] [root] (main.py:39) - LIVER_IMAGIN_ANALYSIS
-[2023-09-26 12:25:07,721] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:33) - Initializing Engine
-[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader pydicomreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,729] [DEBUG] [LoadImage] (array.py:192) - required package for reader itkreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,737] [DEBUG] [LoadImage] (array.py:192) - required package for reader nrrdreader is not installed, or the version doesn't match requirement.
-[2023-09-26 12:25:07,737] [INFO] [root] (main.py:46) - App finished
+[2023-10-07 12:42:21,502] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:203) - Loading data
+[2023-10-07 12:42:21,507] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:218) - Training dataset path: /content/Temp2D/
+[2023-10-07 12:42:21,512] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:230) - Testing dataset path: /content/Test/
+[2023-10-07 12:42:21,517] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:234) - Training set size: 111
+[2023-10-07 12:42:21,521] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:235) - Validation set size: 0
+[2023-10-07 12:42:21,522] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:236) - Testing set size: 20
+[2023-10-07 12:42:21,524] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:237) - Data loaded
+[2023-10-07 12:42:21,526] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:247) - Number of Training Batches: 111
+[2023-10-07 12:43:04,449] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:253) - Batch Shape of Training Features: torch.Size([2, 1, 96, 96, 64]) torch.float32
+[2023-10-07 12:43:04,453] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:261) - Batch Shape of Training Labels: torch.Size([2, 1, 96, 96, 64]) torch.float32
+[2023-10-07 12:43:04,457] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:271) - Number of Validation Batches: 0
+[2023-10-07 12:43:04,460] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:291) - No Validation Set
+[2023-10-07 12:43:04,463] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:295) - Number of Testing Batches: 20
+[2023-10-07 12:43:27,913] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:301) - Batch Shape of Testing Features: torch.Size([1, 1, 512, 512, 463]) torch.float32
+[2023-10-07 12:43:27,916] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:309) - Batch Shape of Testing Labels: torch.Size([1, 1, 512, 512, 463]) torch.float32
+[2023-10-07 12:43:27,964] [INFO] [liver_imaging_analysis.engine.engine] (engine.py:358) - Compiling Engine
+[2023-10-07 12:43:27,967] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:360) - Loss= DiceLoss()
+[2023-10-07 12:43:27,970] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:362) - Optimizer= Adam (
+Parameter Group 0
+    amsgrad: False
+    betas: (0.9, 0.999)
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    initial_lr: 0.01
+    lr: 0.01
+    maximize: False
+    weight_decay: 0
+)
+[2023-10-07 12:43:27,973] [INFO] [liver_imaging_analysis.models.liver_segmentation] (liver_segmentation.py:604) - TEST_SLIDING_WINDOW
+[2023-10-07 12:44:04,910] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 151])
+[2023-10-07 12:44:04,913] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 151])
+[2023-10-07 12:44:04,918] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 151])
+[2023-10-07 12:44:23,737] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 74])
+[2023-10-07 12:44:23,740] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 74])
+[2023-10-07 12:44:23,743] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 74])
+[2023-10-07 12:46:29,554] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 501])
+[2023-10-07 12:46:29,558] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 501])
+[2023-10-07 12:46:29,563] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 501])
+[2023-10-07 12:46:52,719] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 94])
+[2023-10-07 12:46:52,727] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 94])
+[2023-10-07 12:46:52,729] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 94])
+[2023-10-07 12:47:51,649] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 230])
+[2023-10-07 12:47:51,654] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 230])
+[2023-10-07 12:47:51,658] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 230])
+[2023-10-07 12:48:41,488] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 188])
+[2023-10-07 12:48:41,491] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 188])
+[2023-10-07 12:48:41,495] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 188])
+[2023-10-07 12:49:29,496] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 168])
+[2023-10-07 12:49:29,499] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 168])
+[2023-10-07 12:49:29,502] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 168])
+[2023-10-07 12:50:03,917] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 129])
+[2023-10-07 12:50:03,919] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 129])
+[2023-10-07 12:50:03,923] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 129])
+[2023-10-07 12:50:57,924] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 216])
+[2023-10-07 12:50:57,927] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 216])
+[2023-10-07 12:50:57,929] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 216])
+[2023-10-07 12:51:44,221] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 193])
+[2023-10-07 12:51:44,223] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 193])
+[2023-10-07 12:51:44,228] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 193])
+[2023-10-07 12:52:09,329] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 104])
+[2023-10-07 12:52:09,335] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 104])
+[2023-10-07 12:52:09,338] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 104])
+[2023-10-07 12:54:32,707] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 574])
+[2023-10-07 12:54:32,713] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 574])
+[2023-10-07 12:54:32,717] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 574])
+[2023-10-07 12:57:21,629] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 654])
+[2023-10-07 12:57:21,634] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 654])
+[2023-10-07 12:57:21,639] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 654])
+[2023-10-07 12:58:32,531] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 276])
+[2023-10-07 12:58:32,534] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 276])
+[2023-10-07 12:58:32,538] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 276])
+[2023-10-07 13:00:19,780] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 427])
+[2023-10-07 13:00:19,787] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 427])
+[2023-10-07 13:00:19,789] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 427])
+[2023-10-07 13:02:31,043] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 513])
+[2023-10-07 13:02:31,047] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 513])
+[2023-10-07 13:02:31,051] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 513])
+[2023-10-07 13:03:33,616] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 244])
+[2023-10-07 13:03:33,624] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 244])
+[2023-10-07 13:03:33,628] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 244])
+[2023-10-07 13:03:56,893] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 111])
+[2023-10-07 13:03:56,899] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 111])
+[2023-10-07 13:03:56,902] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 111])
+[2023-10-07 13:05:40,687] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 410])
+[2023-10-07 13:05:40,692] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 410])
+[2023-10-07 13:05:40,696] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 410])
+[2023-10-07 13:07:41,407] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([1, 1, 512, 512, 463])
+[2023-10-07 13:07:41,413] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([1, 1, 512, 512, 463])
+[2023-10-07 13:07:41,417] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([1, 1, 512, 512, 463])
+[2023-10-07 13:07:41,511] [DEBUG] [liver_imaging_analysis.models.liver_segmentation] (liver_segmentation.py:755) - Initial test loss=0.9389247417449951
+[2023-10-07 13:07:41,518] [DEBUG] [liver_imaging_analysis.models.liver_segmentation] (liver_segmentation.py:760) - Initial test metric=0.05373082309961319
+[2023-10-07 13:07:41,522] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:409) - 
+Epoch 1/100
+-------------------------------
+[2023-10-07 13:07:41,527] [INFO] [liver_imaging_analysis.engine.utils] (utils.py:122) - 
+|____________________________________________________________________________________________________|  0.00%  ---> 0/111
+[2023-10-07 13:08:02,996] [INFO] [liver_imaging_analysis.engine.utils] (utils.py:122) - 
+|____________________________________________________________________________________________________|  0.90%  ---> 1/111
+[2023-10-07 13:08:03,717] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:08:03,722] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:08:03,725] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:08:55,573] [INFO] [liver_imaging_analysis.engine.utils] (utils.py:122) - 
+|#___________________________________________________________________________________________________|  1.80%  ---> 2/111
+[2023-10-07 13:08:56,121] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:08:56,124] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:08:56,128] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:09,638] [INFO] [liver_imaging_analysis.engine.utils] (utils.py:122) - 
+|##__________________________________________________________________________________________________|  2.70%  ---> 3/111
+[2023-10-07 13:09:10,178] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:10,181] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:10,183] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:16,965] [INFO] [liver_imaging_analysis.engine.utils] (utils.py:122) - 
+|###_________________________________________________________________________________________________|  3.60%  ---> 4/111
+[2023-10-07 13:09:17,480] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed image shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:17,483] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed label shape: torch.Size([2, 1, 96, 96, 64])
+[2023-10-07 13:09:17,485] [DEBUG] [liver_imaging_analysis.engine.engine] (engine.py:195) - Post processed pred shape: torch.Size([2, 1, 96, 96, 64])

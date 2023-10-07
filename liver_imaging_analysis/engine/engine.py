@@ -4,6 +4,7 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
+from logger import setup_logger
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
 import numpy as np
 import torch
@@ -19,9 +20,7 @@ import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
 import logging
-
 logger = logging.getLogger(__name__)
-
 
 class Engine:
     """
@@ -30,6 +29,7 @@ class Engine:
 
     def __init__(self):
 
+        setup_logger()
         logger.info("Initializing Engine")
 
         self.device = config.device
@@ -194,7 +194,6 @@ class Engine:
                 if key in Keys.all():
                     batch[key] = from_engine(key)(post_batch)
                     batch[key] = torch.stack(batch[key], dim = 0)
-                    logger.debug("Post processed %s shape: %s", key, batch[key].shape)
             return batch 
 
     def load_data(self):
@@ -217,7 +216,7 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
-        logger.debug("Training dataset path: %s", config.dataset["training"])
+        logger.info("Training dataset path: %s", config.dataset["training"])
         testloader = DataLoader(
             dataset_path = config.dataset["testing"],
             batch_size = config.training["batch_size"],
@@ -229,13 +228,13 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
-        logger.debug("Testing dataset path: %s", config.dataset["testing"])
+        logger.info("Testing dataset path: %s", config.dataset["testing"])
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
-        logger.debug("Training set size: %s", len(self.train_dataloader))
-        logger.debug("Validation set size: %s", len(self.val_dataloader))
-        logger.debug("Testing set size: %s", len(self.test_dataloader))
+        logger.info("Training set size: %s", len(self.train_dataloader))
+        logger.info("Validation set size: %s", len(self.val_dataloader))
+        logger.info("Testing set size: %s", len(self.test_dataloader))
         logger.info("Data loaded")
 
     def data_status(self):
@@ -266,7 +265,7 @@ class Engine:
             )
         except StopIteration:
             print("No Training Set")
-            logger.info("No Training Set")
+            logger.critical("No Training Set")
         dataloader_iterator = iter(self.val_dataloader)
         try:
             print("Number of Validation Batches:", len(dataloader_iterator))
@@ -314,7 +313,7 @@ class Engine:
             )
         except StopIteration:
             print("No Testing Set")
-            logger.info("No Testing Set")
+            logger.critical("No Testing Set")
 
     def save_checkpoint(self, path = config.save["model_checkpoint"]):
         """
@@ -357,11 +356,12 @@ class Engine:
         """
         Prints the loss function and the optimizer status.
         """
-        logger.info("Compiling Engine")
+        logger.info("Compiling Status")
         print(f"Loss= {self.loss} \n")
         logger.debug("Loss= %s", self.loss)
         print(f"Optimizer= {self.optimizer} \n")
-        logger.debug("Optimizer= %s", self.optimizer)   
+        logger.debug("Optimizer= %s", self.optimizer)  
+        logger.info("Compiling Finished") 
 
     def per_batch_callback(self, *args, **kwargs):
           """
@@ -502,12 +502,9 @@ class Engine:
                       batch[Keys.LABEL],
                       batch[Keys.PRED]
                       )
-                  logger.debug("Batch %s/%s", batch_num, num_batches)
             test_loss /= num_batches
-            logger.debug("Test Loss: %s", test_loss)
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()
-            logger.debug("Test Metric: %s", test_metric)
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
@@ -531,7 +528,7 @@ class Engine:
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) 
                             for file_name in volume_names]
-            logger.debug("Volume paths: %s", volume_paths)
+            logger.info("Volume paths: %s", volume_paths)
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -552,7 +549,7 @@ class Engine:
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
-            logger.debug("Prediction list shape: %s", prediction_list.shape)
+            logger.info("Prediction list shape: %s", prediction_list.shape)
             logger.info("Prediction finished")
         return prediction_list
 

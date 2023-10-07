@@ -1,9 +1,8 @@
 """module for reading configuration from the json file."""
 
 import json
+
 import logging
-
-
 logger = logging.getLogger(__name__)
 
 class Config:
