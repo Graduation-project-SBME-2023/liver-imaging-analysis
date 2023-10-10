@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+import optuna
 from liver_imaging_analysis.engine.transforms import MorphologicalClosingd
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
@@ -635,7 +636,8 @@ def segment_liver(prediction_path=None, modality="CT", inference="3D", cp_path=N
     return liver_prediction
 
 
-def train_liver(
+def tune(
+    trial,
     modality="CT",
     inference="3D",
     pretrained=True,
@@ -648,7 +650,7 @@ def train_liver(
     test_batch_callback=False,
 ):
     """
-    Starts training of liver segmentation model.
+    Optimize the hyper-parameters of liver segmentation model.
     modality : str
         the type of imaging modality to be segmented.
         expects 'CT' for CT images, or 'MRI' for MRI images.
@@ -683,13 +685,27 @@ def train_liver(
         Default is False
     """
     if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
+        cp_path = config.tune["check_point"]
     if epochs is None:
         epochs = config.training["epochs"]
     if save_path is None:
-        save_path = config.save["potential_checkpoint"]
+        save_path = config.tune["check_point"]
     set_seed()
     model = LiverSegmentation(modality, inference)
+
+    config.network_parameters["num_res_units"] = trial.suggest_int(
+        "res_units_l{}", 2, 5
+    )
+    config.training["optimizer"] = trial.suggest_categorical(
+        "optimizer", ["Adam", "SGD"]
+    )
+    config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
+        "lr", 1e-5, 1e-1, log=True
+    )
+    config.training["loss_name"] = trial.suggest_categorical(
+        "loss_name", ["monai_dice", "monai_general_dice"]
+    )
+
     model.load_data()
     model.data_status()
     if pretrained:
@@ -699,19 +715,14 @@ def train_liver(
         model.test_dataloader, callback=test_batch_callback
     )
     print(
-        "Initial test loss:",
-        init_loss,
-    )
-    print(
-        "\nInitial test metric:",
-        init_metric.mean().item(),
+        "Initial test loss:", init_loss,
     )
     model.fit(
         epochs=epochs,
         evaluate_epochs=evaluate_epochs,
         batch_callback_epochs=batch_callback_epochs,
         save_weight=save_weight,
-        save_path=save_path,
+        save_path=config.tune["check_point"],
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
@@ -719,12 +730,46 @@ def train_liver(
         model.test_dataloader, callback=test_batch_callback
     )
     print(
-        "Final test loss:",
-        final_loss,
+        "Final test loss:", final_loss,
     )
-    print(
-        "\nFinal test metric:",
-        final_metric.mean().item(),
+    return final_loss
+
+
+def train_liver(
+    trials=5,
+    modality="CT",
+    inference="3D",
+    pretrained=False,
+    cp_path=None,
+    epochs=None,
+    evaluate_epochs=1,
+    batch_callback_epochs=100,
+    save_weight=True,
+    save_path=None,
+    test_batch_callback=False,
+):
+
+    """
+    Starts Training of liver segmentation model.
+    """
+
+    # Create an Optuna study
+    study = optuna.create_study(direction="minimize")
+    study.optimize(
+        lambda trial: tune(
+            trial,
+            modality,
+            inference,
+            pretrained,
+            cp_path,
+            epochs,
+            evaluate_epochs,
+            batch_callback_epochs,
+            save_weight,
+            save_path,
+            test_batch_callback,
+        ),
+        n_trials=trials,
     )
 
 
@@ -837,12 +882,10 @@ if __name__ == "__main__":
         model.load_data()  # dataset should be located at the config path
         loss, metric = model.test(model.test_dataloader, callback=args.test_callback)
         print(
-            "test loss:",
-            loss,
+            "test loss:", loss,
         )
         print(
-            "\ntest metric:",
-            metric.mean().item(),
+            "\ntest metric:", metric.mean().item(),
         )
     if args.predict:
         prediction = segment_liver(

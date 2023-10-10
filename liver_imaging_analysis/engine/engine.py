@@ -11,7 +11,7 @@ import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
 import monai
 from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
-from monai.losses import DiceLoss as monaiDiceLoss
+from monai.losses import DiceLoss as monaiDiceLoss, GeneralizedDiceLoss, FocalLoss
 from torchmetrics import Accuracy
 from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
@@ -120,6 +120,10 @@ class Engine:
         """
         loss_functions = {
             "monai_dice" : monaiDiceLoss,
+            "monai_general_dice":  GeneralizedDiceLoss,
+            "monai_focal":FocalLoss,
+
+
         }
         return loss_functions[loss_name](**kwargs)
 
