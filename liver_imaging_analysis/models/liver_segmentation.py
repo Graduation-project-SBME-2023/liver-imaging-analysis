@@ -636,7 +636,7 @@ def segment_liver(prediction_path=None, modality="CT", inference="3D", cp_path=N
     return liver_prediction
 
 
-def tune(
+def objective(
     trial,
     modality="CT",
     inference="3D",
@@ -756,7 +756,7 @@ def train_liver(
     # Create an Optuna study
     study = optuna.create_study(direction="minimize")
     study.optimize(
-        lambda trial: tune(
+        lambda trial: objective(
             trial,
             modality,
             inference,
