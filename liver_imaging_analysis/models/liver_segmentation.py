@@ -27,7 +27,7 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
 )
 from monai.visualize import plot_2d_or_3d_image
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
 import os
 from monai.data import DataLoader as MonaiLoader
@@ -42,8 +42,11 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+from liver_imaging_analysis.engine.tensorb import benchmarking 
 
-summary_writer = SummaryWriter(config.save["tensorboard"])
+# Specify the directory where you want to log your experiment
+log_directory = "/content/drive/MyDrive/Graduation_project_codes/test_runs"
+# summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
 
 
@@ -598,6 +601,14 @@ class LiverSegmentation(Engine):
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
+
+#  Create an instance of the logging class
+logger = benchmarking(logdir=log_directory)
+
+logger.exp_naming()
+# Initialize ClearML task and Tensorboard writer
+task = logger.clearml_logger()
+summary_writer = logger.tb_logger()
 
 
 def segment_liver(prediction_path=None, modality="CT", inference="3D", cp_path=None):

@@ -29,3 +29,6 @@ lobe_cp
 mri_cp
 spleen_cp
 lobe_cp_sliding_window
+myvenv
+credentials.json
+token.json
