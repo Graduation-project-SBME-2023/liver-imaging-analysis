@@ -20,17 +20,17 @@ class Benchmarking:
     def __init__(self, logdir):
         self.logdir = logdir
         self.drive_dir = None  # Set your Google Drive folder path here
-        # Task.set_credentials(
-        #     api_host="https://api.clear.ml",
-        #     web_host="https://app.clear.ml",
-        #     files_host="https://files.clear.ml",
-        #     key="Y08KY2Y42A1CYK5LLMI5",
-        #     secret="5LxqZXjbwlYCMvm0FlaqE0fA5EbXHNExUlcIL2EcHlye3kai8h",
-        # )
+        Task.set_credentials(
+            api_host="https://api.clear.ml",
+            web_host="https://app.clear.ml",
+            files_host="https://files.clear.ml",
+            key="Y08KY2Y42A1CYK5LLMI5",
+            secret="5LxqZXjbwlYCMvm0FlaqE0fA5EbXHNExUlcIL2EcHlye3kai8h",
+        )
 
 
     def exp_naming(self):
-        self.experiment_name = f"network_name_{config.network_name}"
+        
         self.run_name = (
             f"dropout_{config.network_parameters['dropout']}, "
             f"epochs_{config.training['epochs']}, "
@@ -39,16 +39,20 @@ class Benchmarking:
             f"lr_scheduler_{config.training['lr_scheduler']}, "
             f"loss_name_{config.training['loss_name']}"
         )
+        self.experiment_name = f"{config.network_name}" + str(hash(self.run_name))
 
     def clearml_logger(self):
         task = Task.init(project_name=self.experiment_name, task_name=self.run_name)
         return task
 
+  #  import os
+
     def tb_logger(self):
-        writer = SummaryWriter(
-            f"{self.logdir}\\{self.experiment_name}\\{self.run_name}"
-        )
+        logdir = os.path.join(self.logdir, self.experiment_name, self.run_name)
+        writer = SummaryWriter(logdir)
+        print(logdir)
         return writer
+
 
     def move_folders(self, source_dir):
         # Moves local folders to drive

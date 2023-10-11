@@ -42,7 +42,7 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
-from liver_imaging_analysis.engine.tensorb import benchmarking 
+from liver_imaging_analysis.engine.tb import benchmarking 
 
 # Specify the directory where you want to log your experiment
 log_directory = "/content/drive/MyDrive/Graduation_project_codes/test_runs"
