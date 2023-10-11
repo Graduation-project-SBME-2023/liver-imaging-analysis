@@ -39,7 +39,9 @@ class Benchmarking:
             f"lr_scheduler_{config.training['lr_scheduler']}, "
             f"loss_name_{config.training['loss_name']}"
         )
-        self.experiment_name = f"{config.network_name}" + str(hash(self.run_name))
+        all_config_variables = str(vars(config))
+        self.experiment_name = (f"{config.network_name}" + "_" + str(hash(all_config_variables)))
+        print(self.experiment_name)
 
     def clearml_logger(self):
         task = Task.init(project_name=self.experiment_name, task_name=self.run_name)
