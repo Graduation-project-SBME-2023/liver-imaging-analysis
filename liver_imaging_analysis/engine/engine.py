@@ -181,7 +181,7 @@ class Engine:
             run_name += f'{key}_{value}_'
 
         run_name=self.Hash(run_name)    
-        return  experiment_name, run_name 
+        return  experiment_name, str(run_name) 
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -373,7 +373,7 @@ class Engine:
         """
         pass
 
-       def fit(
+    def fit(
         self,
         summary_writer,
         offset,
