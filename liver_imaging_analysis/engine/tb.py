@@ -28,6 +28,11 @@ class Benchmarking:
             secret="5LxqZXjbwlYCMvm0FlaqE0fA5EbXHNExUlcIL2EcHlye3kai8h",
         )
 
+    def myHash(self, text:str):
+        hash=0
+        for ch in text:
+            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+        return hash
 
     def exp_naming(self):
         
@@ -40,7 +45,7 @@ class Benchmarking:
             f"loss_name_{config.training['loss_name']}"
         )
         all_config_variables = str(vars(config))
-        self.experiment_name = (f"{config.network_name}" + "_" + str(hash(all_config_variables)))
+        self.experiment_name = (f"{config.network_name}" + "_" + str(self.myHash(all_config_variables)))
         print(self.experiment_name)
 
     def clearml_logger(self):
