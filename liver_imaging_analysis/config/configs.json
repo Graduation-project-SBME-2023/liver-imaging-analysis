@@ -52,7 +52,7 @@
         "mask_png_path": "Temp2D/mask/",
         "model_checkpoint": "model_checkpoint",
         "potential_checkpoint": "potential_checkpoint",
-        "tensorboard": "runs/"
+        "tensorboard": "runs"
     },
     "test": {
         "train_folder": "tests/testdata/data/resized_train_liver",
