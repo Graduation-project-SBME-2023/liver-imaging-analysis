@@ -48,11 +48,17 @@ class ExperimentTracking:
         return self.task
 
     def tb_logger(self):
-        # initializing tensorboard file
-        self.writer = SummaryWriter(
-            f"{config.save['tensorboard']} / {self.experiment_name}/ {self.run_name}"
-        )
-        return self.writer
+            # Construct the log directory path
+            log_dir = os.path.join(config.save['tensorboard'], self.experiment_name, self.run_name)
+
+            # Check if the directory exists and create it if not
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+
+            # Initialize the tensorboard writer
+            self.writer = SummaryWriter(log_dir)
+
+            return self.writer
 
     def upload_folder(self, service, folder_path, parent_folder_id):
         # Create a folder metadata
@@ -116,7 +122,7 @@ class ExperimentTracking:
         else:
             print("This code is running on a local machine.")
             runs_dir = f"{self.logdir}\{self.experiment_name}"
-            parent_folder_id = input("Enter the ID of the parent folder: ")
+            parent_folder_id = "1IHOuM7JyptK20PWJpWKJfIxJCI2QKKfm"
             self.upload_folder_to_drive_local(runs_dir, parent_folder_id)
 
     def is_google_colab(self):

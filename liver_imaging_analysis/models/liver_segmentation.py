@@ -93,9 +93,9 @@ class LiverSegmentation(Engine):
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
-                config.device = "cuda"
-                config.dataset["training"] = "/content/Temp2D/Train"
-                config.dataset["testing"] = "/content/Temp2D/Test"
+                config.device = "cpu"
+                # config.dataset["training"] = "/content/Temp2D/Train"
+                # config.dataset["testing"] = "/content/Temp2D/Test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -731,8 +731,7 @@ def train_liver(
         cp_path = config.save["potential_checkpoint"]
     if epochs is None:
         epochs = config.training["epochs"]
-    if save_path is None:
-        save_path = config.save["potential_checkpoint"]
+    
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
@@ -740,6 +739,15 @@ def train_liver(
     
     hparams=model.get_hparams(config.network_name)
     experiment_name, run_name= model.exp_naming()
+    if save_path is None:
+        cp_dir = os.path.join(config.save['potential_checkpoint'], experiment_name, run_name,"")
+
+        print(f"cp_dir: {cp_dir}")
+            # Check if the directory exists and create it if not
+        if not os.path.exists(cp_dir):
+            os.makedirs(cp_dir)
+
+        save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
     tracker = ExperimentTracking(experiment_name, run_name)
     summary_writer = tracker.tb_logger()
     if pretrained:
@@ -754,7 +762,7 @@ def train_liver(
     config.training["epochs"]=epochs
     config.save["potential_checkpoint"]=save_path
     my_params = task.connect_configuration(config.__dict__,name="configs")
-    summary_writer.add_hparams(hparams,metric_dict = {})
+    
 
     model.compile_status()
     init_loss, init_metric = model.test(
@@ -779,6 +787,11 @@ def train_liver(
                                 model.test_dataloader, 
                                 callback = test_batch_callback
                                 )  
+    metric_dict = {
+    "final_loss": final_loss,
+    "final_metric": final_metric
+    }    
+    summary_writer.add_hparams(hparams,metric_dict = metric_dict)
     task.close()
     summary_writer.close()
 

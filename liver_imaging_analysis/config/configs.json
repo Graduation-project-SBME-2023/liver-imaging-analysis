@@ -1,5 +1,5 @@
 {
-    "device": "cuda",
+    "device": "cpu",
     "dataset": {
         "training": "Temp2D/Train/",
         "testing": "Temp2D/Test/",
@@ -22,7 +22,7 @@
         "dropout": 0.4
     },
     "training": {
-        "epochs": 100,
+        "epochs": 1,
         "batch_size": 12,
         "train_valid_split": 0,
         "optimizer": "Adam",
