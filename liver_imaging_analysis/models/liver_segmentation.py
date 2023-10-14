@@ -27,7 +27,6 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
 )
 from monai.visualize import plot_2d_or_3d_image
-from tensorboard.backend.event_processing.directory_watcher import tb_logging
 from torch.utils.tensorboard import SummaryWriter
 from monai.metrics import DiceMetric
 import os
@@ -43,10 +42,7 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
-from datetime import datetime
-from tensorboard.plugins.hparams import api as hp
-from liver_imaging_analysis.engine.tb import ExperimentTracking  # Replace 'your_module_name' with the actual module name
-import json
+from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
 
     
@@ -93,9 +89,9 @@ class LiverSegmentation(Engine):
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
-                config.device = "cpu"
-                # config.dataset["training"] = "/content/Temp2D/Train"
-                # config.dataset["testing"] = "/content/Temp2D/Test"
+                config.device = "cuda"
+                config.dataset["training"] = "/content/Temp2D/Train"
+                config.dataset["testing"] = "/content/Temp2D/Test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -742,7 +738,7 @@ def train_liver(
     if save_path is None:
         cp_dir = os.path.join(config.save['potential_checkpoint'], experiment_name, run_name,"")
 
-        print(f"cp_dir: {cp_dir}")
+        print(f"checkpoint directory: {cp_dir}")
             # Check if the directory exists and create it if not
         if not os.path.exists(cp_dir):
             os.makedirs(cp_dir)
@@ -771,6 +767,7 @@ def train_liver(
                                 )
 
                                                           
+    summary_writer.add_hparams(hparams,metric_dict = {})
     
     model.fit(
         summary_writer=summary_writer,
@@ -787,11 +784,8 @@ def train_liver(
                                 model.test_dataloader, 
                                 callback = test_batch_callback
                                 )  
-    metric_dict = {
-    "final_loss": final_loss,
-    "final_metric": final_metric
-    }    
-    summary_writer.add_hparams(hparams,metric_dict = metric_dict)
+
+    tracker.upload_folder_to_drive()
     task.close()
     summary_writer.close()
 
@@ -910,3 +904,4 @@ if __name__ == '__main__':
         nib.save(liver_volume, args.predict_path.split('.')[0] + '_liver.nii')
         print('Prediction saved at', args.predict_path.split('.')[0] + '_liver.nii')
     print("Run Complete")
+

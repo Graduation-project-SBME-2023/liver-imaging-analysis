@@ -402,7 +402,6 @@ class Engine:
             Directory to save best weights at. 
             Default is the potential path in config.
         """
-        # writer = SummaryWriter("/content/drive/MyDrive/logs/" + datetime.now().strftime("%Y%m%d-%H%M%S"))
  
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")

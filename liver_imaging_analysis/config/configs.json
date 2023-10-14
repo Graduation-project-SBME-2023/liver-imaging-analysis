@@ -1,10 +1,10 @@
 {
-    "device": "cpu",
+    "device": "cuda",
     "dataset": {
         "training": "Temp2D/Train/",
         "testing": "Temp2D/Test/",
         "unittest": "Temp2D/Test/",
-        "mode":"2D"
+        "mode": "2D"
     },
     "visualization": {"volume": "volume-0.nii", "mask": "segmentation-0.nii"},
     "unittest_size": [16, 16, 8],
@@ -22,7 +22,7 @@
         "dropout": 0.4
     },
     "training": {
-        "epochs": 1,
+        "epochs": 100,
         "batch_size": 12,
         "train_valid_split": 0,
         "optimizer": "Adam",
@@ -52,7 +52,7 @@
         "mask_png_path": "Temp2D/mask/",
         "model_checkpoint": "model_checkpoint",
         "potential_checkpoint": "potential_checkpoint",
-        "tensorboard": "runs"
+        "tensorboard": "runs/"
     },
     "test": {
         "train_folder": "tests/testdata/data/resized_train_liver",
@@ -62,13 +62,17 @@
         "reference_sliding_window": "tests/testdata/checkpoints/reference_liver_sw",
         "liver_cp": "tests/testdata/checkpoints/liver_cp",
         "lesion_cp": "tests/testdata/checkpoints/lesion_cp_tr",
-        "lobe_cp_sw":"tests/testdata/checkpoints/lobe_cp_sliding_window",
-        "liver_cp_sw":"tests/testdata/checkpoints/liver_sw",
+        "lobe_cp_sw": "tests/testdata/checkpoints/lobe_cp_sliding_window",
+        "liver_cp_sw": "tests/testdata/checkpoints/liver_sw",
         "reference_lesion_cp": "tests/testdata/checkpoints/reference_lesion_cp",
-        "refrence_lesions_array":"tests/testdata/testcases/predicted_array_lesion.npy",
-        "reference_liver_2d_array":"tests/testdata/testcases/predicted_3d.npy",
+        "refrence_lesions_array": "tests/testdata/testcases/predicted_array_lesion.npy",
+        "reference_liver_2d_array": "tests/testdata/testcases/predicted_3d.npy",
         "reference_liver_sw_array": "tests/testdata/testcases/predicted_sliding.npy",
-        "reference_lobe_array":"tests/testdata/testcases/predicted_lobe.npy"
+        "reference_lobe_array": "tests/testdata/testcases/predicted_lobe.npy",
+        "reference_gif": "tests/testdata/testcases/gif_frames",
+        "liver_slices": "tests/testdata/testcases/liverSlices",
+        "liver_png_slices": "tests/testdata/testcases/liverSlices_png",
+        "reference_batches" : "tests/testdata/testcases/batches"
     },
     "seed": 0
 }
