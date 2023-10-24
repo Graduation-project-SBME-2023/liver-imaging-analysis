@@ -4,6 +4,7 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
+from logger import setup_logger
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
 import numpy as np
 import torch
@@ -18,6 +19,8 @@ from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
+import logging
+logger = logging.getLogger(__name__)
 
 class Engine:
     """
@@ -25,6 +28,10 @@ class Engine:
     """
 
     def __init__(self):
+
+        setup_logger()
+        logger.info("Initializing Engine")
+
         self.device = config.device
         self.batch_size = config.training["batch_size"]
         self.loss = self.get_loss(
@@ -236,6 +243,7 @@ class Engine:
         Internally used to load and save the data to the data attributes.
         Uses the parameter values in config.
         """
+        logger.info("Loading data")
         self.train_dataloader = []
         self.val_dataloader = []
         self.test_dataloader = []
@@ -250,6 +258,7 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
+        logger.info("Training dataset path: %s", config.dataset["training"])
         testloader = DataLoader(
             dataset_path = config.dataset["testing"],
             batch_size = config.training["batch_size"],
@@ -261,9 +270,14 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
+        logger.info("Testing dataset path: %s", config.dataset["testing"])
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
+        logger.info("Training set size: %s", len(self.train_dataloader))
+        logger.info("Validation set size: %s", len(self.val_dataloader))
+        logger.info("Testing set size: %s", len(self.test_dataloader))
+        logger.info("Data loaded")
 
     def data_status(self):
         """
@@ -273,45 +287,75 @@ class Engine:
         dataloader_iterator = iter(self.train_dataloader)
         try:
             print("Number of Training Batches:", len(dataloader_iterator))
+            logger.debug("Number of Training Batches: %s", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Training Features:"
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Training Features:"
+                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+            )
             print(
                 f"Batch Shape of Training Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Training Labels:"
+                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+            )
         except StopIteration:
             print("No Training Set")
+            logger.critical("No Training Set")
         dataloader_iterator = iter(self.val_dataloader)
         try:
             print("Number of Validation Batches:", len(dataloader_iterator))
+            logger.debug("Number of Validation Batches: %s", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Validation Features:"
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Validation Features:"
+                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+            )
             print(
                 f"Batch Shape of Validation Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Validation Labels:"
+                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+            )
         except StopIteration:
             print("No Validation Set")
+            logger.info("No Validation Set")
         dataloader_iterator = iter(self.test_dataloader)
         try:
             print("Number of Testing Batches:", len(dataloader_iterator))
+            logger.debug("Number of Testing Batches: %s", len(dataloader_iterator))
             batch = next(dataloader_iterator)
             print(
                 f"Batch Shape of Testing Features:"
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Testing Features:"
+                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+            )
             print(
                 f"Batch Shape of Testing Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
+            logger.debug(
+                "Batch Shape of Testing Labels:"
+                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+            )
         except StopIteration:
             print("No Testing Set")
+            logger.critical("No Testing Set")
 
     def save_checkpoint(self, path = config.save["model_checkpoint"]):
         """
@@ -354,8 +398,12 @@ class Engine:
         """
         Prints the loss function and the optimizer status.
         """
+        logger.info("Compiling Status")
         print(f"Loss= {self.loss} \n")
+        logger.debug("Loss= %s", self.loss)
         print(f"Optimizer= {self.optimizer} \n")
+        logger.debug("Optimizer= %s", self.optimizer)  
+        logger.info("Compiling Finished") 
 
     def per_batch_callback(self, *args, **kwargs):
           """
@@ -405,6 +453,7 @@ class Engine:
  
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
+            logger.debug(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
             self.network.train()
@@ -521,11 +570,13 @@ class Engine:
         tensor
             tensor of the predicted labels
         """
+        logger.info("Predicting")
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) 
                             for file_name in volume_names]
+            logger.info("Volume paths: %s", volume_paths)
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -546,6 +597,8 @@ class Engine:
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
+            logger.info("Prediction list shape: %s", prediction_list.shape)
+            logger.info("Prediction finished")
         return prediction_list
 
 
