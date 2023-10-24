@@ -140,6 +140,48 @@ class Engine:
             "jaccard" : MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
+    
+    def get_hparams(self, network_name):
+        """
+        used to return a hyperparameters dictionary specific to each network 
+        ----------
+            network_name: str
+                name of network to fetch from dictionary
+                should be chosen from: '3DUNet','3DResNet','2DUNet'
+        """
+        hparams = {
+            "monai_2DUNet" :  {
+            "spatial_dims": config.network_parameters["spatial_dims"],
+            "num_res_units": config.network_parameters["num_res_units"],
+            "bias": config.network_parameters["bias"],
+            "norm": config.network_parameters["norm"],
+            "dropout": config.network_parameters["dropout"],
+            "batch_size": config.training["batch_size"],
+            "optimizer": config.training["optimizer"],
+            "lr_scheduler": config.training["lr_scheduler"],
+            "loss_name": config.training["loss_name"],
+            "metrics": config.training["metrics"],
+            "shuffle": config.training["shuffle"]
+        }
+        }
+        return hparams[network_name]
+    
+    def Hash(self, text:str):
+        hash=0
+        for ch in text:
+            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+        return hash
+
+    def exp_naming(self):
+
+        experiment_name=config.network_name
+        run_name = ""
+        hparams=self.get_hparams(config.network_name)
+        for key, value in hparams.items():
+            run_name += f'{key}_{value}_'
+
+        run_name=self.Hash(run_name)    
+        return  experiment_name, str(run_name) 
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -333,6 +375,8 @@ class Engine:
 
     def fit(
         self,
+        summary_writer,
+        offset,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
@@ -358,6 +402,7 @@ class Engine:
             Directory to save best weights at. 
             Default is the potential path in config.
         """
+ 
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -381,6 +426,7 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
+                                summary_writer,
                                 batch_num,
                                 batch[Keys.IMAGE],
                                 batch[Keys.LABEL],
@@ -402,12 +448,14 @@ class Engine:
                 valid_loss = None
                 valid_metric = None
             self.per_epoch_callback(
-                    epoch,
+                    summary_writer,
+                    epoch+offset,
                     training_loss,
                     valid_loss,
                     training_metric,
                     valid_metric,
                 )
+
 
     def test(self, dataloader = None, callback = False):
         """
