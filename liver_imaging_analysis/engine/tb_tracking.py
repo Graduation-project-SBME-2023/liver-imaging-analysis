@@ -81,7 +81,9 @@ class ExperimentTracking:
             torch.utils.tensorboard.SummaryWriter: Tensorboard writer.
         """
         # Construct the log directory path
-        self.log_dir = os.path.join(config.save['tensorboard'], self.experiment_name, self.run_name)
+        self.log_dir = os.path.join(
+            config.save["tensorboard"], self.experiment_name, self.run_name
+        )
 
         # Check if the directory exists and create it if not
         if not os.path.exists(self.log_dir):
@@ -117,12 +119,15 @@ class ExperimentTracking:
                 # Recursively upload subfolder
                 self.__upload_folder__(service, item_path, parent_folder_id)
 
-    def __upload_folder_to_drive_from_local__(self, folder_path, parent_folder_id):
+    def __upload_folder_to_drive_from_local__(
+        self, folder_path, cp_path, parent_folder_id
+    ):
         """
         Uploads a local folder to Google Drive.
 
         Args:
             folder_path (str): Local path to the folder to upload.
+            cp_path (str): Local path to the checkpoint to upload.
             parent_folder_id (str): ID of the parent folder in Google Drive.
         """
         creds = None
@@ -150,17 +155,33 @@ class ExperimentTracking:
             run_name = os.path.basename(folder_path)
 
             # Check if the experiment folder exists, if not, create it
-            experiment_folder_id = self.__get_or_create_folder(service, parent_folder_id, experiment_name)
+            experiment_folder_id = self.__get_or_create_folder__(
+                service, parent_folder_id, experiment_name
+            )
 
             # Check if the run folder exists, if not, create it inside the experiment folder
-            run_folder_id = self.__get_or_create_folder(service, experiment_folder_id, run_name)
+            run_folder_id = self.__get_or_create_folder__(
+                service, experiment_folder_id, run_name
+            )
 
             # Upload the folder and its contents to the run folder
             self.__upload_folder__(service, folder_path, run_folder_id)
+
+            # Upload the checkpoint to the run folder
+            parts = cp_path.split("/")
+            cp_path = "/".join(parts[:-1]) + "/"
+
+            self.__upload_folder__(service, cp_path, run_folder_id)
+
         except HttpError as error:
             print(f"An error occurred: {error}")
+        finally:
+            # After uploading, delete the token file
+            if os.path.exists("token.json"):
+                os.remove("token.json")
+                print("Deleted token.json after upload")
 
-    def __get_or_create_folder(self, service, parent_folder_id, folder_name):
+    def __get_or_create_folder__(self, service, parent_folder_id, folder_name):
         """
         Checks if a folder exists in Google Drive and creates it if it doesn't.
 
@@ -190,26 +211,50 @@ class ExperimentTracking:
             folder_id = files[0]["id"]
         return folder_id
 
-    def upload_folder_to_drive_from_colab(self):
+    def __upload_folder_to_drive_from_colab__(self, cp_path):
+        """
+        Uploads experiment data to Google Drive from a Google Colab environment.
+
+        Args:
+            cp_path (str): Local path to the checkpoint to be uploaded.
+
+        Note:
+            This method is intended to be used in a Google Colab environment. It mounts Google Drive
+            to '/content/drive/' and copies the experiment data to a user-specified location within
+            Google Drive.
+        """
         from google.colab import drive
-        drive.mount('/content/drive/')
+
+        drive.mount("/content/drive/")
         runs_dir = f"{self.log_dir}"
-        upload_path = input("Enter the path to the folder in Google Drive where " \
-                            "you want to upload the experiment data: ")
+        upload_path = input(
+            "Enter the path to the folder in Google Drive where "
+            "you want to upload the experiment data: "
+        )
         shutil.copy(runs_dir, upload_path)
 
-        
-    def upload_folder_to_drive(self):
+        # Upload the checkpoint to the run folder
+        parts = cp_path.split("/")
+        cp_path = "/".join(parts[:-1]) + "/"
+        shutil.copy(cp_path, upload_path)
+
+    def upload_to_drive(self, cp_path):
         """
         Uploads the experiment data to Google Drive.
+
+        Args:
+            cp_path (str): Local path to the checkpoint to upload.
         """
         if self.is_google_colab():
             print("This code is running on a Google Colab machine.")
+            self.__upload_folder_to_drive_from_colab__()
         else:
             print("This code is running on a local machine.")
             runs_dir = f"{self.log_dir}"
-            parent_folder_id = "1IHOuM7JyptK20PWJpWKJfIxJCI2QKKfm"
-            self.__upload_folder_to_drive_from_local__(runs_dir, parent_folder_id)
+            parent_folder_id = "1hjOUsnMwYOtJrms55so4IJ22bMFQntjr"
+            self.__upload_folder_to_drive_from_local__(
+                runs_dir, cp_path, parent_folder_id
+            )
 
     def is_google_colab(self):
         """

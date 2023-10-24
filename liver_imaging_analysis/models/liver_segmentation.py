@@ -761,10 +761,7 @@ def train_liver(
     
 
     model.compile_status()
-    init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+
 
                                                           
     summary_writer.add_hparams(hparams,metric_dict = {})
@@ -780,12 +777,8 @@ def train_liver(
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-    final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )  
 
-    tracker.upload_folder_to_drive()
+    tracker.upload_to_drive(cp_path=save_path)
     task.close()
     summary_writer.close()
 
