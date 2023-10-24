@@ -92,9 +92,9 @@ class LiverSegmentation(Engine):
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
-                config.device = "cuda"
-                config.dataset["training"] = "/content/Temp2D/Train"
-                config.dataset["testing"] = "/content/Temp2D/Test"
+                config.device = "cpu"
+                config.dataset["training"] = "Temp2D/Train"
+                config.dataset["testing"] = "Temp2D/Test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -789,20 +789,20 @@ def train_liver(
                                                           
     summary_writer.add_hparams(hparams,metric_dict = {})
     
-    init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
-    print(
-        "Initial test loss:", 
-        init_loss,
-        )
-    logger.debug(f"Initial test loss={init_loss}")
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
-    logger.debug(f"Initial test metric={init_metric.mean().item()}")
+    # init_loss, init_metric = model.test(
+    #                             model.test_dataloader, 
+    #                             callback = test_batch_callback
+    #                             )
+    # print(
+    #     "Initial test loss:", 
+    #     init_loss,
+    #     )
+    # logger.debug(f"Initial test loss={init_loss}")
+    # print(
+    #     "\nInitial test metric:", 
+    #     init_metric.mean().item(),
+    #     )
+    # logger.debug(f"Initial test metric={init_metric.mean().item()}")
     model.fit(
         summary_writer=summary_writer,
         offset=offset,
@@ -819,20 +819,20 @@ def train_liver(
     task.close()
     summary_writer.close()
 
-    final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
-    print(
-        "Final test loss:", 
-        final_loss,
-        )
-    logger.debug(f"Final test loss={final_loss}")
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
-        )
-    logger.debug(f"Final test metric={final_metric.mean().item()}")
+    # final_loss, final_metric = model.test(
+    #                             model.test_dataloader, 
+    #                             callback = test_batch_callback
+    #                             )
+    # print(
+    #     "Final test loss:", 
+    #     final_loss,
+    #     )
+    # logger.debug(f"Final test loss={final_loss}")
+    # print(
+    #     "\nFinal test metric:", 
+    #     final_metric.mean().item(),
+    #     )
+    # logger.debug(f"Final test metric={final_metric.mean().item()}")
 
 
 
