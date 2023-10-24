@@ -119,7 +119,7 @@ def progress_bar(progress, total):
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
-    logger.debug(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
+    logger.debug(f"\r|{bar}| {percent: .2f}%  ---> {progress}/{total}")
 
 
 def liver_isolate_crop(
