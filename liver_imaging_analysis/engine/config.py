@@ -18,11 +18,7 @@ class Config:
         ) as json_path:
             config_dict = json.load(json_path)
 
-            logger.debug("Loaded configuration: %s", config_dict)
-
         for key in config_dict:
-
-            logger.debug("Setting config param '%s' to %s", key, config_dict[key])
             setattr(self, key, config_dict[key])
 
         logger.info("Configuration loaded")
