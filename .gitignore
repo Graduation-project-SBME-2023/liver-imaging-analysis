@@ -32,4 +32,9 @@ lobe_cp_sliding_window
 .vscode/
 .vscode
 .vscode/settings.json
-
+myvenv
+credentials.json
+myvenv
+token.json
+credentials.json
+app.log
