@@ -10,14 +10,17 @@ import torch
 import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
 import monai
-from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
-from monai.losses import DiceLoss as monaiDiceLoss, GeneralizedDiceLoss, FocalLoss
+
+from monai.data import Dataset, decollate_batch, DataLoader as MonaiLoader
+from monai.losses import DiceLoss as monaiDiceLoss
+
 from torchmetrics import Accuracy
 from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
+
 
 class Engine:
     """
@@ -32,8 +35,7 @@ class Engine:
             **config.training["loss_parameters"],
         )
         self.network = self.get_network(
-            network_name=config.network_name,
-            **config.network_parameters
+            network_name=config.network_name, **config.network_parameters
         ).to(self.device)
         self.optimizer = self.get_optimizer(
             optimizer_name=config.training["optimizer"],
@@ -54,7 +56,7 @@ class Engine:
             config.transforms["test_transform"]
         )
         self.postprocessing_transforms = self.get_postprocessing_transforms(
-             config.transforms["post_transform"]
+            config.transforms["post_transform"]
         )
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -69,8 +71,8 @@ class Engine:
                 parameters of optimizer, if exist.
         """
         optimizers = {
-            "Adam" : torch.optim.Adam,
-            "SGD" : torch.optim.SGD,
+            "Adam": torch.optim.Adam,
+            "SGD": torch.optim.SGD,
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
@@ -86,8 +88,8 @@ class Engine:
                 parameters of optimizer, if exist.
         """
         schedulers = {
-            "StepLR" : torch.optim.lr_scheduler.StepLR,
-            "CyclicLR" : torch.optim.lr_scheduler.CyclicLR,
+            "StepLR": torch.optim.lr_scheduler.StepLR,
+            "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
 
@@ -103,7 +105,8 @@ class Engine:
                 parameters of network, if exist.
         """
         networks = {
-            "monai_2DUNet" : monai.networks.nets.UNet,
+            "monai_2DUNet": monai.networks.nets.UNet,
+            "monai_ResUNet": monai.networks.nets.SegResNet,
         }
         return networks[network_name](**kwargs)
 
@@ -119,11 +122,7 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "monai_dice" : monaiDiceLoss,
-            "monai_general_dice":  GeneralizedDiceLoss,
-            "monai_focal":FocalLoss,
-
-
+            "monai_dice": monaiDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -139,9 +138,9 @@ class Engine:
                 parameters of metrics, if exist.
         """
         metrics = {
-            "accuracy" : Accuracy,
-            "dice" : DiceMetric,
-            "jaccard" : MeanIoU,
+            "accuracy": Accuracy,
+            "dice": DiceMetric,
+            "jaccard": MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
 
@@ -176,7 +175,7 @@ class Engine:
         return Compose([])
 
     def post_process(self, batch):
-            """
+        """
             Applies the transformations specified in get_postprocessing_transforms
             to the network output.
 
@@ -185,13 +184,12 @@ class Engine:
             batch: dict
                 a dictionary containing the model's output to be post-processed
             """
-            post_batch = [self.postprocessing_transforms(i) 
-                        for i in decollate_batch(batch)]
-            for key in batch.keys():
-                if key in Keys.all():
-                    batch[key] = from_engine(key)(post_batch)
-                    batch[key] = torch.stack(batch[key], dim = 0)
-            return batch 
+        post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
+        for key in batch.keys():
+            if key in Keys.all():
+                batch[key] = from_engine(key)(post_batch)
+                batch[key] = torch.stack(batch[key], dim=0)
+        return batch
 
     def load_data(self):
         """
@@ -202,26 +200,26 @@ class Engine:
         self.val_dataloader = []
         self.test_dataloader = []
         trainloader = DataLoader(
-            dataset_path = config.dataset["training"],
-            batch_size = config.training["batch_size"],
-            train_transforms = self.train_transform,
-            test_transforms = self.test_transform,
-            num_workers = 0,
-            pin_memory = False,
-            test_size = config.training["train_valid_split"],
-            mode = config.dataset["mode"],
-            shuffle = config.training["shuffle"]
+            dataset_path=config.dataset["training"],
+            batch_size=config.training["batch_size"],
+            train_transforms=self.train_transform,
+            test_transforms=self.test_transform,
+            num_workers=0,
+            pin_memory=False,
+            test_size=config.training["train_valid_split"],
+            mode=config.dataset["mode"],
+            shuffle=config.training["shuffle"],
         )
         testloader = DataLoader(
-            dataset_path = config.dataset["testing"],
-            batch_size = config.training["batch_size"],
-            train_transforms = self.train_transform,
-            test_transforms = self.test_transform,
-            num_workers = 0,
-            pin_memory = False,
-            test_size = 1,  # test set should all be used for evaluation
-            mode = config.dataset["mode"],
-            shuffle = config.training["shuffle"]
+            dataset_path=config.dataset["testing"],
+            batch_size=config.training["batch_size"],
+            train_transforms=self.train_transform,
+            test_transforms=self.test_transform,
+            num_workers=0,
+            pin_memory=False,
+            test_size=1,  # test set should all be used for evaluation
+            mode=config.dataset["mode"],
+            shuffle=config.training["shuffle"],
         )
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
@@ -275,7 +273,7 @@ class Engine:
         except StopIteration:
             print("No Testing Set")
 
-    def save_checkpoint(self, path = config.save["model_checkpoint"]):
+    def save_checkpoint(self, path=config.save["model_checkpoint"]):
         """
         Saves the current network, optimizer, and scheduler states.
 
@@ -286,13 +284,13 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = {
-            'state_dict': self.network.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'scheduler': self.scheduler.state_dict(),
-            }
+            "state_dict": self.network.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+        }
         torch.save(checkpoint, path)
 
-    def load_checkpoint(self, path = config.save["model_checkpoint"]):
+    def load_checkpoint(self, path=config.save["model_checkpoint"]):
         """
         Loads network, optimizer, and scheduler states, if exist.
 
@@ -303,13 +301,13 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = torch.load(path)
-        if ('state_dict' in checkpoint.keys()): #dict checkpoint
-            self.network.load_state_dict(checkpoint['state_dict'])
-            if ('optimizer' in checkpoint.keys()):
-                self.optimizer.load_state_dict(checkpoint['optimizer'])
-            if ('scheduler' in checkpoint.keys()):
-                self.scheduler.load_state_dict(checkpoint['scheduler'])
-        else: #weights only
+        if "state_dict" in checkpoint.keys():  # dict checkpoint
+            self.network.load_state_dict(checkpoint["state_dict"])
+            if "optimizer" in checkpoint.keys():
+                self.optimizer.load_state_dict(checkpoint["optimizer"])
+            if "scheduler" in checkpoint.keys():
+                self.scheduler.load_state_dict(checkpoint["scheduler"])
+        else:  # weights only
             self.network.load_state_dict(checkpoint)
 
     def compile_status(self):
@@ -320,12 +318,12 @@ class Engine:
         print(f"Optimizer= {self.optimizer} \n")
 
     def per_batch_callback(self, *args, **kwargs):
-          """
+        """
           A generic callback function to be executed every batch.
           Supposed to output information desired by user.
           Should be Implemented in task module.
           """
-          pass
+        pass
 
     def per_epoch_callback(self, *args, **kwargs):
         """
@@ -337,11 +335,11 @@ class Engine:
 
     def fit(
         self,
-        epochs = config.training["epochs"],
-        evaluate_epochs = 1,
-        batch_callback_epochs = None,
-        save_weight = False,
-        save_path = config.save["potential_checkpoint"],
+        epochs=config.training["epochs"],
+        evaluate_epochs=1,
+        batch_callback_epochs=None,
+        save_weight=False,
+        save_path=config.save["potential_checkpoint"],
     ):
         """
         train the model using the stored training set
@@ -385,20 +383,20 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
-                                batch_num,
-                                batch[Keys.IMAGE],
-                                batch[Keys.LABEL],
-                                batch[Keys.PRED], # thresholded prediction
-                            )
+                            batch_num,
+                            batch[Keys.IMAGE],
+                            batch[Keys.LABEL],
+                            batch[Keys.PRED],  # thresholded prediction
+                        )
             self.scheduler.step()
             # normalize loss over batch size
-            training_loss = training_loss / len(self.train_dataloader)  
+            training_loss = training_loss / len(self.train_dataloader)
             # aggregate batches metrics of current epoch
             training_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
             # every evaluate_epochs, test model on test set
-            if (epoch + 1) % evaluate_epochs == 0:  
+            if (epoch + 1) % evaluate_epochs == 0:
                 valid_loss, valid_metric = self.test(self.test_dataloader)
             if save_weight:
                 self.save_checkpoint(save_path)
@@ -406,14 +404,10 @@ class Engine:
                 valid_loss = None
                 valid_metric = None
             self.per_epoch_callback(
-                    epoch,
-                    training_loss,
-                    valid_loss,
-                    training_metric,
-                    valid_metric,
-                )
+                epoch, training_loss, valid_loss, training_metric, valid_metric,
+            )
 
-    def test(self, dataloader = None, callback = False):
+    def test(self, dataloader=None, callback=False):
         """
         calculates loss on input dataset
 
@@ -432,37 +426,112 @@ class Engine:
         float
             the averaged metric calculated during testing
         """
-        if dataloader is None: #test on test set by default
+        if dataloader is None:  # test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
         test_loss = 0
         test_metric = 0
         self.network.eval()
         with torch.no_grad():
-            for batch_num,batch in enumerate(dataloader):
+            for batch_num, batch in enumerate(dataloader):
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                test_loss += self.loss(
-                    batch[Keys.PRED],
-                    batch[Keys.LABEL]
-                    ).item()
-                #Apply post processing transforms on prediction
+                test_loss += self.loss(batch[Keys.PRED], batch[Keys.LABEL]).item()
+                # Apply post processing transforms on prediction
                 batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
-                  self.per_batch_callback(
-                      batch_num,
-                      batch[Keys.IMAGE],
-                      batch[Keys.LABEL],
-                      batch[Keys.PRED]
-                      )
+                    self.per_batch_callback(
+                        batch_num,
+                        batch[Keys.IMAGE],
+                        batch[Keys.LABEL],
+                        batch[Keys.PRED],
+                    )
             test_loss /= num_batches
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
+
+    def objective(
+        self,
+        trial,
+        pretrained=False,
+        cp_path=config.tune["check_point"],
+        epochs=config.training["epochs"],
+        evaluate_epochs=1,
+        batch_callback_epochs=None,
+        save_weight=False,
+        save_path=config.tune["check_point"],
+        test_batch_callback=False,
+    ):
+        """
+        Optimize the hyper-parameters of segmentation models.
+        pretrained : bool
+            if true, loads pretrained checkpoint. Default is True.
+        cp_path : str
+            determines the path of the checkpoint to be loaded
+            if pretrained is true. If not defined, the potential
+            cp path will be loaded from config.
+        epochs : int
+            number of training epochs.
+            If not defined, epochs will be loaded from config.
+        evaluate_epochs : int
+            The number of epochs to evaluate model after. Default is 1.
+        batch_callback_epochs : int
+            The frequency at which per_batch_callback will be called.
+            Expects a number of epochs. Default is 100.
+        save_weight : bool
+            whether to save weights or not. Default is True.
+        save_path : str
+            the path to save weights at if save_weights is True.
+            If not defined, the potential cp path will be loaded
+            from config.
+        test_batch_callback : bool
+            whether to call per_batch_callback during testing or not.
+            Default is False
+        """
+        config.network_parameters["num_res_units"] = trial.suggest_int(
+            "res_units_l{}", 2, 5
+        )
+        config.training["optimizer"] = trial.suggest_categorical(
+            "optimizer", ["Adam", "SGD"]
+        )
+        config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
+            "lr", 1e-5, 1e-1, log=True
+        )
+        config.training["loss_name"] = trial.suggest_categorical(
+            "loss_name", ["monai_dice", "monai_general_dice"]
+        )
+        self.load_data()
+        self.data_status()
+        if pretrained:
+            self.load_checkpoint(cp_path)
+        self.compile_status()
+        init_loss, init_metric = self.test(
+            self.test_dataloader, callback=test_batch_callback
+        )
+        print(
+            "Initial test loss:", init_loss,
+        )
+        self.fit(
+            epochs=epochs,
+            evaluate_epochs=evaluate_epochs,
+            batch_callback_epochs=batch_callback_epochs,
+            save_weight=save_weight,
+            save_path=save_path,
+        )
+        # Evaluate on latest saved check point
+        self.load_checkpoint(save_path)
+        final_loss, final_metric = self.test(
+            self.test_dataloader, callback=test_batch_callback
+        )
+        print(
+            "Final test loss:", final_loss,
+        )
+        return final_loss
 
     def predict(self, data_dir):
         """
@@ -480,14 +549,11 @@ class Engine:
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
-            volume_paths = [os.path.join(data_dir, file_name) 
-                            for file_name in volume_names]
-            predict_files = [{Keys.IMAGE: image_name} 
-                             for image_name in volume_paths]
-            predict_set = Dataset(
-                data=predict_files, 
-                transform=self.test_transform
-                )
+            volume_paths = [
+                os.path.join(data_dir, file_name) for file_name in volume_names
+            ]
+            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
+            predict_set = Dataset(data=predict_files, transform=self.test_transform)
             predict_loader = MonaiLoader(
                 predict_set,
                 batch_size=self.batch_size,
@@ -498,7 +564,7 @@ class Engine:
             for batch in predict_loader:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                #Apply post processing transforms
+                # Apply post processing transforms
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
