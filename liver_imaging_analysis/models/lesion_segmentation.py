@@ -41,6 +41,8 @@ import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty=True, include_background=False)
@@ -56,6 +58,7 @@ class LesionSegmentation(Engine):
             Expects "2D" for slice inference or "3D" for volume inference.
             Default is "3D"
     """
+    logger.info('LesionSegmentation')
 
     def __init__(self, inference="3D"):
         self.set_configs()
@@ -282,11 +285,15 @@ class LesionSegmentation(Engine):
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        logger.debug(f"Training Loss={training_loss}")
+        logger.debug(f"Training Metric={training_metric}")
         if valid_loss is not None:
-            print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
+            print(f"\nValidation Loss={valid_loss}")
+            print(f"\nValidation Metric={valid_metric}")
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
             summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            logger.debug(f"\nValidation Loss={valid_loss}")
+            logger.debug(f"\nValidation Metric={valid_metric}")
 
     def predict(self, data_dir, liver_mask):
         """
@@ -302,15 +309,20 @@ class LesionSegmentation(Engine):
             tensor
                 Predicted Labels. Values: background: 0, liver: 1, lesion: 2.
         """
+        logger.info('predict lesion')
 
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
-            volume_paths = [
-                os.path.join(data_dir, file_name) for file_name in volume_names
-            ]
-            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
-            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            volume_paths = [os.path.join(data_dir, file_name) 
+                            for file_name in volume_names]
+            logger.info(f"volume_paths={volume_paths}")
+            predict_files = [{Keys.IMAGE: image_name} 
+                             for image_name in volume_paths]
+            predict_set = Dataset(
+                            data = predict_files,
+                            transform = self.test_transform
+                            )
             predict_loader = MonaiLoader(
                 predict_set,
                 batch_size=self.batch_size,
@@ -338,6 +350,7 @@ class LesionSegmentation(Engine):
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)
+            logger.info(f"prediction_list={prediction_list}")
         return prediction_list
 
     def predict_2dto3d(self, volume_path, liver_mask, temp_path="temp/"):
@@ -359,6 +372,7 @@ class LesionSegmentation(Engine):
                 Predicted labels with shape (1, channel, length, width, depth).
                 Values: background: 0, liver: 1, lesion: 2.
         """
+        logger.info('predict_2dto3d')
 
         # Read volume
         img_volume_array = nib.load(volume_path).get_fdata()
@@ -381,11 +395,15 @@ class LesionSegmentation(Engine):
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(temp_path))
-            volume_paths = [
-                os.path.join(temp_path, file_name) for file_name in volume_names
-            ]
-            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
-            predict_set = Dataset(data=predict_files, transform=self.test_transform)
+            volume_paths = [os.path.join(temp_path, file_name) 
+                            for file_name in volume_names]
+            logger.info(f"volume_paths={volume_paths}")
+            predict_files = [{Keys.IMAGE: image_name} 
+                             for image_name in volume_paths]
+            predict_set = Dataset(
+                            data=predict_files,
+                            transform=self.test_transform
+                            )
             predict_loader = MonaiLoader(
                 predict_set,
                 batch_size=self.batch_size,
@@ -419,6 +437,7 @@ class LesionSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
+        logger.info(f"batch[Keys.PRED]={batch[Keys.PRED]}")
         return batch[Keys.PRED]
 
 
@@ -458,27 +477,34 @@ def segment_lesion(
     ----------
         tensor : predicted lesions segmentation
     """
-    liver_model = LiverSegmentation(modality="CT", inference=liver_inference)
-    lesion_model = LesionSegmentation(inference=lesion_inference)
+    logger.info('segment_lesion')
+    liver_model = LiverSegmentation(modality = 'CT', inference = liver_inference)
+    lesion_model = LesionSegmentation(inference = lesion_inference)
     if prediction_path is None:
-        prediction_path = config.dataset["prediction"]
+        prediction_path = config.dataset['prediction']
+        logger.info(f"prediction_path={prediction_path}")
     if liver_cp is None:
         liver_cp = config.save["liver_checkpoint"]
+        logger.info(f"liver_cp={liver_cp}")
     if lesion_cp is None:
         lesion_cp = config.save["lesion_checkpoint"]
+        logger.info(f"lesion_cp={lesion_cp}")
     liver_model.load_checkpoint(liver_cp)
     lesion_model.load_checkpoint(lesion_cp)
     liver_prediction = liver_model.predict(prediction_path)
     close = MorphologicalClosing(iters=4)
     lesion_prediction = lesion_model.predict(
-        prediction_path,
-        liver_mask=close(liver_prediction[0]).permute(3, 0, 1, 2)
-        if lesion_inference == "3D"
-        else liver_prediction,
-    )
-    liver_lesion_prediction = torch.tensor(
-        np.where(lesion_prediction == 1, 2, liver_prediction)
-    ).to(liver_prediction.device)
+                            prediction_path,
+                            liver_mask = close(liver_prediction[0]).permute(3,0,1,2) 
+                                         if lesion_inference == '3D' 
+                                         else liver_prediction
+                            )
+    liver_lesion_prediction = torch.tensor(np.where(
+                                                lesion_prediction == 1,
+                                                2, 
+                                                liver_prediction
+                                                )).to(liver_prediction.device)
+    logger.info(f"liver_lesion_prediction={liver_lesion_prediction}")
     return liver_lesion_prediction
 
 
@@ -518,12 +544,16 @@ def train_lesion(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+    logger.info('train_lesion')
     if cp_path is None:
         cp_path = config.save["potential_checkpoint"]
+        logger.info(f"cp_path={cp_path}")
     if epochs is None:
         epochs = config.training["epochs"]
+        logger.info(f"epochs={epochs}")
     if save_path is None:
         save_path = config.save["potential_checkpoint"]
+        logger.info(f"save_path={save_path}")
     set_seed()
     model = LesionSegmentation()
     model.load_data()
@@ -537,11 +567,13 @@ def train_lesion(
     print(
         "Initial test loss:",
         init_loss,
-    )
-    # print(
-    #     "\nInitial test metric:",
-    #     init_metric.mean().item(),
-    #     )
+        )
+    logger.debug(f"Initial test loss={init_loss}")
+    print(
+        "\nInitial test metric:", 
+        init_metric.mean().item(),
+        )
+    logger.debug(f"Initial test metric={init_metric.mean().item()}")
     model.fit(
         epochs=epochs,
         evaluate_epochs=evaluate_epochs,
@@ -557,11 +589,13 @@ def train_lesion(
     print(
         "Final test loss:",
         final_loss,
-    )
-    # print(
-    #     "\nFinal test metric:",
-    #     final_metric.mean().item(),
-    #     )
+        )
+    logger.debug(f"Final test loss={final_loss}")
+    print(
+        "\nFinal test metric:", 
+        final_metric.mean().item(),
+        )
+    logger.debug(f"Final test metric={final_metric.mean().item()}")
 
 
 if __name__ == "__main__":
