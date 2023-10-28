@@ -11,7 +11,6 @@ import torch
 import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
 import monai
-
 from monai.data import Dataset, decollate_batch, DataLoader as MonaiLoader
 from monai.losses import DiceLoss as monaiDiceLoss
 
@@ -25,7 +24,6 @@ from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 from torch.utils.tensorboard import SummaryWriter
 import logging
 logger = logging.getLogger(__name__)
-
 
 class Engine:
     """
@@ -44,7 +42,8 @@ class Engine:
             **config.training["loss_parameters"],
         )
         self.network = self.get_network(
-            network_name=config.network_name, **config.network_parameters
+            network_name=config.network_name,
+            **config.network_parameters
         ).to(self.device)
         self.optimizer = self.get_optimizer(
             optimizer_name=config.training["optimizer"],
@@ -65,7 +64,7 @@ class Engine:
             config.transforms["test_transform"]
         )
         self.postprocessing_transforms = self.get_postprocessing_transforms(
-            config.transforms["post_transform"]
+             config.transforms["post_transform"]
         )
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -80,8 +79,8 @@ class Engine:
                 parameters of optimizer, if exist.
         """
         optimizers = {
-            "Adam": torch.optim.Adam,
-            "SGD": torch.optim.SGD,
+            "Adam" : torch.optim.Adam,
+            "SGD" : torch.optim.SGD,
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
@@ -97,8 +96,8 @@ class Engine:
                 parameters of optimizer, if exist.
         """
         schedulers = {
-            "StepLR": torch.optim.lr_scheduler.StepLR,
-            "CyclicLR": torch.optim.lr_scheduler.CyclicLR,
+            "StepLR" : torch.optim.lr_scheduler.StepLR,
+            "CyclicLR" : torch.optim.lr_scheduler.CyclicLR,
         }
         return schedulers[scheduler_name](self.optimizer, **kwargs)
 
@@ -114,8 +113,7 @@ class Engine:
                 parameters of network, if exist.
         """
         networks = {
-            "monai_2DUNet": monai.networks.nets.UNet,
-            "monai_ResUNet": monai.networks.nets.SegResNet,
+            "monai_2DUNet" : monai.networks.nets.UNet,
         }
         return networks[network_name](**kwargs)
 
@@ -131,7 +129,7 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "monai_dice": monaiDiceLoss,
+            "monai_dice" : monaiDiceLoss,
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -147,9 +145,9 @@ class Engine:
                 parameters of metrics, if exist.
         """
         metrics = {
-            "accuracy": Accuracy,
-            "dice": DiceMetric,
-            "jaccard": MeanIoU,
+            "accuracy" : Accuracy,
+            "dice" : DiceMetric,
+            "jaccard" : MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
     
@@ -226,7 +224,7 @@ class Engine:
         return Compose([])
 
     def post_process(self, batch):
-        """
+            """
             Applies the transformations specified in get_postprocessing_transforms
             to the network output.
 
@@ -235,12 +233,13 @@ class Engine:
             batch: dict
                 a dictionary containing the model's output to be post-processed
             """
-        post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
-        for key in batch.keys():
-            if key in Keys.all():
-                batch[key] = from_engine(key)(post_batch)
-                batch[key] = torch.stack(batch[key], dim=0)
-        return batch
+            post_batch = [self.postprocessing_transforms(i) 
+                        for i in decollate_batch(batch)]
+            for key in batch.keys():
+                if key in Keys.all():
+                    batch[key] = from_engine(key)(post_batch)
+                    batch[key] = torch.stack(batch[key], dim = 0)
+            return batch 
 
     def load_data(self):
         """
@@ -252,27 +251,27 @@ class Engine:
         self.val_dataloader = []
         self.test_dataloader = []
         trainloader = DataLoader(
-            dataset_path=config.dataset["training"],
-            batch_size=config.training["batch_size"],
-            train_transforms=self.train_transform,
-            test_transforms=self.test_transform,
-            num_workers=0,
-            pin_memory=False,
-            test_size=config.training["train_valid_split"],
-            mode=config.dataset["mode"],
-            shuffle=config.training["shuffle"],
+            dataset_path = config.dataset["training"],
+            batch_size = config.training["batch_size"],
+            train_transforms = self.train_transform,
+            test_transforms = self.test_transform,
+            num_workers = 0,
+            pin_memory = False,
+            test_size = config.training["train_valid_split"],
+            mode = config.dataset["mode"],
+            shuffle = config.training["shuffle"]
         )
         logger.info("Training dataset path: %s", config.dataset["training"])
         testloader = DataLoader(
-            dataset_path=config.dataset["testing"],
-            batch_size=config.training["batch_size"],
-            train_transforms=self.train_transform,
-            test_transforms=self.test_transform,
-            num_workers=0,
-            pin_memory=False,
-            test_size=1,  # test set should all be used for evaluation
-            mode=config.dataset["mode"],
-            shuffle=config.training["shuffle"],
+            dataset_path = config.dataset["testing"],
+            batch_size = config.training["batch_size"],
+            train_transforms = self.train_transform,
+            test_transforms = self.test_transform,
+            num_workers = 0,
+            pin_memory = False,
+            test_size = 1,  # test set should all be used for evaluation
+            mode = config.dataset["mode"],
+            shuffle = config.training["shuffle"]
         )
         logger.info("Testing dataset path: %s", config.dataset["testing"])
         self.train_dataloader = trainloader.get_training_data()
@@ -361,7 +360,7 @@ class Engine:
             print("No Testing Set")
             logger.critical("No Testing Set")
 
-    def save_checkpoint(self, path=config.save["model_checkpoint"]):
+    def save_checkpoint(self, path = config.save["model_checkpoint"]):
         """
         Saves the current network, optimizer, and scheduler states.
 
@@ -372,13 +371,13 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = {
-            "state_dict": self.network.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "scheduler": self.scheduler.state_dict(),
-        }
+            'state_dict': self.network.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'scheduler': self.scheduler.state_dict(),
+            }
         torch.save(checkpoint, path)
 
-    def load_checkpoint(self, path=config.save["model_checkpoint"]):
+    def load_checkpoint(self, path = config.save["model_checkpoint"]):
         """
         Loads network, optimizer, and scheduler states, if exist.
 
@@ -389,13 +388,13 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = torch.load(path)
-        if "state_dict" in checkpoint.keys():  # dict checkpoint
-            self.network.load_state_dict(checkpoint["state_dict"])
-            if "optimizer" in checkpoint.keys():
-                self.optimizer.load_state_dict(checkpoint["optimizer"])
-            if "scheduler" in checkpoint.keys():
-                self.scheduler.load_state_dict(checkpoint["scheduler"])
-        else:  # weights only
+        if ('state_dict' in checkpoint.keys()): #dict checkpoint
+            self.network.load_state_dict(checkpoint['state_dict'])
+            if ('optimizer' in checkpoint.keys()):
+                self.optimizer.load_state_dict(checkpoint['optimizer'])
+            if ('scheduler' in checkpoint.keys()):
+                self.scheduler.load_state_dict(checkpoint['scheduler'])
+        else: #weights only
             self.network.load_state_dict(checkpoint)
 
     def compile_status(self):
@@ -410,12 +409,12 @@ class Engine:
         logger.info("Compiling Finished") 
 
     def per_batch_callback(self, *args, **kwargs):
-        """
+          """
           A generic callback function to be executed every batch.
           Supposed to output information desired by user.
           Should be Implemented in task module.
           """
-        pass
+          pass
 
     def per_epoch_callback(self, *args, **kwargs):
         """
@@ -487,13 +486,13 @@ class Engine:
                             )
             self.scheduler.step()
             # normalize loss over batch size
-            training_loss = training_loss / len(self.train_dataloader)
+            training_loss = training_loss / len(self.train_dataloader)  
             # aggregate batches metrics of current epoch
             training_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
             # every evaluate_epochs, test model on test set
-            if (epoch + 1) % evaluate_epochs == 0:
+            if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
             if save_weight:
                 self.save_checkpoint(save_path)
@@ -501,6 +500,7 @@ class Engine:
                 valid_loss = None
                 valid_metric = None
             self.per_epoch_callback(
+
                     summary_writer,
                     epoch+offset,
                     training_loss,
@@ -529,28 +529,31 @@ class Engine:
         float
             the averaged metric calculated during testing
         """
-        if dataloader is None:  # test on test set by default
+        if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
         test_loss = 0
         test_metric = 0
         self.network.eval()
         with torch.no_grad():
-            for batch_num, batch in enumerate(dataloader):
+            for batch_num,batch in enumerate(dataloader):
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                test_loss += self.loss(batch[Keys.PRED], batch[Keys.LABEL]).item()
-                # Apply post processing transforms on prediction
+                test_loss += self.loss(
+                    batch[Keys.PRED],
+                    batch[Keys.LABEL]
+                    ).item()
+                #Apply post processing transforms on prediction
                 batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
-                    self.per_batch_callback(
-                        batch_num,
-                        batch[Keys.IMAGE],
-                        batch[Keys.LABEL],
-                        batch[Keys.PRED],
-                    )
+                  self.per_batch_callback(
+                      batch_num,
+                      batch[Keys.IMAGE],
+                      batch[Keys.LABEL],
+                      batch[Keys.PRED]
+                      )
             test_loss /= num_batches
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()
@@ -692,6 +695,7 @@ class Engine:
 
         return final_loss
 
+
     def predict(self, data_dir):
         """
         predict the label of the given input
@@ -711,6 +715,7 @@ class Engine:
             volume_names = natsort.natsorted(os.listdir(data_dir))
             volume_paths = [os.path.join(data_dir, file_name) 
                             for file_name in volume_names]
+
             logger.info("Volume paths: %s", volume_paths)
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
@@ -728,7 +733,7 @@ class Engine:
             for batch in predict_loader:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                # Apply post processing transforms
+                #Apply post processing transforms
                 batch = self.post_process(batch)
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim=0)

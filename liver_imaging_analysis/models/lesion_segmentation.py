@@ -70,44 +70,38 @@ class LesionSegmentation(Engine):
         """
         Sets new values for config parameters.
         """
-
-        config.dataset["prediction"] = "test cases/volume/volume-64.nii"
-        config.dataset["training"], config.dataset["testing"] = (
-            "tests/testdata/data/Temporary lessions/Train/",
-            "tests/testdata/data/Temporary lessions/Test/",
-        )
-        config.training["batch_size"] = 8
-        config.training["optimizer_parameters"] = {"lr": 0.01}
-        config.training["scheduler_parameters"] = {
-            "step_size": 20,
-            "gamma": 0.5,
-            "verbose": False,
-        }
-        config.network_parameters["dropout"] = 0
+        config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+        config.dataset['training'] = "Temp2D/Train/"
+        config.dataset['testing'] = "Temp2D/Test/"
+        config.training['batch_size'] = 8
+        config.training['optimizer_parameters'] = {"lr" : 0.01}
+        config.training['scheduler_parameters'] = {
+                                                    "step_size" : 20,
+                                                    "gamma" : 0.5, 
+                                                    "verbose" : False
+                                                  }
+        config.network_parameters['dropout'] = 0
         config.network_parameters["out_channels"] = 1
-        config.network_parameters["spatial_dims"] = 2
-        # config.network_parameters["channels"] = [64, 128, 256, 512]
-        config.network_parameters["channels"] = [32,64]
+        config.network_parameters['spatial_dims'] = 2
+        config.network_parameters['channels'] = [64, 128, 256, 512]
         config.network_parameters["out_channels"] = 1
-        # config.network_parameters["strides"] = [2, 2, 2]
-        config.network_parameters["strides"] = [2]
-        # config.network_parameters["num_res_units"] = 2
-        config.network_parameters["num_res_units"] = 1 
-        config.network_parameters["norm"] = "BATCH"
-        config.network_parameters["bias"] = False
-        config.save["lesion_checkpoint"] = "lesion_cp"
-        config.training["loss_parameters"] = {
-            "sigmoid": True,
-            "batch": True,
-            "include_background": True,
-        }
-        config.training["metrics_parameters"] = {
-            "ignore_empty": True,
-            "include_background": False,
-        }
-        config.transforms["train_transform"] = "2d_ct_transform"
-        config.transforms["test_transform"] = "2d_ct_transform"
-        config.transforms["post_transform"] = "2d_ct_transform"
+        config.network_parameters['strides'] =  [2, 2, 2]
+        config.network_parameters['num_res_units'] =  2
+        config.network_parameters['norm'] = "BATCH"
+        config.network_parameters['bias'] = False
+        config.save['lesion_checkpoint'] = 'lesion_cp'
+        config.training['loss_parameters'] = {
+                                                "sigmoid" : True,
+                                                "batch" : True,
+                                                "include_background" : True
+                                             }
+        config.training['metrics_parameters'] = {
+                                                    "ignore_empty" : True,
+                                                    "include_background" : False
+                                                }
+        config.transforms['train_transform'] = "2d_ct_transform"
+        config.transforms['test_transform'] = "2d_ct_transform"
+        config.transforms['post_transform'] = "2d_ct_transform"
 
     def get_pretraining_transforms(self, transform_name):
         """
