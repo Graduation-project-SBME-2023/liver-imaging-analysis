@@ -247,7 +247,7 @@ class ExperimentTracking:
         """
         if self.is_google_colab():
             print("This code is running on a Google Colab machine.")
-            self.__upload_folder_to_drive_from_colab__()
+            self.__upload_folder_to_drive_from_colab__(cp_path=cp_path)
         else:
             print("This code is running on a local machine.")
             runs_dir = f"{self.log_dir}"
