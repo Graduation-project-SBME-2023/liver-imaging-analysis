@@ -86,50 +86,60 @@ class LiverSegmentation(Engine):
                 or "sliding_window" for sliding window inference.
         """
 
-        if modality == 'CT':
-            if inference in ['2D', '3D']:
-                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 8
-                config.training['scheduler_parameters'] = {
-                                                            "step_size" : 20,
-                                                            "gamma" : 0.5, 
-                                                            "verbose" : False
-                                                            }
-                config.network_parameters['dropout'] = 0
+        if modality == "CT":
+            if inference in ["2D", "3D"]:
+                config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                config.training["batch_size"] = 2
+                config.training["scheduler_parameters"] = {
+                    "step_size": 20,
+                    "gamma": 0.5,
+                    "verbose": False,
+                }
+                config.network_parameters["dropout"] = 0
                 config.network_parameters["out_channels"] = 1
-                config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  4
-                config.network_parameters['norm'] = "INSTANCE"
-                config.network_parameters['bias'] = True
-                config.save['liver_checkpoint'] = 'liver_cp'
-                config.transforms['train_transform'] = "2d_ct_transform"
-                config.transforms['test_transform'] = "2d_ct_transform"
-                config.transforms['post_transform'] = "2d_ct_transform"
-            elif inference == 'sliding_window':
-                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 1
-                config.training['scheduler_parameters'] = {
-                                                            "step_size" : 20,
-                                                            "gamma" : 0.5, 
-                                                            "verbose" : False
-                                                            }
-                config.network_parameters['dropout'] = 0
+                config.network_parameters["spatial_dims"] = 2
+                # config.network_parameters["channels"] = [64, 128, 256, 512]
+                # config.network_parameters["strides"] = [2, 2, 2]
+                # config.network_parameters["num_res_units"] = 4
+                config.network_parameters["strides"] = [2]
+                config.network_parameters["num_res_units"] = 1
+                config.network_parameters["channels"] = [32, 64]
+                config.network_parameters["norm"] = "INSTANCE"
+                config.network_parameters["bias"] = True
+                config.save["liver_checkpoint"] = "liver_cp"
+                config.transforms["train_transform"] = "2d_ct_transform"
+                config.transforms["test_transform"] = "2d_ct_transform"
+                config.transforms["post_transform"] = "2d_ct_transform"
+            elif inference == "sliding_window":
+                config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                config.dataset["training"], config.dataset["testing"] = (
+                    "tests\\testdata\\data\\resized_train_liver\\",
+                    "tests\\testdata\\data\\resized_liver\\",
+                )
+                config.training["batch_size"] = 1
+                config.training["scheduler_parameters"] = {
+                    "step_size": 20,
+                    "gamma": 0.5,
+                    "verbose": False,
+                }
+                config.network_parameters["dropout"] = 0
                 config.network_parameters["out_channels"] = 1
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['spatial_dims'] = 3
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
-                config.network_parameters['norm'] = "BATCH"
-                config.network_parameters['bias'] = False
-                config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
-                config.transforms['sw_batch_size'] = 4
-                config.transforms['roi_size'] = (96,96,64)
-                config.transforms['overlap'] = 0.25
-                config.transforms['train_transform'] = "3d_ct_transform"
-                config.transforms['test_transform'] = "3d_ct_transform"
-                config.transforms['post_transform'] = "3d_ct_transform"
+                config.network_parameters["channels"] = [32, 64]
+                config.network_parameters["strides"] = [2]
+                config.network_parameters["num_res_units"] = 1
+                # config.network_parameters['channels'] = [64, 128, 256, 512]
+                # config.network_parameters['strides'] =  [2, 2, 2]
+                # config.network_parameters['num_res_units'] =  6
+                config.network_parameters["spatial_dims"] = 3
+                config.network_parameters["norm"] = "BATCH"
+                config.network_parameters["bias"] = False
+                config.save["liver_checkpoint"] = "liver_cp_sliding_window"
+                config.transforms["sw_batch_size"] = 4
+                config.transforms["roi_size"] = (32, 32, 32)
+                config.transforms["overlap"] = 0.25
+                config.transforms["train_transform"] = "3d_ct_transform"
+                config.transforms["test_transform"] = "3d_ct_transform"
+                config.transforms["post_transform"] = "3d_ct_transform"
         elif modality == "MRI":
             if inference in ["2D", "3D"]:
                 config.dataset["prediction"] = "test cases/volume/volume-64.nii"
