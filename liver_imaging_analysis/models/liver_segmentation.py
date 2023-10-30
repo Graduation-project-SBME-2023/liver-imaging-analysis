@@ -353,6 +353,7 @@ class LiverSegmentation(Engine):
                 ]
             ),
         }
+        
         return transforms[transform_name]
 
 
@@ -703,7 +704,7 @@ def segment_liver(
 
 
 def train_liver(
-    trials=5,
+    trials=1,
     modality="CT",
     inference="3D",
     pretrained=False,
@@ -712,7 +713,6 @@ def train_liver(
     evaluate_epochs=1,
     batch_callback_epochs=100,
     save_weight=True,
-    save_path=config.tune["check_point"],
     test_batch_callback=False,
 ):
 
@@ -727,17 +727,26 @@ def train_liver(
     study.optimize(
         lambda trial: model.objective(
             trial,
+            num_trials=trials,
             pretrained=pretrained,
             cp_path=cp_path,
             epochs=epochs,
             evaluate_epochs=evaluate_epochs,
             batch_callback_epochs=batch_callback_epochs,
             save_weight=save_weight,
-            save_path=save_path,
             test_batch_callback=test_batch_callback,
+            
         ),
         n_trials=trials,
     )
+    if trials>1:
+        print(f'number of trials:{study.best_trials}')
+        print("Best params: ", study.best_params)
+        print("Best value: ", study.best_value)
+        print("Best Trial: ", study.best_trial)
+
+
+
 
 
 

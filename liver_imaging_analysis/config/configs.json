@@ -69,8 +69,9 @@
     "tune": {
         "check_point": "/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/experimental/tune_check_points/1"
     },
-    "tune":{
-        "check_point":"/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/experimental/tune_check_points/1"
-      },
+    "name": {
+        "experiment_name": "exp0",
+        "run_name": "run0"
+    },
     "seed": 0
 }

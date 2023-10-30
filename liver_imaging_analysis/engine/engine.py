@@ -179,21 +179,35 @@ class Engine:
         return hparams[network_name]
     
     def Hash(self, text:str):
+        """
+        Calculate a hash value for the input text.
+
+        Parameters:
+        text (str): The input text.
+        Returns:
+        int: The calculated hash value as an integer.
+        """
         hash=0
         for ch in text:
             hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
         return hash
 
     def exp_naming(self):
+        """
+        Names the experiment after network name,
+        and names the run based on hyperparameters used.
 
-        experiment_name=config.network_name
+        """
+
+        config.name['experiment_name']=config.network_name
         run_name = ""
         hparams=self.get_hparams(config.network_name)
         for key, value in hparams.items():
             run_name += f'{key}_{value}_'
-
-        run_name=self.Hash(run_name)    
-        return  experiment_name, str(run_name) 
+        print( f"Experimemnt name: {config.name['experiment_name']}")
+        config.name['run_name']=str(self.Hash(run_name))
+        print( f"Run ID: {config.name['run_name']}")
+   
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -508,7 +522,7 @@ class Engine:
                     training_metric,
                     valid_metric,
                 )
-
+            
 
     def test(self, dataloader = None, callback = False):
         """
@@ -561,17 +575,19 @@ class Engine:
     def objective(
         self,
         trial,
+        num_trials,
         pretrained=False,
-        cp_path=config.tune["check_point"],
+        cp_path=None,
         epochs=config.training["epochs"],
         evaluate_epochs=1,
         batch_callback_epochs=None,
         save_weight=False,
-        save_path=config.tune["check_point"],
         test_batch_callback=False,
     ):
         """
         Optimize the hyper-parameters of segmentation models.
+        num_trials : int
+            number of training trials to be performed by optuna. Default is 1.
         pretrained : bool
             if true, loads pretrained checkpoint. Default is True.
         cp_path : str
@@ -588,75 +604,59 @@ class Engine:
             Expects a number of epochs. Default is 100.
         save_weight : bool
             whether to save weights or not. Default is True.
-        save_path : str
-            the path to save weights at if save_weights is True.
-            If not defined, the potential cp path will be loaded
-            from config.
         test_batch_callback : bool
             whether to call per_batch_callback during testing or not.
             Default is False
         """
-        config.network_parameters["num_res_units"] = trial.suggest_int(
-            "res_units_l{}", 2, 5
-        )
-        config.training["optimizer"] = trial.suggest_categorical(
-            "optimizer", ["Adam", "SGD"]
-        )
-        config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
-            "lr", 1e-5, 1e-1, log=True
-        )
-        config.training["loss_name"] = trial.suggest_categorical(
-            "loss_name", ["monai_dice", "monai_general_dice"]
-        )
+        if num_trials>1:
+            #hyperparameters chosen to be tuned:
+            config.network_parameters["num_res_units"] = trial.suggest_int(
+                "res_units_l{}", 2, 5
+            )
+            config.training["optimizer"] = trial.suggest_categorical(
+                "optimizer", ["Adam", "SGD"]
+            )
+            config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
+                "lr", 1e-5, 1e-1, log=True
+            )
+
 
         logger.info('TRAIN_LIVER')
         if cp_path is None:
             cp_path = config.save["potential_checkpoint"]
             logger.info(f"cp_path={cp_path}")
-        if epochs is None:
-            epochs = config.training["epochs"]
-            logger.info(f"epochs={epochs}")
+        
         set_seed()
-
         self.load_data()
         self.data_status()
-
-        hparams=self.get_hparams(config.network_name)
-        experiment_name, run_name= self.exp_naming()
-        if save_path is None:
-            cp_dir = os.path.join(config.save['potential_checkpoint'], experiment_name, run_name,"")
-
-            print(f"checkpoint directory: {cp_dir}")
-                # Check if the directory exists and create it if not
-            if not os.path.exists(cp_dir):
-                os.makedirs(cp_dir)
-
-            save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
+        self.exp_naming()
+        
+        #checkpoints save path
+        cp_dir = os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'],"")
+        # Check if the directory exists and create it if not
+        if not os.path.exists(cp_dir):
+            os.makedirs(cp_dir)
+        save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
         
         logger.info(f"save_path={save_path}")
-        tracker = ExperimentTracking(experiment_name, run_name)
+        tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
         summary_writer = tracker.tb_logger()
-        offset = 0
+        
+        #if pretrained, will continue on previous checkpoints and previous ClearML task
         if pretrained:
             self.load_checkpoint(cp_path)
             task = tracker.update_clearml_logger() 
             offset=task.get_last_iteration()+1
-
         else:
             task = tracker.new_clearml_logger() 
             offset=0  
 
-
-        config.training["epochs"]=epochs
-        config.save["potential_checkpoint"]=save_path
-        my_params = task.connect_configuration(config.__dict__,name="configs")
-
-
-
-        # if pretrained:
-        #     self.load_checkpoint(cp_path)
-        # self.compile_status()
-
+        self.compile_status()
+        
+        #add all configs to ClearMl
+        task.connect_configuration(config.__dict__,name="configs")
+        #add hyperparameters to ClearMl
+        hparams=self.get_hparams(config.network_name)  
         summary_writer.add_hparams(hparams,metric_dict = {})
 
         init_loss, init_metric = self.test(
@@ -676,21 +676,29 @@ class Engine:
         )
         # Evaluate on latest saved check point
         self.load_checkpoint(save_path)
-        # tracker.upload_to_drive(cp_path=save_path)
-        task.close()
-        summary_writer.close()
-
-
         final_loss, final_metric = self.test(
             self.test_dataloader, callback=test_batch_callback
         )
         print(
             "Final test loss:", final_loss,
         )
-
-
+        
+        #upload tensorboard files and checkpoint files
+        Engine.upload()
+        task.close()
+        summary_writer.close()
 
         return final_loss
+    
+    @staticmethod
+    def upload():
+        """
+        Uploads all run data to Google Drive.
+
+        """
+        ExperimentTracking.upload_to_drive()
+
+
 
     def predict(self, data_dir):
         """
