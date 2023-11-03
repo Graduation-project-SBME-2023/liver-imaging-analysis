@@ -22,7 +22,7 @@
         "dropout": 0.4
     },
     "training": {
-        "epochs": 100,
+        "epochs": 1,
         "batch_size": 12,
         "train_valid_split": 0,
         "optimizer": "Adam",
@@ -30,7 +30,7 @@
         "lr_scheduler": "StepLR",
         "scheduler_parameters": {"step_size": 20, "gamma": 0.5, "verbose": 1},
         "loss_name": "monai_dice",
-        "loss_parameters": {"sigmoid": "1", "batch": 1, "include_background": 1},
+"loss_parameters": {"sigmoid": "1", "batch": 1, "include_background": 1},
         "metrics": "dice",
         "metrics_parameters": {"ignore_empty": 1, "include_background": 1},
         "shuffle": 1
@@ -54,6 +54,7 @@
         "potential_checkpoint": "potential_checkpoint",
         "tensorboard": "runs/"
     },
+
     "test": {
         "train_folder": "tests/testdata/data/resized_train_liver",
         "test_folder": "tests/testdata/data/resized_liver",
@@ -72,7 +73,14 @@
         "reference_gif": "tests/testdata/testcases/gif_frames",
         "liver_slices": "tests/testdata/testcases/liverSlices",
         "liver_png_slices": "tests/testdata/testcases/liverSlices_png",
-        "reference_batches" : "tests/testdata/testcases/batches"
+        "reference_batches": "tests/testdata/testcases/batches"
+    },
+    "tune": {
+        "check_point": "/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/experimental/tune_check_points/1"
+    },
+    "name": {
+        "experiment_name": "exp0",
+        "run_name": "run0"
     },
     "seed": 0
 }

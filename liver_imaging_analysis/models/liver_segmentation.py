@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+import optuna
 from liver_imaging_analysis.engine.transforms import MorphologicalClosingd
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
@@ -25,6 +26,8 @@ from monai.transforms import (
     FillHolesD,
     ScaleIntensityRanged,
     RandCropByPosNegLabeld,
+    ResizeWithPadOrCropD,
+    SpatialPadD,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -724,61 +727,67 @@ def train_liver(
         Default is False
     """
     if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
-    if epochs is None:
-        epochs = config.training["epochs"]
+            cp_path = config.save["potential_checkpoint"]
     
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
     model.data_status()
+    model.exp_naming()
     
-    hparams=model.get_hparams(config.network_name)
-    experiment_name, run_name= model.exp_naming()
-    if save_path is None:
-        cp_dir = os.path.join(config.save['potential_checkpoint'], experiment_name, run_name,"")
+    #checkpoints save path
+    cp_dir = os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'],"")
+    # Check if the directory exists and create it if not
+    if not os.path.exists(cp_dir):
+        os.makedirs(cp_dir)
+    save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
 
-        print(f"checkpoint directory: {cp_dir}")
-            # Check if the directory exists and create it if not
-        if not os.path.exists(cp_dir):
-            os.makedirs(cp_dir)
-
-        save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
-    tracker = ExperimentTracking(experiment_name, run_name)
+    tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
     summary_writer = tracker.tb_logger()
+    
+    #if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
         task = tracker.update_clearml_logger() 
         offset=task.get_last_iteration()+1
-
     else:
         task = tracker.new_clearml_logger() 
         offset=0  
 
-    config.training["epochs"]=epochs
-    config.save["potential_checkpoint"]=save_path
-    my_params = task.connect_configuration(config.__dict__,name="configs")
-    
-
     model.compile_status()
-
-
-                                                          
-    summary_writer.add_hparams(hparams,metric_dict = {})
     
+    #add all configs to ClearMl
+    task.connect_configuration(config.__dict__,name="configs")
+    #add hyperparameters to ClearMl
+    hparams=model.get_hparams(config.network_name)  
+    summary_writer.add_hparams(hparams,metric_dict = {})
+
+    init_loss, init_metric = model.test(
+        model.test_dataloader, callback=test_batch_callback
+    )
+    print(
+        "Initial test loss:", init_loss,
+    )
     model.fit(
-        summary_writer=summary_writer,
+        summary_writer=summary_writer ,
         offset=offset,
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
+        epochs=epochs,
+        evaluate_epochs=evaluate_epochs,
+        batch_callback_epochs=batch_callback_epochs,
+        save_weight=save_weight,
+        save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-
-    tracker.upload_to_drive(cp_path=save_path)
+    final_loss, final_metric = model.test(
+        model.test_dataloader, callback=test_batch_callback
+    )
+    print(
+        "Final test loss:", final_loss,
+    )
+    
+    #upload tensorboard files and checkpoint files
+    ExperimentTracking.upload_to_drive() 
     task.close()
     summary_writer.close()
 

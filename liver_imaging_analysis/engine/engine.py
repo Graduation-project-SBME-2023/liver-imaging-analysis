@@ -167,21 +167,34 @@ class Engine:
         return hparams[network_name]
     
     def Hash(self, text:str):
+        """
+        Calculate a hash value for the input text.
+
+        Parameters:
+        text (str): The input text.
+        Returns:
+        int: The calculated hash value as an integer.
+        """
         hash=0
         for ch in text:
             hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
         return hash
 
     def exp_naming(self):
+        """
+        Names the experiment after network name,
+        and names the run based on hyperparameters used.
 
-        experiment_name=config.network_name
+        """
+
+        config.name['experiment_name']=config.network_name
         run_name = ""
         hparams=self.get_hparams(config.network_name)
         for key, value in hparams.items():
             run_name += f'{key}_{value}_'
-
-        run_name=self.Hash(run_name)    
-        return  experiment_name, str(run_name) 
+        print( f"Experimemnt name: {config.name['experiment_name']}")
+        config.name['run_name']=str(self.Hash(run_name))
+        print( f"Run ID: {config.name['run_name']}") 
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
