@@ -684,19 +684,13 @@ class Engine:
         )
         
         #upload tensorboard files and checkpoint files
-        Engine.upload()
+        ExperimentTracking.upload_to_drive() 
         task.close()
         summary_writer.close()
 
         return final_loss
     
-    @staticmethod
-    def upload():
-        """
-        Uploads all run data to Google Drive.
 
-        """
-        ExperimentTracking.upload_to_drive()
 
 
 
