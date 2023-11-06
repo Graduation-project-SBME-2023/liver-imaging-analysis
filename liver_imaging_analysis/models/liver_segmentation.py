@@ -87,8 +87,6 @@ class LiverSegmentation(Engine):
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.dataset["training"] = "D:\\Liver Segmentation Meena 2024\\Lits_DATA\\liver_2D_segmentation\\Train"
-                config.dataset["testing"] = "D:\\Liver Segmentation Meena 2024\\Lits_DATA\\liver_2D_segmentation\\Test"
                 config.training['batch_size'] = 8
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
