@@ -38,3 +38,4 @@ myvenv
 token.json
 credentials.json
 app.log
+logs

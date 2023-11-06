@@ -47,6 +47,8 @@ import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 import logging
+from time import time
+
 
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 logger = logging.getLogger(__name__)
@@ -446,7 +448,9 @@ class LiverSegmentation(Engine):
             training_loss, 
             valid_loss, 
             training_metric, 
-            valid_metric
+            valid_metric,
+            epoch_start_timestamps,
+            current_learning_rate
             ):
         """
         Prints training and testing loss and metric,
@@ -470,6 +474,8 @@ class LiverSegmentation(Engine):
         summary_writer.add_scalar("Metric_train", training_metric, epoch)
         logger.debug(f"\nTraining Loss={training_loss}")
         logger.debug(f"\nTraining Metric={training_metric}")
+        summary_writer.add_scalar("epoch_duration[s]", time()-epoch_start_timestamps, epoch)
+        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")

@@ -23,6 +23,7 @@ from monai.transforms import Compose
 from monai.handlers.utils import from_engine
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 from torch.utils.tensorboard import SummaryWriter
+from time import time
 import logging
 logger = logging.getLogger(__name__)
 
@@ -476,6 +477,7 @@ class Engine:
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
+            epoch_start_timestamps=time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -521,6 +523,8 @@ class Engine:
                     valid_loss,
                     training_metric,
                     valid_metric,
+                    epoch_start_timestamps,
+                    self.optimizer.param_groups[0]['lr']
                 )
             
 
@@ -624,11 +628,9 @@ class Engine:
         logger.info('TRAIN_LIVER')
         if cp_path is None:
             cp_path = config.save["potential_checkpoint"]
-            logger.info(f"cp_path={cp_path}")
         
         set_seed()
         self.load_data()
-        self.data_status()
         self.exp_naming()
         
         #checkpoints save path
@@ -638,20 +640,23 @@ class Engine:
             os.makedirs(cp_dir)
         save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
         
-        logger.info(f"save_path={save_path}")
+        logger.info(f"check_points_save_path={save_path}")
         tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
         summary_writer = tracker.tb_logger()
         
         #if pretrained, will continue on previous checkpoints and previous ClearML task
         if pretrained:
             self.load_checkpoint(cp_path)
+            logger.info(f"previous_check_points_path={cp_path}")
             task = tracker.update_clearml_logger() 
             offset=task.get_last_iteration()+1
         else:
             task = tracker.new_clearml_logger() 
             offset=0  
-
+        
+        self.data_status()
         self.compile_status()
+
         
         #add all configs to ClearMl
         task.connect_configuration(config.__dict__,name="configs")
