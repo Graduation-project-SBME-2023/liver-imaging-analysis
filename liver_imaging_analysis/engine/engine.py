@@ -447,7 +447,7 @@ class Engine:
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
-        save_weight = False,
+        save_weight = True,
         save_path = config.save["potential_checkpoint"],
     ):
         """
@@ -553,8 +553,10 @@ class Engine:
         test_loss = 0
         test_metric = 0
         self.network.eval()
+        print('TESTING :')
         with torch.no_grad():
             for batch_num, batch in enumerate(dataloader):
+                progress_bar(batch_num + 1, len(dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
@@ -585,7 +587,7 @@ class Engine:
         epochs=config.training["epochs"],
         evaluate_epochs=1,
         batch_callback_epochs=None,
-        save_weight=False,
+        save_weight=True,
         test_batch_callback=False,
     ):
         """
@@ -668,7 +670,7 @@ class Engine:
             self.test_dataloader, callback=test_batch_callback
         )
         print(
-            "Initial test loss:", init_loss,
+            "\nInitial test loss:", init_loss,
         )
         self.fit(
             summary_writer=summary_writer ,

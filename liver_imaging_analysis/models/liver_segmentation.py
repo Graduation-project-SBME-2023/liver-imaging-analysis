@@ -101,7 +101,7 @@ class LiverSegmentation(Engine):
             if modality == "CT":
                 if inference in ["2D", "3D"]:
                     config.dataset["prediction"] = "test cases/volume/volume-64.nii"
-                    config.training["batch_size"] = 2
+                    config.training["batch_size"] = 8
                     config.training["scheduler_parameters"] = {
                         "step_size": 20,
                         "gamma": 0.5,
@@ -141,7 +141,7 @@ class LiverSegmentation(Engine):
                     config.network_parameters["bias"] = False
                     config.save["liver_checkpoint"] = "liver_cp_sliding_window"
                     config.transforms["sw_batch_size"] = 4
-                    config.transforms["roi_size"] = (32, 32, 32)
+                    config.transforms["roi_size"] = (96, 96, 64)
                     config.transforms["overlap"] = 0.25
                     config.transforms["train_transform"] = "3d_ct_transform"
                     config.transforms["test_transform"] = "3d_ct_transform"
