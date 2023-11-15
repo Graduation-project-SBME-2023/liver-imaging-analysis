@@ -17,6 +17,8 @@ from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
+from time import time
+
 from monai.handlers.utils import from_engine
 
 class Engine:
@@ -422,6 +424,7 @@ class Engine:
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
+            epoch_start_timestamps=time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -467,6 +470,8 @@ class Engine:
                     valid_loss,
                     training_metric,
                     valid_metric,
+                    epoch_start_timestamps,
+                    self.optimizer.param_groups[0]['lr']
                 )
 
 
@@ -495,8 +500,10 @@ class Engine:
         test_loss = 0
         test_metric = 0
         self.network.eval()
+        print('\nTESTING:')
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
+                progress_bar(batch_num + 1, len(dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])

@@ -46,6 +46,9 @@ from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
+from time import time
+
+
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
 
     
@@ -439,7 +442,9 @@ class LiverSegmentation(Engine):
             training_loss, 
             valid_loss, 
             training_metric, 
-            valid_metric
+            valid_metric,
+            epoch_start_timestamps,
+            current_learning_rate
             ):
         """
         Prints training and testing loss and metric,
@@ -461,11 +466,15 @@ class LiverSegmentation(Engine):
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("Loss_train", training_loss, epoch)
         summary_writer.add_scalar("Metric_train", training_metric, epoch)
+        summary_writer.add_scalar("epoch_duration[s]", time()-epoch_start_timestamps, epoch)
+        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
             summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
             summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
+   
+
             
 
 
@@ -688,7 +697,6 @@ def train_liver(
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
-        save_path = None,
         test_batch_callback = False,
         ):
     """
@@ -732,7 +740,6 @@ def train_liver(
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
-    model.data_status()
     model.exp_naming()
     
     #checkpoints save path
@@ -753,7 +760,8 @@ def train_liver(
     else:
         task = tracker.new_clearml_logger() 
         offset=0  
-
+    
+    model.data_status()
     model.compile_status()
     
     #add all configs to ClearMl
@@ -766,7 +774,7 @@ def train_liver(
         model.test_dataloader, callback=test_batch_callback
     )
     print(
-        "Initial test loss:", init_loss,
+        "\nInitial test loss:", init_loss,
     )
     model.fit(
         summary_writer=summary_writer ,
