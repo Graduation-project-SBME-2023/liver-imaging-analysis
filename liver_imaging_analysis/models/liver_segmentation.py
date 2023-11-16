@@ -106,7 +106,7 @@ class LiverSegmentation(Engine):
                 config.network_parameters['dropout'] = 0
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [8, 16, 32, 64]
+                config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
                 config.network_parameters['num_res_units'] =  0
                 config.network_parameters['norm'] = "INSTANCE"
