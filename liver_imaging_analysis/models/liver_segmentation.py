@@ -1,7 +1,6 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
-import optuna
 from liver_imaging_analysis.engine.transforms import MorphologicalClosingd
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
@@ -103,12 +102,12 @@ class LiverSegmentation(Engine):
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0
+                config.network_parameters['dropout'] = 0.5
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  0
+                config.network_parameters['num_res_units'] =  6
                 config.network_parameters['norm'] = "INSTANCE"
                 config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'liver_cp'
@@ -126,9 +125,9 @@ class LiverSegmentation(Engine):
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0
+                config.network_parameters['dropout'] = 0.5
                 config.network_parameters["out_channels"] = 1
-                config.network_parameters['channels'] = [8, 16, 32, 64]
+                config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['spatial_dims'] = 3
                 config.network_parameters['strides'] =  [2, 2, 2]
                 config.network_parameters['num_res_units'] =  1

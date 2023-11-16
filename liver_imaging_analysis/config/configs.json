@@ -22,7 +22,7 @@
         "dropout": 0.4
     },
     "training": {
-        "epochs": 1,
+        "epochs": 100,
         "batch_size": 12,
         "train_valid_split": 0,
         "optimizer": "Adam",
