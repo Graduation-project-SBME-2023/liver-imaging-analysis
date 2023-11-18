@@ -102,12 +102,12 @@ class LiverSegmentation(Engine):
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0.5
+                config.network_parameters['dropout'] = 0
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
+                config.network_parameters['num_res_units'] =  4
                 config.network_parameters['norm'] = "INSTANCE"
                 config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'liver_cp'
