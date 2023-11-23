@@ -105,7 +105,8 @@ class Engine:
                 parameters of network, if exist.
         """
         networks = {
-            "monai_2DUNet" : monai.networks.nets.UNet,
+            # "monai_2DUNet" : monai.networks.nets.UNet,
+            "monai_3dUNet++" : monai.networks.nets.BasicUNetPlusPlus,
         }
         return networks[network_name](**kwargs)
 
@@ -152,12 +153,8 @@ class Engine:
                 should be chosen from: '3DUNet','3DResNet','2DUNet'
         """
         hparams = {
-            "monai_2DUNet" :  {
+            "monai_3dUNet++" :  {
             "spatial_dims": config.network_parameters["spatial_dims"],
-            "num_res_units": config.network_parameters["num_res_units"],
-            "bias": config.network_parameters["bias"],
-            "norm": config.network_parameters["norm"],
-            "dropout": config.network_parameters["dropout"],
             "batch_size": config.training["batch_size"],
             "optimizer": config.training["optimizer"],
             "lr_scheduler": config.training["lr_scheduler"],
@@ -432,7 +429,8 @@ class Engine:
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
                 # Apply post processing transforms and calculate metrics
-                batch = self.post_process(batch)
+                batch[Keys.PRED] =[self.post_process(batch) for batch in batch[Keys.PRED]]
+                # batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
                 self.optimizer.zero_grad()

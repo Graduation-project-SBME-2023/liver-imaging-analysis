@@ -93,10 +93,12 @@ class LiverSegmentation(Engine):
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 8
-                config.device = "cuda"
-                config.dataset["training"] = "/content/Temp2D/Train"
-                config.dataset["testing"] = "/content/Temp2D/Test"
+                config.training['batch_size'] = 4
+                config.device = "cpu"
+                # config.dataset["training"] = "/content/Temp2D/Train"
+                # config.dataset["testing"] = "/content/Temp2D/Test"
+                config.dataset["training"] = "D:/liver-imaging-analysis/temp/test"
+                config.dataset["testing"] = "D:/liver-imaging-analysis/temp/test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -107,7 +109,7 @@ class LiverSegmentation(Engine):
                 config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
+                config.network_parameters['num_res_units'] =  0
                 config.network_parameters['norm'] = "INSTANCE"
                 config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'liver_cp'
@@ -116,23 +118,25 @@ class LiverSegmentation(Engine):
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.device = "cuda"
-                config.dataset["training"] = "/content/Temp2D/Train"
-                config.dataset["testing"] = "/content/Temp2D/Test"
+                config.device = "cpu"
+                # config.dataset["training"] = "/content/Temp2D/Train"
+                # config.dataset["testing"] = "/content/Temp2D/Test"
+                config.dataset["training"] = "D:/liver-imaging-analysis/temp/train"
+                config.dataset["testing"] = "D:/liver-imaging-analysis/temp/train"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0.5
-                config.network_parameters["out_channels"] = 1
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['spatial_dims'] = 3
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  1
-                config.network_parameters['norm'] = "BATCH"
-                config.network_parameters['bias'] = False
+                # config.network_parameters['dropout'] = 0.5
+                # config.network_parameters["out_channels"] = 1
+                # config.network_parameters['channels'] = [64, 128, 256, 512]
+                # config.network_parameters['spatial_dims'] = 3
+                # config.network_parameters['strides'] =  [2, 2, 2]
+                # config.network_parameters['num_res_units'] =  1
+                # config.network_parameters['norm'] = "BATCH"
+                # config.network_parameters['bias'] = False
                 config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
                 config.transforms['sw_batch_size'] = 4
                 config.transforms['roi_size'] = (96,96,64)

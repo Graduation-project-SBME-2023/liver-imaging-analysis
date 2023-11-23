@@ -38,8 +38,8 @@ class ExperimentTracking:
             api_host="https://api.clear.ml",
             web_host="https://app.clear.ml",
             files_host="https://files.clear.ml",
-            key="OWR4YS0HSZHYPPIZ85AE",
-            secret="tuOTEuVPv5UnaR4sE0VUJw8C77IugEWb7bbNYv9rN1PSOPykku",
+            key="8YCA72388IV3AT36EWGJ",
+            secret="C6LCwXiOxAX8xgKBffW3qUKybGEtGWXMtzfYr0xMgkBDVlMscl",
         )
         self.experiment_name, self.run_name = experiment_name, run_name
         self.task=None
