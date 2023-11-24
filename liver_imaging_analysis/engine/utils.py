@@ -19,7 +19,8 @@ import cv2
 from liver_imaging_analysis.engine.config import config
 
 from monai.transforms import AsDiscrete
-
+import logging
+logger = logging.getLogger(__name__)
 rc("animation", html = "html5")
 
 def concatenate_masks(mask1, mask2, volume):

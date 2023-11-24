@@ -24,6 +24,9 @@ from monai.transforms import (
     RemoveSmallObjectsD,
     FillHolesD,
     ScaleIntensityRanged,
+    RandCropByPosNegLabeld,
+    ResizeWithPadOrCropD,
+    SpatialPadD,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -41,9 +44,13 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
+import time
+import logging
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+dice_metric = DiceMetric(ignore_empty=True, include_background=True)
+logger = logging.getLogger(__name__)
     
 class LiverSegmentation(Engine):
     """
@@ -60,7 +67,7 @@ class LiverSegmentation(Engine):
             or "sliding_window" for sliding window inference.
             Default is "3D"
     """
-
+    logger.info('LiverSegmentation')
     def __init__(self, modality = 'CT', inference = '3D'):
         self.set_configs(modality, inference)
         super().__init__()
@@ -88,6 +95,9 @@ class LiverSegmentation(Engine):
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
+                config.device = "cuda"
+                config.dataset["training"] = "/content/liver_seg/Train"
+                config.dataset["testing"] = "/content/liver_seg/Test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -107,18 +117,21 @@ class LiverSegmentation(Engine):
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+                config.device = "cuda"
+                config.dataset["training"] = "/content/Temp2D/Train"
+                config.dataset["testing"] = "/content/Temp2D/Test"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0
+                config.network_parameters['dropout'] = 0.5
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['spatial_dims'] = 3
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
+                config.network_parameters['num_res_units'] =  1
                 config.network_parameters['norm'] = "BATCH"
                 config.network_parameters['bias'] = False
                 config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
@@ -142,7 +155,7 @@ class LiverSegmentation(Engine):
                 config.network_parameters['spatial_dims'] = 2
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  4
+                config.network_parameters['num_res_units'] =  6
                 config.network_parameters['norm'] = "INSTANCE"
                 config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'mri_cp'
@@ -178,6 +191,16 @@ class LiverSegmentation(Engine):
                         invert = True,
                         allow_missing_keys = True
                         ),
+                        RandCropByPosNegLabeld(
+                        Keys.all(),
+                        spatial_size = config.transforms['roi_size'], 
+                        label_key=Keys.LABEL, 
+                        pos=1.0, 
+                        neg=1.0, 
+                        num_samples=2, 
+                        allow_missing_keys = True,
+                       ),
+
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
@@ -373,7 +396,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name] 
 
 
-    def per_batch_callback(self, batch_num, image, label, prediction):
+    def per_batch_callback(self,summary_writer, batch_num, image, label, prediction):
         """
         Plots image, label and prediction into tensorboard,
         and prints the prediction dice score.
@@ -395,30 +418,33 @@ class LiverSegmentation(Engine):
             step = 0,
             writer = summary_writer,
             frame_dim = -1,
-            tag = f"Batch{batch_num}:Volume:dice_score:{dice_score}",
+            tag = f"Batches/Batch{batch_num}:Volume:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
             data = label,
             step = 0,
             writer = summary_writer,
             frame_dim = -1,
-            tag = f"Batch{batch_num}:Mask:dice_score:{dice_score}",
+            tag = f"Batches/Batch{batch_num}:Mask:dice_score:{dice_score}",
         )
         plot_2d_or_3d_image(
             data = prediction,
             step = 0,
             writer = summary_writer,
             frame_dim = -1,
-            tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
+            tag = f"Batches/Batch{batch_num}:Prediction:dice_score:{dice_score}",
         )
 
     def per_epoch_callback(
             self,
+            summary_writer,
             epoch, 
             training_loss, 
             valid_loss, 
             training_metric, 
-            valid_metric
+            valid_metric,
+            epoch_start_timestamps,
+            current_learning_rate
             ):
         """
         Prints training and testing loss and metric,
@@ -438,13 +464,22 @@ class LiverSegmentation(Engine):
         """
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
-        summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
-        summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        summary_writer.add_scalar("Loss_train", training_loss, epoch)
+        summary_writer.add_scalar("Metric_train", training_metric, epoch)
+        logger.debug(f"\nTraining Loss={training_loss}")
+        logger.debug(f"\nTraining Metric={training_metric}")
+        summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
+        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
-            summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
-            summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
+            summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
+            logger.debug(f"\nValidation Loss={valid_loss}")
+            logger.debug(f"\nValidation Metric={valid_metric}")
+   
+
+            
 
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
@@ -464,6 +499,9 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
+        prediction_time_per_epoch  = 0.0
+        start_inference_time = time.time()
+        logger.info('Predict_2dto3d')
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -487,6 +525,7 @@ class LiverSegmentation(Engine):
             volume_names = natsort.natsorted(os.listdir(temp_path))
             volume_paths = [os.path.join(temp_path, file_name) 
                             for file_name in volume_names]
+            logger.debug(f"volume_paths={volume_paths}")
             predict_files = [{Keys.IMAGE: image_name} 
                              for image_name in volume_paths]
             predict_set = Dataset(
@@ -501,9 +540,12 @@ class LiverSegmentation(Engine):
             )
             prediction_list = []
             for batch in predict_loader:
+                start_time = time.time()
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 prediction_list.append(batch[Keys.PRED])
+                prediction_time = time.time()-start_time
+                logger.info(f" prediction 2d time per batch :{prediction_time}")
             prediction_list = torch.cat(prediction_list, dim=0)
         batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
@@ -513,6 +555,9 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
+        logger.info(f"batch[Keys.PRED]={batch[Keys.PRED]}")
+        prediction_time_per_epoch   = time.time() - start_inference_time
+        logger.info(f" prediction 2d time over all :{prediction_time_per_epoch}")
         return batch[Keys.PRED]
 
 
@@ -528,6 +573,10 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
+        perdiction_time_per_epoch = 0.0
+        post_process_per_epoch = 0.0
+        start_inference_time = time.time()
+        logger.info('Predict_sliding_window')
         self.network.eval()
         with torch.no_grad():
             predict_files = [{Keys.IMAGE : volume_path}] 
@@ -545,6 +594,7 @@ class LiverSegmentation(Engine):
             for batch in predict_loader:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 # Predict by sliding window
+                start = time.time()
                 batch[Keys.PRED] = sliding_window_inference(
                                         batch[Keys.IMAGE], 
                                         config.transforms['roi_size'], 
@@ -553,9 +603,19 @@ class LiverSegmentation(Engine):
                                         config.transforms['overlap']
                                         )
                 # Apply post processing transforms
-                batch = self.post_process(batch)    
+                prediction_time = time.time()-start
+                logger.info(f" prediction 2d time per batch :{prediction_time}")
+                start_post_process = time.time()
+                batch = self.post_process(batch) 
+                end_post_process = time.time()- start_post_process  
+                post_process_per_epoch +=end_post_process
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
+            logger.info(f"prediction_list={prediction_list}")
+            perdiction_time_per_epoch = time.time()- start_inference_time
+            logger.info(f" inference post processing time  :{post_process_per_epoch}")
+            logger.info(f" prediction 2d time over all :{perdiction_time_per_epoch}")
+
         return prediction_list
 
 
@@ -578,6 +638,7 @@ class LiverSegmentation(Engine):
         float
             the averaged metric calculated during testing
         """
+        logger.info('Test_sliding_window')
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -650,10 +711,13 @@ def segment_liver(
     liver_model = LiverSegmentation(modality, inference)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
+        logger.debug(f"prediction_path={prediction_path}")
     if cp_path is None:
         cp_path = config.save["liver_checkpoint"]
+        logger.debug(f"cp_path={cp_path}")
     liver_model.load_checkpoint(cp_path)
     liver_prediction = liver_model.predict(prediction_path)
+    logger.info(f"liver_prediction={liver_prediction}")
     return liver_prediction
 
 
@@ -666,7 +730,6 @@ def train_liver(
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
-        save_path = None,
         test_batch_callback = False,
         ):
     """
@@ -705,51 +768,74 @@ def train_liver(
         Default is False
     """
     if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
-    if epochs is None:
-        epochs = config.training["epochs"]
-    if save_path is None:
-        save_path = config.save["potential_checkpoint"]
+            cp_path = config.save["potential_checkpoint"]
+    
     set_seed()
     model = LiverSegmentation(modality, inference)
+
+    start_load_time = time.time()
     model.load_data()
-    model.data_status()
+    end_load_time = time.time()-start_load_time
+    logger.info(f" time of loading data :{end_load_time}")
+    model.exp_naming()
+    
+    #checkpoints save path
+    cp_dir = os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'],"")
+    # Check if the directory exists and create it if not
+    if not os.path.exists(cp_dir):
+        os.makedirs(cp_dir)
+    save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
+
+    tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
+    summary_writer = tracker.tb_logger()
+    
+    #if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
+        task = tracker.update_clearml_logger() 
+        offset=task.get_last_iteration()+1
+    else:
+        task = tracker.new_clearml_logger() 
+        offset=0  
+    
+    model.data_status()
     model.compile_status()
+    
+    #add all configs to ClearMl
+    task.connect_configuration(config.__dict__,name="configs")
+    #add hyperparameters to ClearMl
+    hparams=model.get_hparams(config.network_name)  
+    summary_writer.add_hparams(hparams,metric_dict = {})
+
     init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+        model.test_dataloader, callback=test_batch_callback
+    )
     print(
-        "Initial test loss:", 
-        init_loss,
-        )
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
+        "\nInitial test loss:", init_loss,
+    )
     model.fit(
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
+        summary_writer=summary_writer ,
+        offset=offset,
+        epochs=epochs,
+        evaluate_epochs=evaluate_epochs,
+        batch_callback_epochs=batch_callback_epochs,
+        save_weight=save_weight,
+        save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
     final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+        model.test_dataloader, callback=test_batch_callback
+    )
     print(
-        "Final test loss:", 
-        final_loss,
-        )
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
-        )
+        "Final test loss:", final_loss,
+    )
+    
+    #upload tensorboard files and checkpoint files
+    ExperimentTracking.upload_to_drive() 
+    task.close()
+    summary_writer.close()
+
 
 
 
@@ -865,3 +951,4 @@ if __name__ == '__main__':
         nib.save(liver_volume, args.predict_path.split('.')[0] + '_liver.nii')
         print('Prediction saved at', args.predict_path.split('.')[0] + '_liver.nii')
     print("Run Complete")
+
