@@ -96,8 +96,6 @@ class LiverSegmentation(Engine):
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 8
                 config.device = "cuda"
-                config.dataset["training"] = "/content/liver_seg/Train"
-                config.dataset["testing"] = "/content/liver_seg/Test"
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
