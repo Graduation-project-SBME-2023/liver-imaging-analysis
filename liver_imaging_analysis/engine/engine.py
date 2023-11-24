@@ -4,7 +4,6 @@ a module contains the fixed structure of the core of our code
 """
 import os
 import random
-from logger import setup_logger
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
 import numpy as np
 import torch
@@ -29,7 +28,7 @@ class Engine:
 
     def __init__(self):
 
-        setup_logger()
+        
         logger.info("Initializing Engine")
 
         self.device = config.device

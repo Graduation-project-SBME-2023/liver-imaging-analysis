@@ -1,12 +1,14 @@
 """module for reading configuration from the json file."""
 
 import json
-
+from logger import setup_logger
 import logging
+setup_logger()
 logger = logging.getLogger(__name__)
 
 class Config:
     """class for reading configuration from the json file."""
+
 
     def __init__(self) -> None:
         """Init for the class."""
@@ -17,8 +19,6 @@ class Config:
             "liver_imaging_analysis/config/configs.json"
         ) as json_path:
             config_dict = json.load(json_path)
-
-            logger.debug("Loaded configuration: %s", config_dict)
 
         for key in config_dict:
 

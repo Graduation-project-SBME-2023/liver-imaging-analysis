@@ -1,22 +1,31 @@
+import os
 import logging
+import datetime
+
+run_identifier = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
 
 def setup_logger():
-    # Create a logger instance for the app
+    # Create a logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
-    # Create a file handler for app.log
-    file_handler = logging.FileHandler('logs/app.log')
-    file_handler.setLevel(logging.DEBUG)
 
-    # Create a formatter to specify the log message format
+
+    # Create a file handler to save the log output
+    if not os.path.exists("logs/"):
+        os.makedirs("logs/")
+    file_handler = logging.FileHandler(f'logs/app_{run_identifier}.log')
+
+    # Create a formatter and add it to the file handler
     formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] (%(filename)s:%(lineno)d) - %(message)s")
-
-
-    # Set the formatter for the file handler
     file_handler.setFormatter(formatter)
 
     # Add the file handler to the logger
     logger.addHandler(file_handler)
 
+    # Disable printing from the library
+    logging.getLogger("PIL.PngImagePlugin").propagate = False
+
+    # Stop printing from the library
+    logging.getLogger("PIL.PngImagePlugin").setLevel(logging.CRITICAL)
     return logger
