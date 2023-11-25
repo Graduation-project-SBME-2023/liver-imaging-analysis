@@ -427,10 +427,10 @@ class Engine:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
+                batch[Keys.PRED] = batch[Keys.PRED][0]
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
                 # Apply post processing transforms and calculate metrics
-                batch[Keys.PRED] =[self.post_process(batch) for batch in batch[Keys.PRED]]
-                # batch = self.post_process(batch)
+                batch = self.post_process(batch)
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
                 self.optimizer.zero_grad()
