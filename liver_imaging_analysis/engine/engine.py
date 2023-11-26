@@ -13,7 +13,8 @@ from liver_imaging_analysis.engine.config import config
 import monai
 
 from monai.data import Dataset, decollate_batch, DataLoader as MonaiLoader
-from monai.losses import DiceLoss as monaiDiceLoss
+from monai.losses import DiceLoss, DiceCELoss
+
 
 from torchmetrics import Accuracy
 from liver_imaging_analysis.engine.utils import progress_bar
@@ -23,7 +24,7 @@ from monai.transforms import Compose
 from monai.handlers.utils import from_engine
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 from torch.utils.tensorboard import SummaryWriter
-from time import time
+import time
 import logging
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,8 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "monai_dice": monaiDiceLoss,
+            "monai_dice": DiceLoss,
+            "monai_CE_dice": DiceCELoss
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -151,6 +153,7 @@ class Engine:
             "accuracy": Accuracy,
             "dice": DiceMetric,
             "jaccard": MeanIoU,
+            
         }
         return metrics[metrics_name](**kwargs)
     
@@ -449,6 +452,7 @@ class Engine:
         batch_callback_epochs = None,
         save_weight = True,
         save_path = config.save["potential_checkpoint"],
+        metric_epoch = 1,
     ):
         """
         train the model using the stored training set
@@ -469,15 +473,19 @@ class Engine:
             Directory to save best weights at. 
             Default is the potential path in config.
         """
+
+      
  
         for epoch in range(epochs):
+            post_process_time_per_epoch = 0.0
+            back_prop_time_per_epoch = 0.0
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             logger.debug(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
-            epoch_start_timestamps=time()
+            epoch_start_timestamps=time.time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -485,13 +493,23 @@ class Engine:
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
                 # Apply post processing transforms and calculate metrics
-                batch = self.post_process(batch)
-                self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                
+                if (epoch + 1) % metric_epoch == 0:
+                 pre_post_process_time = time.time()
+                 batch = self.post_process(batch)
+                 post_post_process_time = time.time() -pre_post_process_time
+                 post_process_time_per_epoch += post_post_process_time
+                # print(f"time of post processing per batch:{post_post_process_time}")
+                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
+                pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 training_loss += loss.item()
+                post_back_prop_time = time.time()-pre_back_prop_time
+                back_prop_time_per_epoch+=  post_back_prop_time
+                # print(f"time of backpropagation time per batch:{post_back_prop_time}")
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
@@ -501,34 +519,58 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
+            if (epoch + 1) % metric_epoch == 0:
+             print(f"time of post processing per epoch:{post_process_time_per_epoch}")
+            print(f"time of backpropagation time per epoch:{back_prop_time_per_epoch}")
+            # logger.info(f"\ntime of post processing per epoch:{post_process_time_per_epoch}")
+            # logger.info(f"time of backpropagation time per epoch:{back_prop_time_per_epoch}")
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)
             # aggregate batches metrics of current epoch
-            training_metric = self.metrics.aggregate().item()
+            if (epoch + 1) % metric_epoch == 0:
+                training_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
             # every evaluate_epochs, test model on test set
             if (epoch + 1) % evaluate_epochs == 0:
-                valid_loss, valid_metric = self.test(self.test_dataloader)
+                if (epoch + 1) % metric_epoch == 0:
+                    valid_loss, valid_metric = self.test(self.test_dataloader, epoch = epoch, metric_epoch= metric_epoch)
+                else:
+                    valid_loss = self.test(self.test_dataloader,  epoch = epoch, metric_epoch= metric_epoch)
+
             if save_weight:
                 self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
-            self.per_epoch_callback(
-                    summary_writer,
-                    epoch+offset,
-                    training_loss,
-                    valid_loss,
-                    training_metric,
-                    valid_metric,
-                    epoch_start_timestamps,
-                    self.optimizer.param_groups[0]['lr']
-                )
+
+            if (epoch + 1) % metric_epoch == 0:
+                self.per_epoch_callback(
+                        summary_writer,
+                        epoch+offset,
+                        training_loss,
+                        valid_loss,
+                        training_metric,
+                        valid_metric,
+                        epoch_start_timestamps,
+                        
+                        metric_epoch,
+                    )
+            else:
+                self.per_epoch_callback(
+                        summary_writer,
+                        epoch+offset,
+                        training_loss,
+                        valid_loss,
+                        training_metric,
+                        None,
+                        epoch_start_timestamps,
+                        metric_epoch ,
+                    )
             
 
-    def test(self, dataloader = None, callback = False):
+    def test(self, dataloader = None, callback = False, epoch = config.training["epochs"], metric_epoch =1):
         """
         calculates loss on input dataset
 
@@ -553,17 +595,20 @@ class Engine:
         test_loss = 0
         test_metric = 0
         self.network.eval()
-        print('TESTING :')
+        print('\nTESTING :')
         with torch.no_grad():
             for batch_num, batch in enumerate(dataloader):
                 progress_bar(batch_num + 1, len(dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
-                test_loss += self.loss(batch[Keys.PRED], batch[Keys.LABEL]).item()
+                loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
+                test_loss += loss.item()
                 # Apply post processing transforms on prediction
-                batch = self.post_process(batch)
-                self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                pre_post_process_prediction=batch[Keys.PRED]
+                if (epoch + 1) % metric_epoch == 0:
+                    batch = self.post_process(batch)
+                    self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
                     self.per_batch_callback(
                         batch_num,
@@ -573,10 +618,14 @@ class Engine:
                     )
             test_loss /= num_batches
             # aggregate the final metric result
-            test_metric = self.metrics.aggregate().item()
+            if (epoch + 1) % metric_epoch == 0:
+             test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
-        return test_loss, test_metric
+        if (epoch + 1) % metric_epoch == 0:
+            return test_loss, test_metric
+        else:
+            return test_loss
 
     def objective(
         self,
@@ -589,6 +638,7 @@ class Engine:
         batch_callback_epochs=None,
         save_weight=True,
         test_batch_callback=False,
+        metric_epoch = 1
     ):
         """
         Optimize the hyper-parameters of segmentation models.
@@ -667,7 +717,7 @@ class Engine:
         summary_writer.add_hparams(hparams,metric_dict = {})
 
         init_loss, init_metric = self.test(
-            self.test_dataloader, callback=test_batch_callback
+            self.test_dataloader, callback=test_batch_callback, metric_epoch= metric_epoch, epoch=1
         )
         print(
             "\nInitial test loss:", init_loss,
@@ -680,11 +730,12 @@ class Engine:
             batch_callback_epochs=batch_callback_epochs,
             save_weight=save_weight,
             save_path=save_path,
+            metric_epoch= metric_epoch
         )
         # Evaluate on latest saved check point
         self.load_checkpoint(save_path)
         final_loss, final_metric = self.test(
-            self.test_dataloader, callback=test_batch_callback
+            self.test_dataloader, callback=test_batch_callback, epoch= config.training["epochs"], metric_epoch= metric_epoch
         )
         print(
             "Final test loss:", final_loss,
