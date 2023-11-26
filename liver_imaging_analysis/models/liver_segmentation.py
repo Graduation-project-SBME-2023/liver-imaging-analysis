@@ -47,7 +47,7 @@ import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 import logging
-from time import time
+import time
 
 
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -101,18 +101,23 @@ class LiverSegmentation(Engine):
             if modality == "CT":
                 if inference in ["2D", "3D"]:
                     config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                    config.dataset["training"], config.dataset["testing"] = (
+                       "D:\Liver Segmentation Meena 2024\datatest_tiny\Train",
+                       "D:\Liver Segmentation Meena 2024\datatest_tiny\Test"
+
+                    )
                     config.training["batch_size"] = 8
                     config.training["scheduler_parameters"] = {
                         "step_size": 20,
                         "gamma": 0.5,
                         "verbose": False,
                     }
-                    config.network_parameters["dropout"] = 0
+                    config.network_parameters["dropout"] = 0.5
                     config.network_parameters["out_channels"] = 1
                     config.network_parameters["spatial_dims"] = 2
                     config.network_parameters["channels"] = [64, 128, 256, 512]
                     config.network_parameters["strides"] = [2, 2, 2]
-                    config.network_parameters["num_res_units"] = 4
+                    config.network_parameters["num_res_units"] = 6
                     config.network_parameters["norm"] = "INSTANCE"
                     config.network_parameters["bias"] = True
                     config.save["liver_checkpoint"] = "liver_cp"
@@ -214,7 +219,7 @@ class LiverSegmentation(Engine):
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(), 
-                        resize_size, 
+                        (256,256), 
                         mode=("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
@@ -319,11 +324,11 @@ class LiverSegmentation(Engine):
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
-                        Keys.all(),
-                        resize_size,
-                        mode = ("bilinear", "nearest", "nearest"),
-                        allow_missing_keys = True,
-                    ),
+                        Keys.all(), 
+                        (256,256), 
+                        mode=("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,
@@ -382,7 +387,19 @@ class LiverSegmentation(Engine):
                 ]
             ),
             '2d_ct_transform' : Compose(
-                [
+                [   
+                    ResizeD(
+                       Keys.PRED,
+                       (512, 512), 
+                        mode = ("nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    ResizeD(
+                        Keys.LABEL, 
+                        (512, 512), 
+                        mode = ("nearest"), 
+                        allow_missing_keys = True
+                        ),
                     ActivationsD(Keys.PRED,sigmoid = True),
                     AsDiscreteD(Keys.PRED,threshold = 0.5),
                     FillHolesD(Keys.PRED),
@@ -450,7 +467,7 @@ class LiverSegmentation(Engine):
             training_metric, 
             valid_metric,
             epoch_start_timestamps,
-            current_learning_rate
+            metric_epoch
             ):
         """
         Prints training and testing loss and metric,
@@ -469,20 +486,26 @@ class LiverSegmentation(Engine):
                 Metric calculated over the testing set.
         """
         print("\nTraining Loss=", training_loss)
-        print("Training Metric=", training_metric)
+        if (epoch + 1) % metric_epoch == 0:
+            print("Training Metric=", training_metric)
         summary_writer.add_scalar("Loss_train", training_loss, epoch)
-        summary_writer.add_scalar("Metric_train", training_metric, epoch)
+        if (epoch + 1) % metric_epoch == 0:
+            summary_writer.add_scalar("Metric_train", training_metric, epoch)
         logger.debug(f"\nTraining Loss={training_loss}")
-        logger.debug(f"\nTraining Metric={training_metric}")
-        summary_writer.add_scalar("epoch_duration[s]", time()-epoch_start_timestamps, epoch)
-        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
+        if (epoch + 1) % metric_epoch == 0:
+            logger.debug(f"\nTraining Metric={training_metric}")
+        summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
+        # summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
+            if (epoch + 1) % metric_epoch == 0:
+                print(f"Validation Metric={valid_metric}")
             summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
-            summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
+            if (epoch + 1) % metric_epoch == 0:
+                summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
             logger.debug(f"\nValidation Loss={valid_loss}")
-            logger.debug(f"\nValidation Metric={valid_metric}")
+            if (epoch + 1) % metric_epoch == 0:
+             logger.debug(f"\nValidation Metric={valid_metric}")
 
 
 
@@ -505,6 +528,8 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
+        prediction_time_per_epoch  = 0.0
+        start_inference_time = time.time()
         logger.info('Predict_2dto3d')
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
@@ -556,7 +581,10 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
-        logger.info(f"batch[Keys.PRED]={batch[Keys.PRED]}")
+        logger.info(f"\nbatch[Keys.PRED]={batch[Keys.PRED]}")
+        prediction_time_per_epoch   = time.time() - start_inference_time
+        print(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
+        # logger.info(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
         return batch[Keys.PRED]
 
 
@@ -714,12 +742,13 @@ def train_liver(
     modality="CT",
     inference="3D",
     pretrained=False,
-    cp_path=config.tune["check_point"],
+    cp_path=None,
     epochs=config.training["epochs"],
     evaluate_epochs=1,
     batch_callback_epochs=100,
     save_weight=True,
     test_batch_callback=False,
+    metric_epoch = 1,
 ):
 
     """
@@ -727,6 +756,7 @@ def train_liver(
     """
 
     set_seed()
+    Architecture = "Unet"
     model = LiverSegmentation(modality, inference)
     # Create an Optuna study
     study = optuna.create_study(direction="minimize")
@@ -741,6 +771,8 @@ def train_liver(
             batch_callback_epochs=batch_callback_epochs,
             save_weight=save_weight,
             test_batch_callback=test_batch_callback,
+            metric_epoch= metric_epoch
+            
             
         ),
         n_trials=trials,
@@ -750,6 +782,107 @@ def train_liver(
         print("Best params: ", study.best_params)
         print("Best value: ", study.best_value)
         print("Best Trial: ", study.best_trial)
+
+def train_livers(
+        modality = 'CT', 
+        inference = '3D', 
+        pretrained = True, 
+        cp_path = None,
+        epochs = None, 
+        evaluate_epochs = 1,
+        batch_callback_epochs = 100,
+        save_weight = True,
+        save_path = None,
+        test_batch_callback = False,
+        metric_epochs = 1
+        ):
+    """
+    Starts training of liver segmentation model.
+    modality : str
+        the type of imaging modality to be segmented.
+        expects 'CT' for CT images, or 'MRI' for MRI images.
+        Default is CT
+    inference : str
+        the type of inference to be used.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    pretrained : bool
+        if true, loads pretrained checkpoint. Default is True.
+    cp_path : str
+        determines the path of the checkpoint to be loaded 
+        if pretrained is true. If not defined, the potential 
+        cp path will be loaded from config.
+    epochs : int
+        number of training epochs.
+        If not defined, epochs will be loaded from config.
+    evaluate_epochs : int
+        The number of epochs to evaluate model after. Default is 1.
+    batch_callback_epochs : int
+        The frequency at which per_batch_callback will be called. 
+        Expects a number of epochs. Default is 100.
+    save_weight : bool
+        whether to save weights or not. Default is True.
+    save_path : str
+        the path to save weights at if save_weights is True.
+        If not defined, the potential cp path will be loaded 
+        from config.
+    test_batch_callback : bool
+        whether to call per_batch_callback during testing or not.
+        Default is False
+    """
+    if cp_path is None:
+        cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+    if save_path is None:
+        save_path = config.save["potential_checkpoint"]
+    set_seed()
+    model = LiverSegmentation(modality, inference)
+    model.load_data()
+    model.data_status()
+    if pretrained:
+        model.load_checkpoint(cp_path)
+    model.compile_status()
+    init_loss, init_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback,
+                                metric_epoch= metric_epochs,
+                                epoch= 1
+                                )
+    print(
+        "Initial test loss:", 
+        init_loss,
+        )
+    # print(
+    #     "\nInitial test metric:", 
+    #     init_metric.mean().item(),
+    #     )
+    model.fit(
+        epochs = epochs,
+        evaluate_epochs = evaluate_epochs,
+        batch_callback_epochs = batch_callback_epochs,
+        save_weight = save_weight,
+        save_path = save_path,
+        metric_epoch= metric_epochs,
+        
+    )
+    # Evaluate on latest saved check point
+    model.load_checkpoint(save_path)
+    final_loss, final_metric = model.test(
+                                model.test_dataloader, 
+                                callback = test_batch_callback,
+                                 metric_epoch= metric_epochs,
+                                epoch= epochs
+                                )
+    print(
+        "Final test loss:", 
+        final_loss,
+        )
+    print(
+        "\nFinal test metric:", 
+        final_metric.mean().item(),
+        )
 
 
 
