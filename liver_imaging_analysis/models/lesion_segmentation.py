@@ -1,3 +1,4 @@
+from logger import setup_logger
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -57,9 +58,14 @@ class LesionSegmentation(Engine):
             Expects "2D" for slice inference or "3D" for volume inference.
             Default is "3D"
     """
-    logger.info('LesionSegmentation')
 
     def __init__(self, inference = "3D"):
+        setup_logger(self.__class__.__name__ +'_' + inference)
+        
+        logger.info('LesionSegmentation')
+
+        logger.info("Loading configuration")
+
         self.set_configs()
         super().__init__()
         if inference == '3D':

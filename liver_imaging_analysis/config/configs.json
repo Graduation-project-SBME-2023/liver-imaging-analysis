@@ -1,5 +1,5 @@
 {
-    "device": "cuda",
+    "device": "cpu",
     "dataset": {
         "mode":"2D",
         "training": "Temp2D/Train/",

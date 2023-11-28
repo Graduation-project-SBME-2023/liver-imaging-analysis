@@ -2,19 +2,18 @@ import os
 import logging
 import datetime
 
-run_identifier = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
 
-def setup_logger():
+def setup_logger(name):
     # Create a logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
-
+    run_identifier = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")
 
     # Create a file handler to save the log output
     if not os.path.exists("logs/"):
         os.makedirs("logs/")
-    file_handler = logging.FileHandler(f'logs/app_{run_identifier}.log')
+    file_handler = logging.FileHandler(f'logs/app_{name}__{run_identifier}.log')
 
     # Create a formatter and add it to the file handler
     formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] (%(filename)s:%(lineno)d) - %(message)s")

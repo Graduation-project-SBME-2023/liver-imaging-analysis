@@ -1,3 +1,4 @@
+from logger import setup_logger
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -63,8 +64,13 @@ class LobeSegmentation(Engine):
             Expects "2D" for slice inference or "3D" for volume inference.
             Default is "2D"
     """
-    logger.info("LobeSegmentation")
     def __init__(self, inference = "sliding_window"):
+
+        setup_logger(self.__class__.__name__ +'_' + inference)
+
+        logger.info("LobeSegmentation")
+
+        logger.info("Loading configuration")
         self.set_configs(inference)
         super().__init__()
         if inference == '3D':
@@ -121,8 +127,8 @@ class LobeSegmentation(Engine):
             config.transforms["post_transform"] = "2d_transform"
         elif inference == 'sliding_window':
             config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-            config.dataset['training'] = "MedSeg_Lobes/Train/"
-            config.dataset['testing'] = "MedSeg_Lobes/Test/"
+            config.dataset['training'] = "Temp2D/Train/"
+            config.dataset['testing'] = "Temp2D/Test/"
             config.training['batch_size'] = 1
             config.training['optimizer_parameters'] = { "lr" : 0.01 }
             config.training['scheduler_parameters'] = {
