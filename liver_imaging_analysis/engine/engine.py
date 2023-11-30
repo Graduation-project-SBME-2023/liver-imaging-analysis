@@ -495,12 +495,11 @@ class Engine:
                 # Apply post processing transforms and calculate metrics
                 
                 if (epoch + 1) % metric_epoch == 0:
-                 pre_post_process_time = time.time()
-                 batch = self.post_process(batch)
-                 post_post_process_time = time.time() -pre_post_process_time
-                 post_process_time_per_epoch += post_post_process_time
-                # print(f"time of post processing per batch:{post_post_process_time}")
-                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                    pre_post_process_time = time.time()
+                    batch = self.post_process(batch)
+                    post_post_process_time = time.time() -pre_post_process_time
+                    post_process_time_per_epoch += post_post_process_time
+                    self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
                 pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
@@ -509,7 +508,6 @@ class Engine:
                 training_loss += loss.item()
                 post_back_prop_time = time.time()-pre_back_prop_time
                 back_prop_time_per_epoch+=  post_back_prop_time
-                # print(f"time of backpropagation time per batch:{post_back_prop_time}")
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
@@ -519,10 +517,9 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
-            if (epoch + 1) % metric_epoch == 0:
-             print(f"time of post processing per epoch:{post_process_time_per_epoch}")
-            print(f"time of backpropagation time per epoch:{back_prop_time_per_epoch}")
+            print(f"time of post processing per epoch:{post_process_time_per_epoch}")
             # logger.info(f"\ntime of post processing per epoch:{post_process_time_per_epoch}")
+            print(f"time of backpropagation time per epoch:{back_prop_time_per_epoch}")
             # logger.info(f"time of backpropagation time per epoch:{back_prop_time_per_epoch}")
             self.scheduler.step()
             # normalize loss over batch size
@@ -619,7 +616,7 @@ class Engine:
             test_loss /= num_batches
             # aggregate the final metric result
             if (epoch + 1) % metric_epoch == 0:
-             test_metric = self.metrics.aggregate().item()
+                test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
         if (epoch + 1) % metric_epoch == 0:

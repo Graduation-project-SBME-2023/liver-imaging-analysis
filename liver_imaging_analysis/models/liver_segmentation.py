@@ -872,7 +872,7 @@ def train_livers(
     final_loss, final_metric = model.test(
                                 model.test_dataloader, 
                                 callback = test_batch_callback,
-                                 metric_epoch= metric_epochs,
+                                metric_epoch= metric_epochs,
                                 epoch= epochs
                                 )
     print(
