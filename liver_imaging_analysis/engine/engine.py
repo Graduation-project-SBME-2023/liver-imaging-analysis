@@ -17,6 +17,8 @@ from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
+from time import time
+
 from monai.handlers.utils import from_engine
 
 class Engine:
@@ -140,6 +142,61 @@ class Engine:
             "jaccard" : MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
+    
+    def get_hparams(self, network_name):
+        """
+        used to return a hyperparameters dictionary specific to each network 
+        ----------
+            network_name: str
+                name of network to fetch from dictionary
+                should be chosen from: '3DUNet','3DResNet','2DUNet'
+        """
+        hparams = {
+            "monai_2DUNet" :  {
+            "spatial_dims": config.network_parameters["spatial_dims"],
+            "num_res_units": config.network_parameters["num_res_units"],
+            "bias": config.network_parameters["bias"],
+            "norm": config.network_parameters["norm"],
+            "dropout": config.network_parameters["dropout"],
+            "batch_size": config.training["batch_size"],
+            "optimizer": config.training["optimizer"],
+            "lr_scheduler": config.training["lr_scheduler"],
+            "loss_name": config.training["loss_name"],
+            "metrics": config.training["metrics"],
+            "shuffle": config.training["shuffle"]
+        }
+        }
+        return hparams[network_name]
+    
+    def Hash(self, text:str):
+        """
+        Calculate a hash value for the input text.
+
+        Parameters:
+        text (str): The input text.
+        Returns:
+        int: The calculated hash value as an integer.
+        """
+        hash=0
+        for ch in text:
+            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+        return hash
+
+    def exp_naming(self):
+        """
+        Names the experiment after network name,
+        and names the run based on hyperparameters used.
+
+        """
+
+        config.name['experiment_name']=config.network_name
+        run_name = ""
+        hparams=self.get_hparams(config.network_name)
+        for key, value in hparams.items():
+            run_name += f'{key}_{value}_'
+        print( f"Experimemnt name: {config.name['experiment_name']}")
+        config.name['run_name']=str(self.Hash(run_name))
+        print( f"Run ID: {config.name['run_name']}") 
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -333,6 +390,8 @@ class Engine:
 
     def fit(
         self,
+        summary_writer,
+        offset,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
@@ -358,12 +417,14 @@ class Engine:
             Directory to save best weights at. 
             Default is the potential path in config.
         """
+ 
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
+            epoch_start_timestamps=time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -381,6 +442,7 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
+                                summary_writer,
                                 batch_num,
                                 batch[Keys.IMAGE],
                                 batch[Keys.LABEL],
@@ -402,12 +464,16 @@ class Engine:
                 valid_loss = None
                 valid_metric = None
             self.per_epoch_callback(
-                    epoch,
+                    summary_writer,
+                    epoch+offset,
                     training_loss,
                     valid_loss,
                     training_metric,
                     valid_metric,
+                    epoch_start_timestamps,
+                    self.optimizer.param_groups[0]['lr']
                 )
+
 
     def test(self, dataloader = None, callback = False):
         """
@@ -434,8 +500,10 @@ class Engine:
         test_loss = 0
         test_metric = 0
         self.network.eval()
+        print('\nTESTING:')
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
+                progress_bar(batch_num + 1, len(dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])

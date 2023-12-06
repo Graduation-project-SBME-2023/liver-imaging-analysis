@@ -24,6 +24,9 @@ from monai.transforms import (
     RemoveSmallObjectsD,
     FillHolesD,
     ScaleIntensityRanged,
+    RandCropByPosNegLabeld,
+    ResizeWithPadOrCropD,
+    SpatialPadD,
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -41,9 +44,12 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
+from time import time
 
-summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric=DiceMetric(ignore_empty=True,include_background=True)
+
+dice_metric = DiceMetric(ignore_empty=True, include_background=True)
+
     
 class LiverSegmentation(Engine):
     """
@@ -118,7 +124,7 @@ class LiverSegmentation(Engine):
                 config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['spatial_dims'] = 3
                 config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
+                config.network_parameters['num_res_units'] =  4
                 config.network_parameters['norm'] = "BATCH"
                 config.network_parameters['bias'] = False
                 config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
@@ -373,7 +379,7 @@ class LiverSegmentation(Engine):
         return transforms[transform_name] 
 
 
-    def per_batch_callback(self, batch_num, image, label, prediction):
+    def per_batch_callback(self,summary_writer, batch_num, image, label, prediction):
         """
         Plots image, label and prediction into tensorboard,
         and prints the prediction dice score.
@@ -414,11 +420,14 @@ class LiverSegmentation(Engine):
 
     def per_epoch_callback(
             self,
+            summary_writer,
             epoch, 
             training_loss, 
             valid_loss, 
             training_metric, 
-            valid_metric
+            valid_metric,
+            epoch_start_timestamps,
+            current_learning_rate
             ):
         """
         Prints training and testing loss and metric,
@@ -438,13 +447,18 @@ class LiverSegmentation(Engine):
         """
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
-        summary_writer.add_scalar("\nTraining Loss", training_loss, epoch)
-        summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
+        summary_writer.add_scalar("Loss_train", training_loss, epoch)
+        summary_writer.add_scalar("Metric_train", training_metric, epoch)
+        summary_writer.add_scalar("epoch_duration[s]", time()-epoch_start_timestamps, epoch)
+        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
-            summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
-            summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
+            summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
+   
+
+            
 
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
@@ -666,7 +680,6 @@ def train_liver(
         evaluate_epochs = 1,
         batch_callback_epochs = 100,
         save_weight = True,
-        save_path = None,
         test_batch_callback = False,
         ):
     """
@@ -705,51 +718,69 @@ def train_liver(
         Default is False
     """
     if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
-    if epochs is None:
-        epochs = config.training["epochs"]
-    if save_path is None:
-        save_path = config.save["potential_checkpoint"]
+            cp_path = config.save["potential_checkpoint"]
+    
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
-    model.data_status()
+    model.exp_naming()
+    
+    #checkpoints save path
+    cp_dir = os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'],"")
+    # Check if the directory exists and create it if not
+    if not os.path.exists(cp_dir):
+        os.makedirs(cp_dir)
+    save_path = f"{cp_dir}/potential_checkpoint" 
+
+    tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
+    summary_writer = tracker.tb_logger()
+    
+    #if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
+        task = tracker.update_clearml_logger() 
+        offset=task.get_last_iteration()+1
+    else:
+        task = tracker.new_clearml_logger() 
+        offset=0  
+    
+    model.data_status()
     model.compile_status()
+    
+    #add all configs to ClearMl
+    task.connect_configuration(config.__dict__,name="configs")
+    #add hyperparameters to ClearMl
+    hparams=model.get_hparams(config.network_name)  
+    summary_writer.add_hparams(hparams,metric_dict = {})
+
     init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+        model.test_dataloader, callback=test_batch_callback
+    )
     print(
-        "Initial test loss:", 
-        init_loss,
-        )
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
+        "\nInitial test loss:", init_loss,
+    )
     model.fit(
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
+        summary_writer=summary_writer ,
+        offset=offset,
+        epochs=epochs,
+        evaluate_epochs=evaluate_epochs,
+        batch_callback_epochs=batch_callback_epochs,
+        save_weight=save_weight,
+        save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
     final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+        model.test_dataloader, callback=test_batch_callback
+    )
     print(
-        "Final test loss:", 
-        final_loss,
-        )
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
-        )
+        "Final test loss:", final_loss,
+    )
+    
+    #upload tensorboard files and checkpoint files
+    task.close()
+    summary_writer.close()
+
 
 
 
