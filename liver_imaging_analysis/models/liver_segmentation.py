@@ -184,6 +184,15 @@ class LiverSegmentation(Engine):
                         invert = True,
                         allow_missing_keys = True
                         ),
+                    RandCropByPosNegLabeld(
+                        Keys.all(),
+                        spatial_size = config.transforms['roi_size'], 
+                        label_key=Keys.LABEL, 
+                        pos=1.0, 
+                        neg=1.0, 
+                        num_samples=2, 
+                        allow_missing_keys = True,
+                        ),
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
