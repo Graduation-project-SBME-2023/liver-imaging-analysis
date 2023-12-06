@@ -1,6 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
+import optuna
 from liver_imaging_analysis.engine.transforms import MorphologicalClosingd
 from monai.inferers import sliding_window_inference
 from monai.transforms import (
@@ -45,11 +46,11 @@ from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
-import time
 import logging
+import time
 
-summary_writer = SummaryWriter(config.save["tensorboard"])
-dice_metric = DiceMetric(ignore_empty=True, include_background=True)
+
+dice_metric=DiceMetric(ignore_empty=True,include_background=True)
 logger = logging.getLogger(__name__)
     
 class LiverSegmentation(Engine):
@@ -68,8 +69,9 @@ class LiverSegmentation(Engine):
             Default is "3D"
     """
     logger.info('LiverSegmentation')
-    def __init__(self, modality = 'CT', inference = '3D'):
-        self.set_configs(modality, inference)
+
+    def __init__(self, modality="CT", inference="3D", Architecture="Unet"):
+        self.set_configs(modality, inference, Architecture)
         super().__init__()
         if inference == '3D':
             self.predict = self.predict_2dto3d
@@ -77,7 +79,7 @@ class LiverSegmentation(Engine):
             self.predict = self.predict_sliding_window
             self.test = self.test_sliding_window
 
-    def set_configs(self, modality, inference):
+    def set_configs(self, modality, inference, Architecture):
         """
         Sets new values for config parameters.
 
@@ -90,78 +92,87 @@ class LiverSegmentation(Engine):
                 Expects "2D" for slice inference, "3D" for volume inference,
                 or "sliding_window" for sliding window inference.
         """
-        
-        if modality == 'CT':
-            if inference in ['2D', '3D']:
-                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 8
-                config.device = "cuda"
-                config.training['scheduler_parameters'] = {
-                                                            "step_size" : 20,
-                                                            "gamma" : 0.5, 
-                                                            "verbose" : False
-                                                            }
-                config.network_parameters['dropout'] = 0
-                config.network_parameters["out_channels"] = 1
-                config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  4
-                config.network_parameters['norm'] = "INSTANCE"
-                config.network_parameters['bias'] = True
-                config.save['liver_checkpoint'] = 'liver_cp'
-                config.transforms['train_transform'] = "2d_ct_transform"
-                config.transforms['test_transform'] = "2d_ct_transform"
-                config.transforms['post_transform'] = "2d_ct_transform"
-            elif inference == 'sliding_window':
-                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.device = "cuda"
-                config.dataset["training"] = "/content/Temp2D/Train"
-                config.dataset["testing"] = "/content/Temp2D/Test"
-                config.training['batch_size'] = 1
-                config.training['scheduler_parameters'] = {
-                                                            "step_size" : 20,
-                                                            "gamma" : 0.5, 
-                                                            "verbose" : False
-                                                            }
-                config.network_parameters['dropout'] = 0.5
-                config.network_parameters["out_channels"] = 1
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['spatial_dims'] = 3
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  1
-                config.network_parameters['norm'] = "BATCH"
-                config.network_parameters['bias'] = False
-                config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
-                config.transforms['sw_batch_size'] = 4
-                config.transforms['roi_size'] = (96,96,64)
-                config.transforms['overlap'] = 0.25
-                config.transforms['train_transform'] = "3d_ct_transform"
-                config.transforms['test_transform'] = "3d_ct_transform"
-                config.transforms['post_transform'] = "3d_ct_transform"
-        elif modality == 'MRI':
-            if inference in ['2D', '3D']:
-                config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 12
-                config.training['scheduler_parameters'] = {
-                                                            "step_size" : 20,
-                                                            "gamma" : 0.5, 
-                                                            "verbose" : True
-                                                            }
-                config.network_parameters['dropout'] = 0.35
-                config.network_parameters["out_channels"] = 1
-                config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
-                config.network_parameters['norm'] = "INSTANCE"
-                config.network_parameters['bias'] = True
-                config.save['liver_checkpoint'] = 'mri_cp'
-                config.transforms['train_transform'] = "2d_mri_transform"
-                config.transforms['test_transform'] = "2d_mri_transform"
-                config.transforms['post_transform'] = "2d_mri_transform"
+        if Architecture == "RESNET":
+            config.network_parameters["spatial_dims"] = 3
+            config.network_parameters["init_filters"] = 8
+            config.training["batch_size"] = 1
+            config.network_name = "monai_ResNet"
+        elif Architecture == "Unet":
+            if modality == "CT":
+                if inference in ["2D", "3D"]:
+                    config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                    config.dataset["training"], config.dataset["testing"] = (
+                       "/content/liver_seg/Train",
+                       "/content/liver_seg/Test"
 
-    
+                    )
+                    config.training["batch_size"] = 8
+                    config.training["scheduler_parameters"] = {
+                        "step_size": 20,
+                        "gamma": 0.5,
+                        "verbose": False,
+                    }
+                    config.network_parameters["dropout"] = 0.5
+                    config.network_parameters["out_channels"] = 1
+                    config.network_parameters["spatial_dims"] = 2
+                    config.network_parameters["channels"] = [64, 128, 256, 512]
+                    config.network_parameters["strides"] = [2, 2, 2]
+                    config.network_parameters["num_res_units"] = 4
+                    config.network_parameters["norm"] = "INSTANCE"
+                    config.network_parameters["bias"] = True
+                    config.save["liver_checkpoint"] = "liver_cp"
+                    config.transforms["train_transform"] = "2d_ct_transform"
+                    config.transforms["test_transform"] = "2d_ct_transform"
+                    config.transforms["post_transform"] = "2d_ct_transform"
+                elif inference == "sliding_window":
+                    config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                    config.dataset["training"], config.dataset["testing"] = (
+                        "/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/Data/LITS/Train/",
+                        "/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/Data/LITS/Test/",
+                    )
+                    config.training["batch_size"] = 1
+                    config.training["scheduler_parameters"] = {
+                        "step_size": 20,
+                        "gamma": 0.5,
+                        "verbose": False,
+                    }
+                    config.network_parameters["dropout"] = 0
+                    config.network_parameters["out_channels"] = 1
+                    config.network_parameters["channels"] = [64, 128, 256, 512]
+                    config.network_parameters["strides"] = [2, 2, 2]
+                    config.network_parameters["num_res_units"] = 6
+                    config.network_parameters["spatial_dims"] = 3
+                    config.network_parameters["norm"] = "BATCH"
+                    config.network_parameters["bias"] = False
+                    config.save["liver_checkpoint"] = "liver_cp_sliding_window"
+                    config.transforms["sw_batch_size"] = 4
+                    config.transforms["roi_size"] = (96, 96, 64)
+                    config.transforms["overlap"] = 0.25
+                    config.transforms["train_transform"] = "3d_ct_transform"
+                    config.transforms["test_transform"] = "3d_ct_transform"
+                    config.transforms["post_transform"] = "3d_ct_transform"
+            elif modality == "MRI":
+                if inference in ["2D", "3D"]:
+                    config.dataset["prediction"] = "test cases/volume/volume-64.nii"
+                    config.training["batch_size"] = 12
+                    config.training["scheduler_parameters"] = {
+                        "step_size": 20,
+                        "gamma": 0.5,
+                        "verbose": True,
+                    }
+                    config.network_parameters["dropout"] = 0.35
+                    config.network_parameters["out_channels"] = 1
+                    config.network_parameters["spatial_dims"] = 2
+                    config.network_parameters["channels"] = [64, 128, 256, 512]
+                    config.network_parameters["strides"] = [2, 2, 2]
+                    config.network_parameters["num_res_units"] = 6
+                    config.network_parameters["norm"] = "INSTANCE"
+                    config.network_parameters["bias"] = True
+                    config.save["liver_checkpoint"] = "mri_cp"
+                    config.transforms["train_transform"] = "2d_mri_transform"
+                    config.transforms["test_transform"] = "2d_mri_transform"
+                    config.transforms["post_transform"] = "2d_mri_transform"
+
     def get_pretraining_transforms(self, transform_name):
         """
         Gets a stack of preprocessing transforms to be used on the training data.
@@ -175,6 +186,7 @@ class LiverSegmentation(Engine):
                 Stack of selected transforms.
         """
 
+        
         resize_size = config.transforms["transformation_size"]
         transforms = {
             "3d_ct_transform" : Compose(
@@ -208,7 +220,7 @@ class LiverSegmentation(Engine):
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
                         Keys.all(), 
-                        resize_size, 
+                        resize_size,
                         mode=("bilinear", "nearest", "nearest"), 
                         allow_missing_keys = True
                         ),
@@ -292,6 +304,8 @@ class LiverSegmentation(Engine):
                 Stack of selected transforms.
         """
 
+        
+        
         resize_size = config.transforms["transformation_size"]
         transforms = {
             "3d_ct_transform" : Compose(
@@ -313,11 +327,11 @@ class LiverSegmentation(Engine):
                     LoadImageD(Keys.all(), allow_missing_keys = True),
                     EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
                     ResizeD(
-                        Keys.all(),
+                        Keys.all(), 
                         resize_size,
-                        mode = ("bilinear", "nearest", "nearest"),
-                        allow_missing_keys = True,
-                    ),
+                        mode=("bilinear", "nearest", "nearest"), 
+                        allow_missing_keys = True
+                        ),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
                         Keys.LABEL,
@@ -349,6 +363,7 @@ class LiverSegmentation(Engine):
                 ]
             ),
         }
+        
         return transforms[transform_name]
 
 
@@ -364,7 +379,7 @@ class LiverSegmentation(Engine):
             Compose
                 Stack of selected transforms.
         """
-
+        resize_size = config.transforms["transformation_size"]
         transforms= {
             '3d_ct_transform' : Compose(
                 [
@@ -375,11 +390,24 @@ class LiverSegmentation(Engine):
                 ]
             ),
             '2d_ct_transform' : Compose(
-                [
+                [   
+                    ResizeD(
+                       Keys.PRED,
+                        resize_size,
+                        mode = ("nearest"), 
+                        allow_missing_keys = True
+                        ),
+                    ResizeD(
+                        Keys.LABEL, 
+                        resize_size,
+                        mode = ("nearest"), 
+                        allow_missing_keys = True
+                        ),
                     ActivationsD(Keys.PRED,sigmoid = True),
                     AsDiscreteD(Keys.PRED,threshold = 0.5),
                     FillHolesD(Keys.PRED),
                     KeepLargestConnectedComponentD(Keys.PRED),
+                    # ResizeD(keys=[Keys.IMAGE, Keys.LABEL], spatial_size=(32, 32, 32), allow_missing_keys=True),
                 ]
             ),
             '2d_mri_transform': Compose(
@@ -442,7 +470,7 @@ class LiverSegmentation(Engine):
             training_metric, 
             valid_metric,
             epoch_start_timestamps,
-            current_learning_rate
+            metric_epoch
             ):
         """
         Prints training and testing loss and metric,
@@ -461,23 +489,29 @@ class LiverSegmentation(Engine):
                 Metric calculated over the testing set.
         """
         print("\nTraining Loss=", training_loss)
-        print("Training Metric=", training_metric)
+        if (epoch + 1) % metric_epoch == 0:
+            print("Training Metric=", training_metric)
         summary_writer.add_scalar("Loss_train", training_loss, epoch)
-        summary_writer.add_scalar("Metric_train", training_metric, epoch)
+        if (epoch + 1) % metric_epoch == 0:
+            summary_writer.add_scalar("Metric_train", training_metric, epoch)
         logger.debug(f"\nTraining Loss={training_loss}")
-        logger.debug(f"\nTraining Metric={training_metric}")
+        if (epoch + 1) % metric_epoch == 0:
+            logger.debug(f"\nTraining Metric={training_metric}")
         summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
-        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
+        # summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
+            if (epoch + 1) % metric_epoch == 0:
+                print(f"Validation Metric={valid_metric}")
             summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
-            summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
+            if (epoch + 1) % metric_epoch == 0:
+                summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
             logger.debug(f"\nValidation Loss={valid_loss}")
-            logger.debug(f"\nValidation Metric={valid_metric}")
-   
+            if (epoch + 1) % metric_epoch == 0:
+             logger.debug(f"\nValidation Metric={valid_metric}")
 
-            
+
+
 
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
@@ -538,12 +572,9 @@ class LiverSegmentation(Engine):
             )
             prediction_list = []
             for batch in predict_loader:
-                start_time = time.time()
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 prediction_list.append(batch[Keys.PRED])
-                prediction_time = time.time()-start_time
-                logger.info(f" prediction 2d time per batch :{prediction_time}")
             prediction_list = torch.cat(prediction_list, dim=0)
         batch = {Keys.PRED : prediction_list}
         # Transform shape from (batch,channel,length,width) 
@@ -553,9 +584,10 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
-        logger.info(f"batch[Keys.PRED]={batch[Keys.PRED]}")
+        logger.info(f"\nbatch[Keys.PRED]={batch[Keys.PRED]}")
         prediction_time_per_epoch   = time.time() - start_inference_time
-        logger.info(f" prediction 2d time over all :{prediction_time_per_epoch}")
+        print(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
+        logger.info(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
         return batch[Keys.PRED]
 
 
@@ -571,9 +603,6 @@ class LiverSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
-        perdiction_time_per_epoch = 0.0
-        post_process_per_epoch = 0.0
-        start_inference_time = time.time()
         logger.info('Predict_sliding_window')
         self.network.eval()
         with torch.no_grad():
@@ -592,7 +621,6 @@ class LiverSegmentation(Engine):
             for batch in predict_loader:
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 # Predict by sliding window
-                start = time.time()
                 batch[Keys.PRED] = sliding_window_inference(
                                         batch[Keys.IMAGE], 
                                         config.transforms['roi_size'], 
@@ -601,19 +629,10 @@ class LiverSegmentation(Engine):
                                         config.transforms['overlap']
                                         )
                 # Apply post processing transforms
-                prediction_time = time.time()-start
-                logger.info(f" prediction 2d time per batch :{prediction_time}")
-                start_post_process = time.time()
-                batch = self.post_process(batch) 
-                end_post_process = time.time()- start_post_process  
-                post_process_per_epoch +=end_post_process
+                batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
             logger.info(f"prediction_list={prediction_list}")
-            perdiction_time_per_epoch = time.time()- start_inference_time
-            logger.info(f" inference post processing time  :{post_process_per_epoch}")
-            logger.info(f" prediction 2d time over all :{perdiction_time_per_epoch}")
-
         return prediction_list
 
 
@@ -676,12 +695,14 @@ class LiverSegmentation(Engine):
         return test_loss, test_metric
         
 
+
 def segment_liver(
-        prediction_path = None, 
-        modality = 'CT', 
-        inference = '3D', 
-        cp_path = None
-        ):
+    prediction_path=None,
+    modality="CT",
+    inference="3D",
+    cp_path=None,
+    Architecture="RESNET",
+):
     """
     Segments the liver from an abdominal scan.
 
@@ -706,7 +727,7 @@ def segment_liver(
     ----------
         tensor : predicted liver segmentation
     """
-    liver_model = LiverSegmentation(modality, inference)
+    liver_model = LiverSegmentation(modality, inference, Architecture)
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
         logger.debug(f"prediction_path={prediction_path}")
@@ -726,9 +747,11 @@ def train_liver(
         cp_path = None,
         epochs = None, 
         evaluate_epochs = 1,
-        batch_callback_epochs = 100,
+        batch_callback_epochs = 1,
         save_weight = True,
+        save_path = None,
         test_batch_callback = False,
+        metric_epochs = 1
         ):
     """
     Starts training of liver segmentation model.
@@ -765,16 +788,16 @@ def train_liver(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
+
     if cp_path is None:
-            cp_path = config.save["potential_checkpoint"]
-    
+        cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+    if save_path is None:
+        save_path = config.save["potential_checkpoint"]
     set_seed()
     model = LiverSegmentation(modality, inference)
-
-    start_load_time = time.time()
     model.load_data()
-    end_load_time = time.time()-start_load_time
-    logger.info(f" time of loading data :{end_load_time}")
     model.exp_naming()
     
     #checkpoints save path
@@ -806,33 +829,48 @@ def train_liver(
     summary_writer.add_hparams(hparams,metric_dict = {})
 
     init_loss, init_metric = model.test(
-        model.test_dataloader, callback=test_batch_callback
-    )
+                                model.test_dataloader, 
+                                callback = test_batch_callback,
+                                metric_epoch= metric_epochs,
+                                epoch= 1
+                                )
     print(
-        "\nInitial test loss:", init_loss,
-    )
+        "Initial test loss:", 
+        init_loss,
+        )
+    # print(
+    #     "\nInitial test metric:", 
+    #     init_metric.mean().item(),
+    #     )
     model.fit(
         summary_writer=summary_writer ,
         offset=offset,
-        epochs=epochs,
-        evaluate_epochs=evaluate_epochs,
-        batch_callback_epochs=batch_callback_epochs,
-        save_weight=save_weight,
-        save_path=save_path,
+        epochs = epochs,
+        evaluate_epochs = evaluate_epochs,
+        batch_callback_epochs = batch_callback_epochs,
+        save_weight = save_weight,
+        save_path = save_path,
+        metric_epoch= metric_epochs,
+        
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
     final_loss, final_metric = model.test(
-        model.test_dataloader, callback=test_batch_callback
-    )
+                                model.test_dataloader, 
+                                callback = test_batch_callback,
+                                 metric_epoch= metric_epochs,
+                                epoch= epochs
+                                )
     print(
-        "Final test loss:", final_loss,
-    )
-    
-    #upload tensorboard files and checkpoint files
-    ExperimentTracking.upload_to_drive() 
-    task.close()
-    summary_writer.close()
+        "Final test loss:", 
+        final_loss,
+        )
+    # print(
+    #     "\nFinal test metric:", 
+    #     final_metric.mean().item(),
+    #     )
+
+
 
 
 
@@ -896,7 +934,9 @@ if __name__ == '__main__':
                 help = 'predicts the volume at the provided path (default: prediction config path)'
                 )
     args = parser.parse_args()
-    LiverSegmentation(args.modality, args.inference) # to set configs
+    LiverSegmentation(
+        args.modality, args.inference, args.Architecture
+    )  # to set configs
     if args.predict_path is None:
         args.predict_path = config.dataset['prediction']
     if args.cp_path is None:
@@ -917,20 +957,15 @@ if __name__ == '__main__':
             test_batch_callback = args.test_callback,
             )
     if args.test:
-        model = LiverSegmentation(args.modality, args.inference)
-        model.load_data() #dataset should be located at the config path
-        loss, metric = model.test(
-                                    model.test_dataloader, 
-                                    callback = args.test_callback
-                                    )
+        model = LiverSegmentation(args.modality, args.inference, args.Architecture)
+        model.load_data()  # dataset should be located at the config path
+        loss, metric = model.test(model.test_dataloader, callback=args.test_callback)
         print(
-            "test loss:", 
-            loss,
-            )
+            "test loss:", loss,
+        )
         print(
-            "\ntest metric:", 
-            metric.mean().item(),
-            )
+            "\ntest metric:", metric.mean().item(),
+        )
     if args.predict:
         prediction = segment_liver(
                         args.predict_path, 
@@ -942,11 +977,8 @@ if __name__ == '__main__':
         original_header = nib.load(args.predict_path).header
         original_affine = nib.load(args.predict_path).affine
         liver_volume = nib.Nifti1Image(
-                            prediction[0,0].cpu(), 
-                            affine = original_affine, 
-                            header = original_header
-                            )
-        nib.save(liver_volume, args.predict_path.split('.')[0] + '_liver.nii')
-        print('Prediction saved at', args.predict_path.split('.')[0] + '_liver.nii')
+            prediction[0, 0].cpu(), affine=original_affine, header=original_header
+        )
+        nib.save(liver_volume, args.predict_path.split(".")[0] + "_liver.nii")
+        print("Prediction saved at", args.predict_path.split(".")[0] + "_liver.nii")
     print("Run Complete")
-
