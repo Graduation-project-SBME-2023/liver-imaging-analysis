@@ -787,6 +787,7 @@ def train_liver(
     )
     
     #upload tensorboard files and checkpoint files
+    ExperimentTracking.upload_to_drive() 
     task.close()
     summary_writer.close()
 
