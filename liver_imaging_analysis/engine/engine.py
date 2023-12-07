@@ -17,7 +17,7 @@ from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
-from time import time
+import time
 
 from monai.handlers.utils import from_engine
 
@@ -419,12 +419,13 @@ class Engine:
         """
  
         for epoch in range(epochs):
+            pre_train = time.time()
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
-            epoch_start_timestamps=time()
+            epoch_start_timestamps=time.time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -432,13 +433,18 @@ class Engine:
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
                 # Apply post processing transforms and calculate metrics
+                pre_post_process_time = time.time()
                 batch = self.post_process(batch)
+                post_post_process_time = time.time() -pre_post_process_time
+                post_process_time_per_epoch += post_post_process_time
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
+                pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
-                self.optimizer.step()
                 training_loss += loss.item()
+                post_back_prop_time = time.time()-pre_back_prop_time
+                back_prop_time_per_epoch+=  post_back_prop_time
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
@@ -448,6 +454,8 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
+            print(f"time of post processing per epoch in training:{post_process_time_per_epoch}")
+            print(f"time of backpropagation time per epoch in training:{back_prop_time_per_epoch}")
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)  
@@ -473,7 +481,8 @@ class Engine:
                     epoch_start_timestamps,
                     self.optimizer.param_groups[0]['lr']
                 )
-
+            post_train = time.time() - pre_train
+            print(f"time of training per epoch {post_train}")
 
     def test(self, dataloader = None, callback = False):
         """
@@ -512,7 +521,10 @@ class Engine:
                     batch[Keys.LABEL]
                     ).item()
                 #Apply post processing transforms on prediction
+                pre_post_processing = time.time()
                 batch = self.post_process(batch)
+                post_post_processing = time.time()-pre_post_processing
+                post_processing_time += post_post_processing
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
                   self.per_batch_callback(
@@ -521,6 +533,8 @@ class Engine:
                       batch[Keys.LABEL],
                       batch[Keys.PRED]
                       )
+            print(f"post procesing time in validation {post_processing_time}")
+
             test_loss /= num_batches
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()

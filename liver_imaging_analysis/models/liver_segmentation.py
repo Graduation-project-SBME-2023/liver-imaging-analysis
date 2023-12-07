@@ -45,7 +45,7 @@ from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
-from time import time
+import time
 
 
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
@@ -458,7 +458,7 @@ class LiverSegmentation(Engine):
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("Loss_train", training_loss, epoch)
         summary_writer.add_scalar("Metric_train", training_metric, epoch)
-        summary_writer.add_scalar("epoch_duration[s]", time()-epoch_start_timestamps, epoch)
+        summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
         summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
@@ -487,6 +487,7 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
+        start_inference_time = time.time()
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -536,6 +537,8 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
+        prediction_time_per_epoch   = time.time() - start_inference_time
+        print(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
         return batch[Keys.PRED]
 
 
