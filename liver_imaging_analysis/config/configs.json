@@ -30,9 +30,10 @@
         "lr_scheduler": "StepLR",
         "scheduler_parameters": {"step_size": 20, "gamma": 0.5, "verbose": 1},
         "loss_name": "monai_dice",
-        "loss_parameters": {"sigmoid": "1", "batch": 1, "include_background": 1},
-        "metrics": "dice",
-        "metrics_parameters": {"ignore_empty": 1, "include_background": 1},
+        "loss_parameters": {"sigmoid":"1","batch":1,"include_background":1},
+        "metrics":"dice",
+        "metrics_parameters":{"ignore_empty":1,"include_background":1},
+
         "shuffle": 1
     },
     "transforms": {
