@@ -442,9 +442,9 @@ class Engine:
                 pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
-                training_loss += loss.item()
                 post_back_prop_time = time.time()-pre_back_prop_time
                 back_prop_time_per_epoch+=  post_back_prop_time
+                training_loss += loss.item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
