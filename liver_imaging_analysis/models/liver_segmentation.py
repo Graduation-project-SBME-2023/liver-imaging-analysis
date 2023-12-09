@@ -418,7 +418,8 @@ class LiverSegmentation(Engine):
             training_loss, 
             valid_loss, 
             training_metric, 
-            valid_metric
+            valid_metric,
+            metric_epoch,
             ):
         """
         Prints training and testing loss and metric,
@@ -442,9 +443,10 @@ class LiverSegmentation(Engine):
         summary_writer.add_scalar("\nTraining Metric", training_metric, epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
-            print(f"Validation Metric={valid_metric}")
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
-            summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
+            if (epoch + 1) % metric_epoch == 0:
+                print(f"Validation Metric={valid_metric}")
+                summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
@@ -668,6 +670,7 @@ def train_liver(
         save_weight = True,
         save_path = None,
         test_batch_callback = False,
+        metric_epoch =1
         ):
     """
     Starts training of liver segmentation model.
@@ -717,7 +720,7 @@ def train_liver(
     if pretrained:
         model.load_checkpoint(cp_path)
     model.compile_status()
-    init_loss, init_metric = model.test(
+    init_loss = model.test(
                                 model.test_dataloader, 
                                 callback = test_batch_callback
                                 )
@@ -725,30 +728,23 @@ def train_liver(
         "Initial test loss:", 
         init_loss,
         )
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
     model.fit(
         epochs = epochs,
         evaluate_epochs = evaluate_epochs,
         batch_callback_epochs = batch_callback_epochs,
         save_weight = save_weight,
-        save_path = save_path
+        save_path = save_path,
+        metric_epoch = metric_epoch
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-    final_loss, final_metric = model.test(
+    final_loss,_ = model.test(
                                 model.test_dataloader, 
                                 callback = test_batch_callback
                                 )
     print(
         "Final test loss:", 
         final_loss,
-        )
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
         )
 
 
