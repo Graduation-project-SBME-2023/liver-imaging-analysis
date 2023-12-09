@@ -439,8 +439,8 @@ class Engine:
                 post_process_time_per_epoch += post_post_process_time
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 # Backpropagation
-                pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
+                pre_back_prop_time = time.time()
                 loss.backward()
                 post_back_prop_time = time.time()-pre_back_prop_time
                 back_prop_time_per_epoch+=  post_back_prop_time
