@@ -30,4 +30,7 @@ mri_cp
 spleen_cp
 lobe_cp_sliding_window
 .vscode/
+.vscode
+.vscode/settings.json
 myvenv
+credentials.json
