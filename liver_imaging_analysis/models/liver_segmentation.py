@@ -41,6 +41,9 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+import natsort 
+from liver_imaging_analysis.engine.utils import progress_bar
+
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -616,6 +619,62 @@ class LiverSegmentation(Engine):
             self.metrics.reset()
         return test_loss, test_metric
         
+def test3d(test_dir = None,labels_dir=None, cp_path = None):
+    """
+    Calculate 3d dice in 2d models
+    
+    Parameters
+    ----------
+    test dir: path
+            path for test dataset.
+            
+    labels dir: path
+            path for true labels.
+    
+    cp_path: path
+            path for checkpoints of model to be tested.
+    
+    Returns
+    -------
+    float
+        the averaged 3d metric calculated during testing
+    """
+    liver_model = LiverSegmentation('CT', '3D')
+    liver_model.load_checkpoint(cp_path)
+    test_metric = 0   
+    tests=natsort.natsorted(os.listdir(test_dir))
+    labels=natsort.natsorted(os.listdir(labels_dir))
+
+    print('\n3D TESTING:')
+    for test_num, (test_name, label_name) in enumerate(zip(tests, labels)):
+        progress_bar(test_num + 1, len(tests))
+        
+        test_path=os.path.join(test_dir, test_name)
+        prediction = liver_model.predict(test_path).to('cuda:0')
+
+
+        label_path=os.path.join(labels_dir,label_name)
+        nifti_label = nib.load(label_path).get_fdata()
+        nifti_label = np.where(nifti_label == 2, 1, nifti_label)
+        label = torch.from_numpy(nifti_label)
+        label = label.to('cuda:0')
+        label=label.view(1, 1, *label.shape)
+
+        dice=liver_model.metrics(prediction,label)
+        
+        print(f'{test_name}')
+        print(f'prediced : {label_name}')
+        print(f'Dice : {dice}')
+        
+    # aggregate the final metric result
+    test_metric = liver_model.metrics.aggregate().item()
+    # reset the status for next computation round
+    liver_model.metrics.reset()
+
+    return test_metric
+
+
+
 
 def segment_liver(
         prediction_path = None, 
