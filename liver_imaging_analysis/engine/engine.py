@@ -419,6 +419,9 @@ class Engine:
         """
  
         for epoch in range(epochs):
+            pre_post_process_time,post_post_process_time,post_process_time_per_epoch = 0.0,0.0,0.0
+            pre_back_prop_time,post_back_prop_time,back_prop_time_per_epoch = 0.0,0.0,0.0
+            pre_train,post_train = 0.0,0.0
             pre_train = time.time()
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -454,8 +457,8 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
-            print(f"time of post processing per epoch in training:{post_process_time_per_epoch}")
-            print(f"time of backpropagation time per epoch in training:{back_prop_time_per_epoch}")
+            print(f"\ntime of post processing per epoch in training:{post_process_time_per_epoch}")
+            print(f"\ntime of backpropagation time per epoch in training:{back_prop_time_per_epoch}")
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)  
@@ -482,7 +485,7 @@ class Engine:
                     self.optimizer.param_groups[0]['lr']
                 )
             post_train = time.time() - pre_train
-            print(f"time of training per epoch {post_train}")
+            print(f"\ntime of training per epoch {post_train}")
 
     def test(self, dataloader = None, callback = False):
         """
@@ -510,6 +513,7 @@ class Engine:
         test_metric = 0
         self.network.eval()
         print('\nTESTING:')
+        pre_post_processing, post_post_processing,post_processing_time= 0.0,0.0,0.0
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
                 progress_bar(batch_num + 1, len(dataloader))
@@ -533,7 +537,7 @@ class Engine:
                       batch[Keys.LABEL],
                       batch[Keys.PRED]
                       )
-            print(f"post procesing time in validation {post_processing_time}")
+            print(f"\npost procesing time in validation {post_processing_time}")
 
             test_loss /= num_batches
             # aggregate the final metric result
