@@ -338,7 +338,6 @@ class Engine:
         batch_callback_epochs = None,
         save_weight = False,
         save_path = config.save["potential_checkpoint"],
-        metric_epoch =1
     ):
         """
         train the model using the stored training set
@@ -395,25 +394,25 @@ class Engine:
             # reset the status for next computation round
             self.metrics.reset()
             # every evaluate_epochs, test model on test set
-            if (epoch + 1) % evaluate_epochs == 0: 
-                if (epoch + 1) % metric_epoch == 0:  
-                    valid_loss, valid_metric = self.test(self.test_dataloader, post_process=True)
-                else:
-                    valid_loss = self.test(self.test_dataloader, post_process=False) 
+            if (epoch + 1) % evaluate_epochs == 0:  
+                valid_loss, valid_metric = self.test(self.test_dataloader, post_process=True)
+            else:
+                valid_loss = self.test(self.test_dataloader, post_process=False) 
             if save_weight:
                 self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
                 
-            if (epoch + 1) % metric_epoch == 0:
+
+            if (epoch + 1) % evaluate_epochs == 0:
                 self.per_epoch_callback(
                         epoch,
                         training_loss,
                         valid_loss,
                         training_metric,
                         valid_metric,
-                        metric_epoch,
+                        evaluate_epochs,
                     )
             else:
                 self.per_epoch_callback(
@@ -422,9 +421,8 @@ class Engine:
                     valid_loss,
                     training_metric,
                     None,
-                    metric_epoch,  
+                    evaluate_epochs,  
                 )
-                
 
     def test(self, dataloader = None, callback = False, post_process=False):
         """
@@ -477,10 +475,11 @@ class Engine:
             if post_process:
                 # aggregate the final metric result
                 test_metric = self.metrics.aggregate().item()
+                # reset the status for next computation round
+                self.metrics.reset()
                 return test_loss, test_metric
-            # reset the status for next computation round
-            self.metrics.reset()
-            return test_loss 
+            else:
+                return test_loss 
 
 
     def predict(self, data_dir):

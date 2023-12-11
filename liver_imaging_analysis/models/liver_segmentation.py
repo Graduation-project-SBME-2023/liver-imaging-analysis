@@ -419,7 +419,7 @@ class LiverSegmentation(Engine):
             valid_loss, 
             training_metric, 
             valid_metric,
-            metric_epoch,
+            evaluate_epochs,
             ):
         """
         Prints training and testing loss and metric,
@@ -444,7 +444,7 @@ class LiverSegmentation(Engine):
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             summary_writer.add_scalar("\nValidation Loss", valid_loss, epoch)
-            if (epoch + 1) % metric_epoch == 0:
+            if (epoch + 1) % evaluate_epochs == 0:
                 print(f"Validation Metric={valid_metric}")
                 summary_writer.add_scalar("\nValidation Metric", valid_metric, epoch)
 
@@ -670,7 +670,6 @@ def train_liver(
         save_weight = True,
         save_path = None,
         test_batch_callback = False,
-        metric_epoch =1
         ):
     """
     Starts training of liver segmentation model.
@@ -734,11 +733,10 @@ def train_liver(
         batch_callback_epochs = batch_callback_epochs,
         save_weight = save_weight,
         save_path = save_path,
-        metric_epoch = metric_epoch
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-    final_loss,_ = model.test(
+    final_loss = model.test(
                                 model.test_dataloader, 
                                 callback = test_batch_callback
                                 )
