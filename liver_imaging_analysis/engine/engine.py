@@ -264,7 +264,7 @@ class Engine:
             )
         except StopIteration:
             print("No Training Set")
-            logger.critical("No Training Set")
+            logger.info("No Training Set")
         dataloader_iterator = iter(self.val_dataloader)
         try:
             print("Number of Validation Batches:", len(dataloader_iterator))
@@ -312,7 +312,7 @@ class Engine:
             )
         except StopIteration:
             print("No Testing Set")
-            logger.critical("No Testing Set")
+            logger.info("No Testing Set")
 
     def save_checkpoint(self, path = config.save["model_checkpoint"]):
         """
