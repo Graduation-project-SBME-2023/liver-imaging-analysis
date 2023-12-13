@@ -103,7 +103,7 @@ class Engine:
                 parameters of network, if exist.
         """
         networks = {
-            "monai_2DUNet" : monai.networks.nets.UNet,
+            "AttentionUnet" : monai.networks.nets.AttentionUnet,
         }
         return networks[network_name](**kwargs)
 

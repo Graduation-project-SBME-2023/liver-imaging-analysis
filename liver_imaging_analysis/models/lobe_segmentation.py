@@ -101,9 +101,6 @@ class LobeSegmentation(Engine):
             config.network_parameters['channels'] = [64, 128, 256, 512, 1024]
             config.network_parameters["out_channels"] = 10
             config.network_parameters['strides'] = [2 ,2, 2, 2]
-            config.network_parameters['num_res_units'] =  6
-            config.network_parameters['norm'] = "INSTANCE"
-            config.network_parameters['bias'] = True
             config.save['lobe_checkpoint'] = 'lobe_cp'
             config.training['loss_parameters'] = { 
                                                     "softmax" : True, 
@@ -146,9 +143,6 @@ class LobeSegmentation(Engine):
             config.network_parameters['channels'] = [16, 32, 64, 128, 256]
             config.network_parameters['spatial_dims'] = 3
             config.network_parameters['strides'] =  [2, 2, 2, 2]
-            config.network_parameters['num_res_units'] =  4
-            config.network_parameters['norm'] = "BATCH"
-            config.network_parameters['bias'] = False
             config.save['lobe_checkpoint'] = 'lobe_cp_sliding_window'
             config.transforms['sw_batch_size'] = 2
             config.transforms['roi_size'] = (192, 192, 32)

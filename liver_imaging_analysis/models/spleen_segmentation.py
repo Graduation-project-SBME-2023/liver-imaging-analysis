@@ -72,9 +72,6 @@ class SpleenSegmentation(Engine):
         config.network_parameters['channels'] = [16, 32, 64, 128, 256]
         config.network_parameters['spatial_dims'] = 3
         config.network_parameters['strides'] =  [2, 2, 2, 2]
-        config.network_parameters['num_res_units'] =  2
-        config.network_parameters['norm'] = "BATCH"
-        config.network_parameters['bias'] = True
         config.save['spleen_checkpoint'] = 'spleen_cp'
         config.transforms['sw_batch_size'] = 4
         config.transforms['roi_size'] = (96, 96, 96)
