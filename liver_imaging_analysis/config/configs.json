@@ -13,17 +13,15 @@
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
-    "network_name": "monai_2DUNet",
+    "network_name": "UNETR",
     "network_parameters": {
         "in_channels": 1, 
         "out_channels": 1,
         "spatial_dims":2, 
-        "channels": [64, 128, 256, 512],
-        "strides": [2, 2, 2],
-        "num_res_units":4, 
-        "bias":1,
-        "norm":"INSTANCE",
-        "dropout":0.4
+        "feature_size":32,
+        "norm_name":"batch",
+        "dropout_rate":0.4,
+        "img_size":[512, 512]
     },
     "training": {
         "epochs": 100,
@@ -47,9 +45,9 @@
         "sw_batch_size": 2,
         "roi_size": [192, 192, 32],
         "overlap": 0.25,
-        "train_transform": "3DUnet_transform",
-        "test_transform": "3DUnet_transform",
-        "post_transform": "3DUnet_transform"
+        "train_transform": "2d_ct_transform",
+        "test_transform": "2d_ct_transform",
+        "post_transform": "2d_ct_transform"
     },
     "save": {
         "volume_png_path": "Temp2D/volume/",

@@ -24,6 +24,7 @@ from monai.transforms import (
     RemoveSmallObjectsD,
     FillHolesD,
     ScaleIntensityRanged,
+    RandCropByPosNegLabeld
 )
 from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
@@ -87,40 +88,32 @@ class LiverSegmentation(Engine):
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+                config.dataset['training'] = "/content/Temp2D/Train/"
+                config.dataset['testing'] = "/content/Temp2D/Test/"
                 config.training['batch_size'] = 8
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  4
-                config.network_parameters['norm'] = "INSTANCE"
-                config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'liver_cp'
                 config.transforms['train_transform'] = "2d_ct_transform"
                 config.transforms['test_transform'] = "2d_ct_transform"
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+                config.dataset['training'] = "/content/Temp2D/Train/"
+                config.dataset['testing'] = "/content/Temp2D/Test/"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
                                                             "verbose" : False
                                                             }
-                config.network_parameters['dropout'] = 0
                 config.network_parameters["out_channels"] = 1
-                config.network_parameters['channels'] = [64, 128, 256, 512]
                 config.network_parameters['spatial_dims'] = 3
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  6
-                config.network_parameters['norm'] = "BATCH"
-                config.network_parameters['bias'] = False
                 config.save['liver_checkpoint'] = 'liver_cp_sliding_window'
                 config.transforms['sw_batch_size'] = 4
                 config.transforms['roi_size'] = (96,96,64)
@@ -137,14 +130,8 @@ class LiverSegmentation(Engine):
                                                             "gamma" : 0.5, 
                                                             "verbose" : True
                                                             }
-                config.network_parameters['dropout'] = 0.35
                 config.network_parameters["out_channels"] = 1
                 config.network_parameters['spatial_dims'] = 2
-                config.network_parameters['channels'] = [64, 128, 256, 512]
-                config.network_parameters['strides'] =  [2, 2, 2]
-                config.network_parameters['num_res_units'] =  4
-                config.network_parameters['norm'] = "INSTANCE"
-                config.network_parameters['bias'] = True
                 config.save['liver_checkpoint'] = 'mri_cp'
                 config.transforms['train_transform'] = "2d_mri_transform"
                 config.transforms['test_transform'] = "2d_mri_transform"
@@ -178,6 +165,15 @@ class LiverSegmentation(Engine):
                         invert = True,
                         allow_missing_keys = True
                         ),
+                    RandCropByPosNegLabeld( 
+                      Keys.all(),
+                      spatial_size= config.transforms['roi_size'],
+                      label_key=Keys.LABEL,
+                      pos=1.0,
+                      neg=1.0,
+                      num_samples=2,
+                      allow_missing_keys = True
+                    ),
                     ToTensorD(Keys.all(), allow_missing_keys = True),
                 ]
             ),
