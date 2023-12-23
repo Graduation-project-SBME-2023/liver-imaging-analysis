@@ -445,6 +445,7 @@ class Engine:
                 self.optimizer.zero_grad()
                 pre_back_prop_time = time.time()
                 loss.backward()
+                self.optimizer.step()
                 post_back_prop_time = time.time()-pre_back_prop_time
                 back_prop_time_per_epoch+=  post_back_prop_time
                 training_loss += loss.item()
