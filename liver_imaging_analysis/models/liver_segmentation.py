@@ -47,7 +47,6 @@ import nibabel as nib
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 import time
 
-
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
 
     
@@ -538,7 +537,7 @@ class LiverSegmentation(Engine):
         # Delete temporary folder
         shutil.rmtree(temp_path)
         prediction_time_per_epoch   = time.time() - start_inference_time
-        print(f"\nprediction 2d time over all :{prediction_time_per_epoch}")
+        print(f"\ntime taken for prediction 2d: {prediction_time_per_epoch:.3f}")
         return batch[Keys.PRED]
 
 
@@ -734,7 +733,10 @@ def train_liver(
     
     set_seed()
     model = LiverSegmentation(modality, inference)
+    pre_load = time.time()
     model.load_data()
+    load_time = time.time()-pre_load
+    print(f"\ntime taken for data loading: {load_time:.3f}")
     model.exp_naming()
     
     #checkpoints save path

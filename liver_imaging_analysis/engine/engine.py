@@ -18,8 +18,8 @@ from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
 import time
-
 from monai.handlers.utils import from_engine
+
 
 class Engine:
     """
@@ -276,9 +276,12 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
+        pre_transform = time.time()
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
+        transform_time = time.time()-pre_transform
+        print(f"\ntime taken for preprocessing three data parts: {transform_time:.3f}")
 
     def data_status(self):
         """
@@ -419,7 +422,9 @@ class Engine:
         """
  
         for epoch in range(epochs):
+            pre_forward,post_forward,forward_time_per_epoch = 0.0,0.0,0.0
             pre_post_process_time,post_post_process_time,post_process_time_per_epoch = 0.0,0.0,0.0
+            pre_metric, post_metric,metric_time_per_epoch = 0.0,0.0,0.0
             pre_back_prop_time,post_back_prop_time,back_prop_time_per_epoch = 0.0,0.0,0.0
             pre_train,post_train = 0.0,0.0
             pre_train = time.time()
@@ -433,17 +438,23 @@ class Engine:
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
+                pre_forward = time.time()
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
+                post_forward = time.time()-pre_forward
+                forward_time_per_epoch += post_forward
                 # Apply post processing transforms and calculate metrics
                 pre_post_process_time = time.time()
                 batch = self.post_process(batch)
                 post_post_process_time = time.time() -pre_post_process_time
                 post_process_time_per_epoch += post_post_process_time
+                pre_metric = time.time()
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
+                post_metric = time.time()-pre_metric
+                metric_time_per_epoch += post_metric
                 # Backpropagation
-                self.optimizer.zero_grad()
                 pre_back_prop_time = time.time()
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 post_back_prop_time = time.time()-pre_back_prop_time
@@ -458,8 +469,10 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
-            print(f"\ntime of post processing per epoch in training:{post_process_time_per_epoch}")
-            print(f"\ntime of backpropagation time per epoch in training:{back_prop_time_per_epoch}")
+            print(f"\ntime taken for forward path per epoch: {forward_time_per_epoch:.3f}")
+            print(f"\ntime taken for post processing per epoch in training:{post_process_time_per_epoch:.3f}")
+            print(f"\ntime taken for metric calculation per epoch: {metric_time_per_epoch:.3f} ")
+            print(f"\ntime taken for backpropagation time per epoch in training:{back_prop_time_per_epoch:.3f}")
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)  
@@ -486,7 +499,7 @@ class Engine:
                     self.optimizer.param_groups[0]['lr']
                 )
             post_train = time.time() - pre_train
-            print(f"\ntime of training per epoch {post_train}")
+            print(f"\ntime taken for training per epoch {post_train:.3f}")
 
     def test(self, dataloader = None, callback = False):
         """
@@ -507,6 +520,8 @@ class Engine:
         float
             the averaged metric calculated during testing
         """
+        pre_test,test_time = 0.0,0.0
+        pre_test =  time.time()
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -538,13 +553,16 @@ class Engine:
                       batch[Keys.LABEL],
                       batch[Keys.PRED]
                       )
-            print(f"\npost procesing time in validation {post_processing_time}")
+            print(f"\ntime taken for post procesing in validation {post_processing_time:.3f}")
 
             test_loss /= num_batches
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
+        
+        test_time = time.time() - pre_test
+        print(f"\ntime taken for testing: {test_time:.3f}")
         return test_loss, test_metric
 
     def predict(self, data_dir):
