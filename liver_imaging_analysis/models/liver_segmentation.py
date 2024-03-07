@@ -619,61 +619,66 @@ class LiverSegmentation(Engine):
             self.metrics.reset()
         return test_loss, test_metric
         
-def test3d(test_dir = None,labels_dir=None, cp_path = None):
-    """
-    Calculate 3d dice in 2d models
-    
-    Parameters
-    ----------
-    test dir: path
-            path for test dataset.
+        
+    def test3d(self, test_dir = None, labels_dir=None, cp_path = None, pretrained = True):
+        """
+        Calculate 3d dice in 2d models
+        
+        Parameters
+        ----------
+        test dir: path
+                path for test dataset.
+                
+        labels dir: path
+                path for true labels.
+        
+        cp_path: path
+                path for checkpoints of model to be tested.
+        
+        Returns
+        -------
+        float
+            the averaged 3d metric calculated during testing
+        """
+        liver_model = LiverSegmentation('CT', '3D')
+        if pretrained:
+            liver_model.load_checkpoint(cp_path)
+        test_metric = 0   
+        tests=natsort.natsorted(os.listdir(test_dir))
+        labels=natsort.natsorted(os.listdir(labels_dir))
+
+        print('\n3D TESTING:')
+        for test_num, (test_name, label_name) in enumerate(zip(tests, labels)):
+            progress_bar(test_num + 1, len(tests))
             
-    labels dir: path
-            path for true labels.
-    
-    cp_path: path
-            path for checkpoints of model to be tested.
-    
-    Returns
-    -------
-    float
-        the averaged 3d metric calculated during testing
-    """
-    liver_model = LiverSegmentation('CT', '3D')
-    liver_model.load_checkpoint(cp_path)
-    test_metric = 0   
-    tests=natsort.natsorted(os.listdir(test_dir))
-    labels=natsort.natsorted(os.listdir(labels_dir))
+            test_path=os.path.join(test_dir, test_name)
+            # print(config.device)
+            prediction = liver_model.predict(test_path).to(config.device)
 
-    print('\n3D TESTING:')
-    for test_num, (test_name, label_name) in enumerate(zip(tests, labels)):
-        progress_bar(test_num + 1, len(tests))
+            label_path=os.path.join(labels_dir,label_name)
+            nifti_label = nib.load(label_path).get_fdata()
+            nifti_label = np.where(nifti_label > 0.5, 1, nifti_label)
+            label = torch.from_numpy(nifti_label)
+            label = label.to(config.device)
+            label=label.view(1, 1, *label.shape)
+
+            dice=liver_model.metrics(prediction,label)
+            
+            print(f'{test_name}')
+            print(f'prediced : {label_name}')
+            print(f'Dice : {dice}')
+            
+            # Free GPU memory if CUDA is used
+            if torch.cuda.is_available():
+                del prediction, label
+                torch.cuda.empty_cache()
         
-        test_path=os.path.join(test_dir, test_name)
-        prediction = liver_model.predict(test_path).to('cuda:0')
+        # aggregate the final metric result
+        test_metric = liver_model.metrics.aggregate().item()
+        # reset the status for next computation round
+        liver_model.metrics.reset()
 
-
-        label_path=os.path.join(labels_dir,label_name)
-        nifti_label = nib.load(label_path).get_fdata()
-        nifti_label = np.where(nifti_label == 2, 1, nifti_label)
-        label = torch.from_numpy(nifti_label)
-        label = label.to('cuda:0')
-        label=label.view(1, 1, *label.shape)
-
-        dice=liver_model.metrics(prediction,label)
-        
-        print(f'{test_name}')
-        print(f'prediced : {label_name}')
-        print(f'Dice : {dice}')
-        
-    # aggregate the final metric result
-    test_metric = liver_model.metrics.aggregate().item()
-    # reset the status for next computation round
-    liver_model.metrics.reset()
-
-    return test_metric
-
-
+        return test_metric
 
 
 def segment_liver(
@@ -719,6 +724,9 @@ def segment_liver(
 def train_liver(
         modality = 'CT', 
         inference = '3D', 
+        test_inference = '2D',
+        test_dir = None,
+        labels_dir=None, 
         pretrained = True, 
         cp_path = None,
         epochs = None, 
@@ -776,18 +784,28 @@ def train_liver(
     if pretrained:
         model.load_checkpoint(cp_path)
     model.compile_status()
-    init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
+    
+    if test_inference == '3D' :
+        init_metric = model.test3d(
+                                   test_dir = test_dir,
+                                   labels_dir=labels_dir, 
+                                   cp_path = cp_path,
+                                   pretrained = pretrained
                                 )
-    print(
-        "Initial test loss:", 
-        init_loss,
-        )
+    else :
+        init_loss, init_metric = model.test(
+                                    model.test_dataloader, 
+                                    callback = test_batch_callback
+                                )
+        print(
+            "Initial test loss:", 
+            init_loss,
+            )
     print(
         "\nInitial test metric:", 
         init_metric.mean().item(),
         )
+        
     model.fit(
         epochs = epochs,
         evaluate_epochs = evaluate_epochs,
@@ -797,14 +815,22 @@ def train_liver(
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-    final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
+    
+    if test_inference == '3D' :
+        final_metric = model.test3d(
+                                   test_dir = test_dir,
+                                   labels_dir=labels_dir, 
+                                   cp_path = save_path
                                 )
-    print(
-        "Final test loss:", 
-        final_loss,
-        )
+    else :
+        final_loss, final_metric = model.test(
+                                    model.test_dataloader, 
+                                    callback = test_batch_callback
+                                    )
+        print(
+            "Final test loss:", 
+            final_loss,
+            )
     print(
         "\nFinal test metric:", 
         final_metric.mean().item(),
