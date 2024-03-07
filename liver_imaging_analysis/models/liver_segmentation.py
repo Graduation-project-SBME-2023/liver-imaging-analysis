@@ -44,7 +44,7 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
-from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
+from liver_imaging_analysis.engine.experiment_tracking import ExperimentTracking
 import time
 
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
@@ -74,6 +74,8 @@ class LiverSegmentation(Engine):
         elif inference == 'sliding_window':
             self.predict = self.predict_sliding_window
             self.test = self.test_sliding_window
+
+       
 
     def set_configs(self, modality, inference):
         """
@@ -173,8 +175,8 @@ class LiverSegmentation(Engine):
         transforms = {
             "3d_ct_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    LoadImageD( [Keys.IMAGE, Keys.LABEL]),
+                    EnsureChannelFirstD( [Keys.IMAGE, Keys.LABEL]),
                     # OrientationD(keys, axcodes="LAS", allow_missing_keys = True),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(
@@ -184,89 +186,80 @@ class LiverSegmentation(Engine):
                         allow_missing_keys = True
                         ),
                     RandCropByPosNegLabeld(
-                        Keys.all(),
+                        [Keys.IMAGE, Keys.LABEL],
                         spatial_size = config.transforms['roi_size'], 
                         label_key=Keys.LABEL, 
                         pos=1.0, 
                         neg=1.0, 
                         num_samples=2, 
-                        allow_missing_keys = True,
                         ),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    ToTensorD( [Keys.IMAGE, Keys.LABEL]),
                 ]
             ),
             "2d_ct_transform" : Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    LoadImageD( [Keys.IMAGE, Keys.LABEL]),
+                    EnsureChannelFirstD( [Keys.IMAGE, Keys.LABEL]),
                     ResizeD(
-                        Keys.all(), 
+                        [Keys.IMAGE, Keys.LABEL], 
                         resize_size, 
-                        mode=("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
+                        mode=("bilinear", "nearest"), 
                         ),
                     RandZoomd(
-                        Keys.all(),
+                        [Keys.IMAGE, Keys.LABEL],
                         prob = 0.5, 
                         min_zoom = 0.8, 
                         max_zoom = 1.2, 
-                        allow_missing_keys = True
                         ),
                     RandFlipd(
-                        Keys.all(),
+                        [Keys.IMAGE, Keys.LABEL],
                         prob = 0.5, 
                         spatial_axis = 1, 
-                        allow_missing_keys = True
                         ),
                     RandRotated(
-                        Keys.all(),
+                        [Keys.IMAGE, Keys.LABEL],
                         range_x = 1.5, 
                         range_y = 0, 
                         range_z = 0, 
                         prob = 0.5, 
-                        allow_missing_keys = True
                         ),
                     RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),
+                    ToTensorD( [Keys.IMAGE, Keys.LABEL]),
                 ]
             ),
             "2d_mri_transform": Compose(
                 [
-                    LoadImageD(Keys.all(), allow_missing_keys = True),
-                    EnsureChannelFirstD(Keys.all(), allow_missing_keys = True),
+                    LoadImageD( [Keys.IMAGE, Keys.LABEL]),
+                    EnsureChannelFirstD( [Keys.IMAGE, Keys.LABEL]),
                     ResizeD(
-                        Keys.all(), 
+                        [Keys.IMAGE, Keys.LABEL], 
                         resize_size, 
-                        mode = ("bilinear", "nearest", "nearest"), 
-                        allow_missing_keys = True
+                        mode = ("bilinear", "nearest"), 
                         ),
                     RandZoomd(
-                        Keys.all(),
+                        [Keys.IMAGE, Keys.LABEL],
                         prob = 0.5, 
                         min_zoom = 0.8, 
                         max_zoom = 1.2, 
-                        allow_missing_keys = True
                         ),
                     RandFlipd(
-                        Keys.all(), 
+                        [Keys.IMAGE, Keys.LABEL], 
                         prob = 0.5, 
                         spatial_axis = 1, 
-                        allow_missing_keys = True
                         ),
                     RandRotated(
-                        Keys.all(), 
+                        [Keys.IMAGE, Keys.LABEL], 
                         range_x = 1.5, 
                         range_y = 0, 
                         range_z = 0, 
                         prob = 0.5, 
-                        allow_missing_keys = True
                         ),
                     RandAdjustContrastd(Keys.IMAGE, prob = 0.25),
                     NormalizeIntensityD(Keys.IMAGE, channel_wise = True),
                     ForegroundMaskD(Keys.LABEL, threshold = 0.5, invert = True),
-                    ToTensorD(Keys.all(), allow_missing_keys = True),  
+                    ToTensorD( [Keys.IMAGE, Keys.LABEL]),  
                 ]
             ),
         }
@@ -393,6 +386,8 @@ class LiverSegmentation(Engine):
         and prints the prediction dice score.
 
         Args:
+            summary_writer : SummaryWriter object
+                Summary writer object for logging. 
             batch_num: int
                 The current batch index for identification.
             image: tensor
@@ -435,13 +430,14 @@ class LiverSegmentation(Engine):
             training_metric, 
             valid_metric,
             epoch_start_timestamps,
-            current_learning_rate
             ):
         """
-        Prints training and testing loss and metric,
-        and plots them in tensorboard.
+        Prints training and testing loss and metric,epoch duration and current learning rate.
+        Also, plots them in tensorboard & ClearML.
 
         Args:
+            summary_writer : SummaryWriter object
+                Summary writer object for logging. 
             epoch: int
                 Current epoch index for identification.
             training_loss: float
@@ -452,13 +448,15 @@ class LiverSegmentation(Engine):
                 Metric calculated over the training set.
             valid_metric: float
                 Metric calculated over the testing set.
+            epoch_start_timestamps : float
+                Timestamp indicating the start time of the epoch.
         """
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
         summary_writer.add_scalar("Loss_train", training_loss, epoch)
         summary_writer.add_scalar("Metric_train", training_metric, epoch)
         summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
-        summary_writer.add_scalar("learning_rate", current_learning_rate, epoch)
+        summary_writer.add_scalar("learning_rate", self.optimizer.param_groups[0]['lr'], epoch)
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
@@ -728,26 +726,27 @@ def train_liver(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
-    if cp_path is None:
-            cp_path = config.save["potential_checkpoint"]
+    if epochs is None:
+        epochs = config.training["epochs"]
+
     
     set_seed()
     model = LiverSegmentation(modality, inference)
-    pre_load = time.time()
-    model.load_data()
-    load_time = time.time()-pre_load
-    print(f"\ntime taken for data loading: {load_time:.3f}")
-    model.exp_naming()
+
+
+    # initialize experiment tracking
+    hparams=model.get_hparams(config.network_name)  
+    tracker = ExperimentTracking(hparams)
     
-    #checkpoints save path
-    cp_dir = os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'],"")
+    # setup checkpoints automatic save path
+    cp_dir = os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'],"")
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
         os.makedirs(cp_dir)
-    save_path = f"{cp_dir}/potential_checkpoint" 
+    save_path = f"{cp_dir}/potential_checkpoint"
+    if cp_path is None:
+        cp_path = save_path
 
-    tracker = ExperimentTracking(config.name['experiment_name'], config.name['run_name'])
-    summary_writer = tracker.tb_logger()
     
     #if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
@@ -757,15 +756,8 @@ def train_liver(
     else:
         task = tracker.new_clearml_logger() 
         offset=0  
-    
-    model.data_status()
-    model.compile_status()
-    
-    #add all configs to ClearMl
-    task.connect_configuration(config.__dict__,name="configs")
-    #add hyperparameters to ClearMl
-    hparams=model.get_hparams(config.network_name)  
-    summary_writer.add_hparams(hparams,metric_dict = {})
+    summary_writer = tracker.new_tb_logger()
+
 
     init_loss, init_metric = model.test(
         model.test_dataloader, callback=test_batch_callback

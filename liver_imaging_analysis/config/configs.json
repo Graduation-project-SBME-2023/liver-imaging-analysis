@@ -54,9 +54,10 @@
     "save": {
         "volume_png_path": "Temp2D/volume/",
         "mask_png_path": "Temp2D/mask/",
-        "model_checkpoint": "model_checkpoint",
+        "model_checkpoint": "model_checkpoint",       
         "potential_checkpoint": "potential_checkpoint",
-        "tensorboard": "runs/"
+        "tensorboard": "runs/",
+        "output_folder":"output_folder"
     },
 
     "test": {
@@ -83,5 +84,10 @@
         "experiment_name": "exp0",
         "run_name": "run0"
     },
+    "clearml_credentials":{
+        "key":"8YCA72388IV3AT36EWGJ",
+        "secret":"C6LCwXiOxAX8xgKBffW3qUKybGEtGWXMtzfYr0xMgkBDVlMscl"
+    },
+
     "seed": 0
 }

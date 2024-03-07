@@ -1,16 +1,15 @@
 import os
 import sys
 import shutil
-from liver_imaging_analysis.engine.config import config
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 from torch.utils.tensorboard import SummaryWriter
 from clearml import Task, Dataset
 from liver_imaging_analysis.engine.config import config
-from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
@@ -25,7 +24,7 @@ class ExperimentTracking:
         run_name (str): Name of the run within the experiment.
     """
 
-    def __init__(self, experiment_name, run_name):
+    def __init__(self, hparams):
         """
         Initializes an ExperimentTracking instance with the given experiment and run names.
 
@@ -38,12 +37,49 @@ class ExperimentTracking:
             api_host="https://api.clear.ml",
             web_host="https://app.clear.ml",
             files_host="https://files.clear.ml",
-            key="8YCA72388IV3AT36EWGJ",
-            secret="C6LCwXiOxAX8xgKBffW3qUKybGEtGWXMtzfYr0xMgkBDVlMscl",
+            key= config.clearml_credentials["key"],
+            secret= config.clearml_credentials["secret"],
         )
-        self.experiment_name, self.run_name = experiment_name, run_name
+        self.experiment_name, self.run_name = self.exp_naming(hparams)
         self.task=None
         self.writer=None
+        self.hparams=hparams
+    
+    def Hash(self, text:str):
+        """
+        Calculates a hash value for the input text.
+
+        Parameters
+        ----------
+        text: str
+            The input text.
+        Returns
+        -------
+        int
+            The calculated hash value as an integer.
+        """
+        hash=0
+        for ch in text:
+            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+        return hash
+
+    def exp_naming(self,hparams):
+        """
+        Names the experiment and run based on network name and hyperparameters.
+
+        Parameters
+        ----------
+        hparams : dict
+            A dictionary containing the hyperparameters used for the experiment.
+        """
+        config.name['experiment_name']=config.network_name
+        run_name = ""
+        for key, value in hparams.items():
+            run_name += f'{key}_{value}_'
+        print( f"Experimemnt name: {config.name['experiment_name']}")
+        config.name['run_name']=str(self.Hash(run_name))
+        print( f"Run ID: {config.name['run_name']}")
+        return   config.name['experiment_name'], config.name['run_name']
 
     def new_clearml_logger(self):
         """
@@ -56,7 +92,9 @@ class ExperimentTracking:
         self.task = Task.init(
             project_name=self.experiment_name, task_name=self.run_name
         )
-        Task.add_requirements
+        self.task.add_requirements
+        #add all configs and hyperparameters to ClearMl
+        self.task.connect_configuration(config.__dict__,name="configs")
         return self.task
 
     def update_clearml_logger(self):
@@ -73,9 +111,11 @@ class ExperimentTracking:
         self.task = Task.init(
             continue_last_task=True, reuse_last_task_id=tasks[-1].task_id
         )
+        #add all configs and hyperparameters to ClearMl
+        self.task.connect_configuration(config.__dict__,name="configs")
         return self.task
 
-    def tb_logger(self):
+    def new_tb_logger(self):
         """
         Initializes a Tensorboard logger.
 
@@ -84,7 +124,7 @@ class ExperimentTracking:
         """
         # Construct the log directory path
         log_dir = os.path.join(
-            config.save["tensorboard"], self.experiment_name, self.run_name
+            config.output_folder['output_folder'], self.experiment_name, self.run_name
         )
 
         # Check if the directory exists and create it if not
@@ -93,6 +133,8 @@ class ExperimentTracking:
 
         # Initialize the tensorboard writer
         self.writer = SummaryWriter(log_dir)
+        #add hyperparameters to ClearMl
+        self.writer.add_hparams(self.hparams,metric_dict = {})
 
         return self.writer
     
@@ -260,9 +302,9 @@ class ExperimentTracking:
         Uploads all run data to Google Drive.
 
         """
-        cp_dir=os.path.join(config.save['potential_checkpoint'], config.name['experiment_name'], config.name['run_name'])
-        cp_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
-        runs_dir=os.path.join(config.save["tensorboard"], config.name['experiment_name'], config.name['run_name'])
+        cp_dir=os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'])
+        cp_path = f"{cp_dir}/potential_checkpoint" 
+        runs_dir=os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'])
         if ExperimentTracking.is_google_colab():
             print("This code is running on a Google Colab machine.")
             # ExperimentTracking.__upload_folder_to_drive_from_colab__(runs_dir,cp_path)

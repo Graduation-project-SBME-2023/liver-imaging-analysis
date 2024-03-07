@@ -58,6 +58,14 @@ class Engine:
         self.postprocessing_transforms = self.get_postprocessing_transforms(
              config.transforms["post_transform"]
         )
+        
+        pre_load = time.time()
+        self.load_data()
+        load_time = time.time()-pre_load
+        self.data_status()
+        self.compile_status()
+       
+        print(f"\ntime taken for data loading: {load_time:.3f}")
 
     def get_optimizer(self, optimizer_name, **kwargs):
         """
@@ -146,10 +154,14 @@ class Engine:
     def get_hparams(self, network_name):
         """
         used to return a hyperparameters dictionary specific to each network 
+        Parameters
         ----------
-            network_name: str
-                name of network to fetch from dictionary
-                should be chosen from: '3DUNet','3DResNet','2DUNet'
+        network_name: str
+                name of the network to fetch its hyperparameters.
+        Returns
+        -------
+        dict
+            A dictionary containing the hyperparameters for the specified network.
         """
         hparams = {
             "monai_2DUNet" :  {
@@ -168,35 +180,6 @@ class Engine:
         }
         return hparams[network_name]
     
-    def Hash(self, text:str):
-        """
-        Calculate a hash value for the input text.
-
-        Parameters:
-        text (str): The input text.
-        Returns:
-        int: The calculated hash value as an integer.
-        """
-        hash=0
-        for ch in text:
-            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
-        return hash
-
-    def exp_naming(self):
-        """
-        Names the experiment after network name,
-        and names the run based on hyperparameters used.
-
-        """
-
-        config.name['experiment_name']=config.network_name
-        run_name = ""
-        hparams=self.get_hparams(config.network_name)
-        for key, value in hparams.items():
-            run_name += f'{key}_{value}_'
-        print( f"Experimemnt name: {config.name['experiment_name']}")
-        config.name['run_name']=str(self.Hash(run_name))
-        print( f"Run ID: {config.name['run_name']}") 
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -393,8 +376,8 @@ class Engine:
 
     def fit(
         self,
-        summary_writer,
-        offset,
+        summary_writer=None,
+        offset=0,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
@@ -406,6 +389,10 @@ class Engine:
 
         Parameters
         ----------
+        summary_writer : SummaryWriter object
+            Summary writer object for logging. Default is None.
+        offset : int
+            The starting epoch in training. Default is 0.
         epochs: int
             The number of training iterations over data.
             Default is the value specified in config.
@@ -422,11 +409,8 @@ class Engine:
         """
  
         for epoch in range(epochs):
-            pre_forward,post_forward,forward_time_per_epoch = 0.0,0.0,0.0
-            pre_post_process_time,post_post_process_time,post_process_time_per_epoch = 0.0,0.0,0.0
-            pre_metric, post_metric,metric_time_per_epoch = 0.0,0.0,0.0
-            pre_back_prop_time,post_back_prop_time,back_prop_time_per_epoch = 0.0,0.0,0.0
-            pre_train,post_train = 0.0,0.0
+
+            forward_time_per_epoch,post_process_time_per_epoch,metric_time_per_epoch,back_prop_time_per_epoch= 0.0,0.0,0.0,0.0
             pre_train = time.time()
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -461,7 +445,7 @@ class Engine:
                 back_prop_time_per_epoch+=  post_back_prop_time
                 training_loss += loss.item()
                 if batch_callback_epochs is not None:
-                    if (epoch + 1) % batch_callback_epochs == 0:
+                    if (epoch + 1) % batch_callback_epochs == 0 and summary_writer!= None:
                         self.per_batch_callback(
                                 summary_writer,
                                 batch_num,
@@ -483,21 +467,23 @@ class Engine:
             # every evaluate_epochs, test model on test set
             if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-            if save_weight:
-                self.save_checkpoint(save_path)
             else:
                 valid_loss = None
                 valid_metric = None
-            self.per_epoch_callback(
-                    summary_writer,
-                    epoch+offset,
-                    training_loss,
-                    valid_loss,
-                    training_metric,
-                    valid_metric,
-                    epoch_start_timestamps,
-                    self.optimizer.param_groups[0]['lr']
-                )
+
+            if save_weight:
+                self.save_checkpoint(save_path)    
+
+            if  summary_writer!= None:    
+                self.per_epoch_callback(
+                        summary_writer,
+                        epoch+offset,
+                        training_loss,
+                        valid_loss,
+                        training_metric,
+                        valid_metric,
+                        epoch_start_timestamps,
+                    )
             post_train = time.time() - pre_train
             print(f"\ntime taken for training per epoch {post_train:.3f}")
 
