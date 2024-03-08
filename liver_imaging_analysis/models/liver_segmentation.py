@@ -634,6 +634,9 @@ class LiverSegmentation(Engine):
         
         cp_path: path
                 path for checkpoints of model to be tested.
+                
+        pretrained : bool
+                if true, loads pretrained checkpoint.
         
         Returns
         -------
@@ -652,7 +655,6 @@ class LiverSegmentation(Engine):
             progress_bar(test_num + 1, len(tests))
             
             test_path=os.path.join(test_dir, test_name)
-            # print(config.device)
             prediction = liver_model.predict(test_path).to(config.device)
 
             label_path=os.path.join(labels_dir,label_name)
@@ -747,6 +749,18 @@ def train_liver(
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
         Default is 3D
+    test_inference : str
+        The type of inference to be used during testing.
+        Expects "2D" for 2d dice test, "3D" for 3d dice test.
+        Default is '2D'.
+    test_dir : str
+        The path for the 3d volumes test dataset, 
+        This is used if `test_inference` is set to '3D'.
+        Default is None.
+    labels_dir : str, optional
+       The path for the 3d true labels test dataset, 
+       This is used if `test_inference` is set to '3D'.
+        Default is None.    
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
