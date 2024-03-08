@@ -620,33 +620,26 @@ class LiverSegmentation(Engine):
         return test_loss, test_metric
         
         
-    def test3d(self, test_dir = None, labels_dir=None, cp_path = None, pretrained = True):
+    def test3d(self, dir_3d = None):
         """
         Calculate 3d dice in 2d models
         
         Parameters
         ----------
-        test dir: path
-                path for test dataset.
-                
-        labels dir: path
-                path for true labels.
-        
-        cp_path: path
-                path for checkpoints of model to be tested.
-                
-        pretrained : bool
-                if true, loads pretrained checkpoint.
+        dir_3d : path
+                 path for test dataset and its true labels.
         
         Returns
         -------
         float
             the averaged 3d metric calculated during testing
         """
-        liver_model = LiverSegmentation('CT', '3D')
-        if pretrained:
-            liver_model.load_checkpoint(cp_path)
+
         test_metric = 0   
+        
+        test_dir = os.path.join(dir_3d, "volume/")
+        labels_dir = os.path.join(dir_3d, "mask/")
+        
         tests=natsort.natsorted(os.listdir(test_dir))
         labels=natsort.natsorted(os.listdir(labels_dir))
 
@@ -655,7 +648,7 @@ class LiverSegmentation(Engine):
             progress_bar(test_num + 1, len(tests))
             
             test_path=os.path.join(test_dir, test_name)
-            prediction = liver_model.predict(test_path).to(config.device)
+            prediction = self.predict_2dto3d(test_path).to(config.device)
 
             label_path=os.path.join(labels_dir,label_name)
             nifti_label = nib.load(label_path).get_fdata()
@@ -664,7 +657,7 @@ class LiverSegmentation(Engine):
             label = label.to(config.device)
             label=label.view(1, 1, *label.shape)
 
-            dice=liver_model.metrics(prediction,label)
+            dice= self.metrics(prediction,label)
             
             print(f'{test_name}')
             print(f'prediced : {label_name}')
@@ -676,9 +669,9 @@ class LiverSegmentation(Engine):
                 torch.cuda.empty_cache()
         
         # aggregate the final metric result
-        test_metric = liver_model.metrics.aggregate().item()
+        test_metric = self.metrics.aggregate().item()
         # reset the status for next computation round
-        liver_model.metrics.reset()
+        self.metrics.reset()
 
         return test_metric
 
@@ -727,8 +720,7 @@ def train_liver(
         modality = 'CT', 
         inference = '3D', 
         test_inference = '2D',
-        test_dir = None,
-        labels_dir=None, 
+        dir_3d = None,
         pretrained = True, 
         cp_path = None,
         epochs = None, 
@@ -753,13 +745,9 @@ def train_liver(
         The type of inference to be used during testing.
         Expects "2D" for 2d dice test, "3D" for 3d dice test.
         Default is '2D'.
-    test_dir : str
-        The path for the 3d volumes test dataset, 
+    dir_3d : str
+        The path for the 3d volumes and true labels of test dataset, 
         This is used if `test_inference` is set to '3D'.
-        Default is None.
-    labels_dir : str, optional
-       The path for the 3d true labels test dataset, 
-       This is used if `test_inference` is set to '3D'.
         Default is None.    
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
@@ -801,11 +789,8 @@ def train_liver(
     
     if test_inference == '3D' :
         init_metric = model.test3d(
-                                   test_dir = test_dir,
-                                   labels_dir=labels_dir, 
-                                   cp_path = cp_path,
-                                   pretrained = pretrained
-                                )
+                        dir_3d = dir_3d
+                    )
     else :
         init_loss, init_metric = model.test(
                                     model.test_dataloader, 
@@ -832,10 +817,8 @@ def train_liver(
     
     if test_inference == '3D' :
         final_metric = model.test3d(
-                                   test_dir = test_dir,
-                                   labels_dir=labels_dir, 
-                                   cp_path = save_path
-                                )
+                        dir_3d = dir_3d
+                    )
     else :
         final_loss, final_metric = model.test(
                                     model.test_dataloader, 
