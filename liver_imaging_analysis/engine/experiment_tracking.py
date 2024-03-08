@@ -26,11 +26,12 @@ class ExperimentTracking:
 
     def __init__(self, hparams):
         """
-        Initializes an ExperimentTracking instance with the given experiment and run names.
+        Initializes an ExperimentTracking instance for the chosen model and hyperparameters.
 
-        Args:
-            experiment_name (str): Name of the experiment.
-            run_name (str): Name of the run within the experiment.
+        Parameters
+        ----------
+        hparams : dict
+            A dictionary containing the hyperparameters used for the experiment.
         """
         # clearml credentials for experiment tracking
         Task.set_credentials(
