@@ -683,7 +683,7 @@ def segment_liver(
 def train_liver(
         modality = 'CT', 
         inference = '3D', 
-        pretrained = True, 
+        pretrained = False, 
         cp_path = None,
         epochs = None, 
         evaluate_epochs = 1,
@@ -739,7 +739,7 @@ def train_liver(
     tracker = ExperimentTracking(hparams)
     
     # setup checkpoints automatic save path
-    cp_dir = os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'],"")
+    cp_dir = os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'],"")
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
         os.makedirs(cp_dir)

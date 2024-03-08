@@ -124,7 +124,7 @@ class ExperimentTracking:
         """
         # Construct the log directory path
         log_dir = os.path.join(
-            config.output_folder['output_folder'], self.experiment_name, self.run_name
+            config.save['output_folder'], self.experiment_name, self.run_name
         )
 
         # Check if the directory exists and create it if not
@@ -302,9 +302,9 @@ class ExperimentTracking:
         Uploads all run data to Google Drive.
 
         """
-        cp_dir=os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'])
+        cp_dir=os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'])
         cp_path = f"{cp_dir}/potential_checkpoint" 
-        runs_dir=os.path.join(config.output_folder['output_folder'], config.name['experiment_name'], config.name['run_name'])
+        runs_dir=os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'])
         if ExperimentTracking.is_google_colab():
             print("This code is running on a Google Colab machine.")
             # ExperimentTracking.__upload_folder_to_drive_from_colab__(runs_dir,cp_path)
