@@ -1,25 +1,29 @@
 {
     "device": "cuda",
     "dataset": {
+        "mode":"2D",
         "training": "Temp2D/Train/",
         "testing": "Temp2D/Test/",
-        "unittest": "Temp2D/Test/",
-        "mode": "2D"
+        "unittest": "Temp2D/Test/"
+
     },
-    "visualization": {"volume": "volume-0.nii", "mask": "segmentation-0.nii"},
+    "visualization":{
+        "volume":"volume-0.nii",
+        "mask":"segmentation-0.nii"
+    },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
     "network_name": "monai_2DUNet",
     "network_parameters": {
-        "in_channels": 1,
+        "in_channels": 1, 
         "out_channels": 1,
-        "spatial_dims": 2,
+        "spatial_dims":2, 
         "channels": [64, 128, 256, 512],
         "strides": [2, 2, 2],
-        "num_res_units": 4,
-        "bias": 1,
-        "norm": "INSTANCE",
-        "dropout": 0.4
+        "num_res_units":4, 
+        "bias":1,
+        "norm":"INSTANCE",
+        "dropout":0.4
     },
     "training": {
         "epochs": 100,
@@ -27,14 +31,14 @@
         "train_valid_split": 0,
         "optimizer": "Adam",
         "optimizer_parameters": {"lr": 0.01},
-        "lr_scheduler": "StepLR",
-        "scheduler_parameters": {"step_size": 20, "gamma": 0.5, "verbose": 1},
+        "lr_scheduler":"StepLR",
+        "scheduler_parameters":{"step_size":20, "gamma":0.5, "verbose":1},
         "loss_name": "monai_dice",
         "loss_parameters": {"sigmoid":"1","batch":1,"include_background":1},
         "metrics":"dice",
         "metrics_parameters":{"ignore_empty":1,"include_background":1},
+        "shuffle":1
 
-        "shuffle": 1
     },
     "transforms": {
         "transformation_size": [512, 512],
@@ -44,9 +48,9 @@
         "sw_batch_size": 2,
         "roi_size": [192, 192, 32],
         "overlap": 0.25,
-        "train_transform": "3d_ct_transform",
-        "test_transform": "3d_ct_transform",
-        "post_transform": "3d_ct_transform"
+        "train_transform": "3DUnet_transform",
+        "test_transform": "3DUnet_transform",
+        "post_transform": "3DUnet_transform"
     },
     "save": {
         "volume_png_path": "Temp2D/volume/",
@@ -56,28 +60,5 @@
         "tensorboard": "runs/"
     },
 
-    "test": {
-        "train_folder": "tests/testdata/data/resized_train_liver",
-        "test_folder": "tests/testdata/data/resized_liver",
-        "test_volume": "tests/testdata/data/resized_liver/volume/resized_liver.nii",
-        "test_label": "tests/testdata/data/resized_liver/mask/resized_mask.nii",
-        "reference_sliding_window": "tests/testdata/checkpoints/reference_liver_sw",
-        "liver_cp": "tests/testdata/checkpoints/liver_cp",
-        "lesion_cp": "tests/testdata/checkpoints/lesion_cp_tr",
-        "lobe_cp_sw": "tests/testdata/checkpoints/lobe_cp_sliding_window",
-        "liver_cp_sw": "tests/testdata/checkpoints/liver_sw",
-        "reference_lesion_cp": "tests/testdata/checkpoints/reference_lesion_cp",
-        "refrence_lesions_array": "tests/testdata/testcases/predicted_array_lesion.npy",
-        "reference_liver_2d_array": "tests/testdata/testcases/predicted_3d.npy",
-        "reference_liver_sw_array": "tests/testdata/testcases/predicted_sliding.npy",
-        "reference_lobe_array": "tests/testdata/testcases/predicted_lobe.npy",
-        "reference_gif": "tests/testdata/testcases/gif_frames",
-        "liver_slices": "tests/testdata/testcases/liverSlices",
-        "liver_png_slices": "tests/testdata/testcases/liverSlices_png",
-        "reference_batches" : "tests/testdata/testcases/batches"
-    },
-    "tune":{
-        "check_point":"/content/drive/MyDrive/BMATM_LiverSeg_2023/HMTYB_Liver_Seg_2024/experimental/tune_check_points/1"
-      },
     "seed": 0
 }

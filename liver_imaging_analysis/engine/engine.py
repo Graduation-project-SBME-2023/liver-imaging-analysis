@@ -204,7 +204,7 @@ class Engine:
         Raises:
             NotImplementedError: When the function is not implemented.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def get_pretesting_transforms(self, *args, **kwargs):
         """
@@ -215,7 +215,7 @@ class Engine:
         Raises:
             NotImplementedError: When the function is not implemented.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def get_postprocessing_transforms(self, *args, **kwargs):
         """
