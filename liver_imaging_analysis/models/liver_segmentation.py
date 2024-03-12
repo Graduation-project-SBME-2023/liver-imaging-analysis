@@ -663,12 +663,12 @@ def train_liver(
     inference="3D",
     automate=False,
     pretrained=False,
-    cp_path=config.tune["check_point"],
+    cp_path=config.save["potential_checkpoint"],
     epochs=config.training["epochs"],
     evaluate_epochs=1,
     batch_callback_epochs=100,
     save_weight=True,
-    save_path=config.tune["check_point"],
+    save_path=config.save["potential_checkpoint"],
     test_batch_callback=False,
 ):
     """

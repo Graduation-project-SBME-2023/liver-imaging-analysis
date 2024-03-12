@@ -462,25 +462,25 @@ class Engine:
     def objective(
         self,
         trial,
-        automate,
-        pretrained,
-        cp_path,
-        epochs,
-        evaluate_epochs,
-        batch_callback_epochs,
-        save_weight,
-        save_path,
-        test_batch_callback,
+        automate = False,
+        pretrained = False,
+        cp_path = None,
+        epochs = 100 ,
+        evaluate_epochs = 1,
+        batch_callback_epochs = 100 ,
+        save_weight = True,
+        save_path = config.save["potential_checkpoint"],
+        test_batch_callback = False,
     ):
         """
         Train (by manually selecting hyperparameters or utilizing Optuna).
 
         Parameters
         ----------
-        trail: int
-                Describes number of trials of each hyperparameter combination
+        trial: object
+            is a process of evaluating an objective function.
         automate: bool
-                Flag to use automatic hyperparameter optimization.
+            Flag to use automatic hyperparameter optimization.
         pretrained : bool
             if true, loads pretrained checkpoint. Default is True.
         cp_path : str
