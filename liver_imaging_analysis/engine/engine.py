@@ -2,6 +2,7 @@
 a module contains the fixed structure of the core of our code
 
 """
+
 import os
 import random
 from logger import setup_logger
@@ -24,6 +25,7 @@ from monai.handlers.utils import from_engine
 from liver_imaging_analysis.engine.tb_tracking import ExperimentTracking
 from torch.utils.tensorboard import SummaryWriter
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -152,48 +154,48 @@ class Engine:
             "jaccard": MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
-    
+
     def get_hparams(self, network_name):
         """
-        used to return a hyperparameters dictionary specific to each network 
+        used to return a hyperparameters dictionary specific to each network
         ----------
             network_name: str
                 name of network to fetch from dictionary
                 should be chosen from: '3DUNet','3DResNet','2DUNet'
         """
         hparams = {
-            "monai_2DUNet" :  {
-            "spatial_dims": config.network_parameters["spatial_dims"],
-            "num_res_units": config.network_parameters["num_res_units"],
-            "bias": config.network_parameters["bias"],
-            "norm": config.network_parameters["norm"],
-            "dropout": config.network_parameters["dropout"],
-            "batch_size": config.training["batch_size"],
-            "optimizer": config.training["optimizer"],
-            "lr_scheduler": config.training["lr_scheduler"],
-            "loss_name": config.training["loss_name"],
-            "metrics": config.training["metrics"],
-            "shuffle": config.training["shuffle"]
-        }
+            "monai_2DUNet": {
+                "spatial_dims": config.network_parameters["spatial_dims"],
+                "num_res_units": config.network_parameters["num_res_units"],
+                "bias": config.network_parameters["bias"],
+                "norm": config.network_parameters["norm"],
+                "dropout": config.network_parameters["dropout"],
+                "batch_size": config.training["batch_size"],
+                "optimizer": config.training["optimizer"],
+                "lr_scheduler": config.training["lr_scheduler"],
+                "loss_name": config.training["loss_name"],
+                "metrics": config.training["metrics"],
+                "shuffle": config.training["shuffle"],
+            }
         }
         return hparams[network_name]
-    
-    def Hash(self, text:str):
-        hash=0
+
+    def Hash(self, text: str):
+        hash = 0
         for ch in text:
-            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+            hash = (hash * 281 ^ ord(ch) * 997) & 0xFFFFFFFF
         return hash
 
     def exp_naming(self):
 
-        experiment_name=config.network_name
+        experiment_name = config.network_name
         run_name = ""
-        hparams=self.get_hparams(config.network_name)
+        hparams = self.get_hparams(config.network_name)
         for key, value in hparams.items():
-            run_name += f'{key}_{value}_'
+            run_name += f"{key}_{value}_"
 
-        run_name=self.Hash(run_name)    
-        return  experiment_name, str(run_name) 
+        run_name = self.Hash(run_name)
+        return experiment_name, str(run_name)
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -227,14 +229,14 @@ class Engine:
 
     def post_process(self, batch):
         """
-            Applies the transformations specified in get_postprocessing_transforms
-            to the network output.
+        Applies the transformations specified in get_postprocessing_transforms
+        to the network output.
 
-            Parameters
-            ----------
-            batch: dict
-                a dictionary containing the model's output to be post-processed
-            """
+        Parameters
+        ----------
+        batch: dict
+            a dictionary containing the model's output to be post-processed
+        """
         post_batch = [self.postprocessing_transforms(i) for i in decollate_batch(batch)]
         for key in batch.keys():
             if key in Keys.all():
@@ -298,16 +300,18 @@ class Engine:
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             logger.debug(
-                "Batch Shape of Training Features:"
-                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+                "Batch Shape of Training Features:" " %s %s",
+                batch[Keys.IMAGE].shape,
+                batch[Keys.IMAGE].dtype,
             )
             print(
                 f"Batch Shape of Training Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
             logger.debug(
-                "Batch Shape of Training Labels:"
-                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+                "Batch Shape of Training Labels:" " %s %s",
+                batch[Keys.LABEL].shape,
+                batch[Keys.LABEL].dtype,
             )
         except StopIteration:
             print("No Training Set")
@@ -322,16 +326,18 @@ class Engine:
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             logger.debug(
-                "Batch Shape of Validation Features:"
-                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+                "Batch Shape of Validation Features:" " %s %s",
+                batch[Keys.IMAGE].shape,
+                batch[Keys.IMAGE].dtype,
             )
             print(
                 f"Batch Shape of Validation Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
             logger.debug(
-                "Batch Shape of Validation Labels:"
-                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+                "Batch Shape of Validation Labels:" " %s %s",
+                batch[Keys.LABEL].shape,
+                batch[Keys.LABEL].dtype,
             )
         except StopIteration:
             print("No Validation Set")
@@ -346,16 +352,18 @@ class Engine:
                 f" {batch[Keys.IMAGE].shape} {batch[Keys.IMAGE].dtype}"
             )
             logger.debug(
-                "Batch Shape of Testing Features:"
-                " %s %s", batch[Keys.IMAGE].shape, batch[Keys.IMAGE].dtype
+                "Batch Shape of Testing Features:" " %s %s",
+                batch[Keys.IMAGE].shape,
+                batch[Keys.IMAGE].dtype,
             )
             print(
                 f"Batch Shape of Testing Labels:"
                 f" {batch[Keys.LABEL].shape} {batch[Keys.LABEL].dtype}"
             )
             logger.debug(
-                "Batch Shape of Testing Labels:"
-                " %s %s", batch[Keys.LABEL].shape, batch[Keys.LABEL].dtype
+                "Batch Shape of Testing Labels:" " %s %s",
+                batch[Keys.LABEL].shape,
+                batch[Keys.LABEL].dtype,
             )
         except StopIteration:
             print("No Testing Set")
@@ -368,7 +376,7 @@ class Engine:
         Parameters
         ----------
         path: str
-            The path at which the checkpoint is to be saved. 
+            The path at which the checkpoint is to be saved.
             Default path is the one specified in config.
         """
         checkpoint = {
@@ -406,15 +414,15 @@ class Engine:
         print(f"Loss= {self.loss} \n")
         logger.debug("Loss= %s", self.loss)
         print(f"Optimizer= {self.optimizer} \n")
-        logger.debug("Optimizer= %s", self.optimizer)  
-        logger.info("Compiling Finished") 
+        logger.debug("Optimizer= %s", self.optimizer)
+        logger.info("Compiling Finished")
 
     def per_batch_callback(self, *args, **kwargs):
         """
-          A generic callback function to be executed every batch.
-          Supposed to output information desired by user.
-          Should be Implemented in task module.
-          """
+        A generic callback function to be executed every batch.
+        Supposed to output information desired by user.
+        Should be Implemented in task module.
+        """
         pass
 
     def per_epoch_callback(self, *args, **kwargs):
@@ -429,11 +437,11 @@ class Engine:
         self,
         summary_writer,
         offset,
-        epochs = config.training["epochs"],
-        evaluate_epochs = 1,
-        batch_callback_epochs = None,
-        save_weight = False,
-        save_path = config.save["potential_checkpoint"],
+        epochs=config.training["epochs"],
+        evaluate_epochs=1,
+        batch_callback_epochs=None,
+        save_weight=False,
+        save_path=config.save["potential_checkpoint"],
     ):
         """
         train the model using the stored training set
@@ -451,10 +459,10 @@ class Engine:
         save_weight: bool
             Flag to save best weights. Default is False.
         save_path: str
-            Directory to save best weights at. 
+            Directory to save best weights at.
             Default is the potential path in config.
         """
- 
+
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             logger.debug(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
@@ -479,12 +487,12 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
-                                summary_writer,
-                                batch_num,
-                                batch[Keys.IMAGE],
-                                batch[Keys.LABEL],
-                                batch[Keys.PRED], # thresholded prediction
-                            )
+                            summary_writer,
+                            batch_num,
+                            batch[Keys.IMAGE],
+                            batch[Keys.LABEL],
+                            batch[Keys.PRED],  # thresholded prediction
+                        )
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)
@@ -501,16 +509,15 @@ class Engine:
                 valid_loss = None
                 valid_metric = None
             self.per_epoch_callback(
-                    summary_writer,
-                    epoch+offset,
-                    training_loss,
-                    valid_loss,
-                    training_metric,
-                    valid_metric,
-                )
+                summary_writer,
+                epoch + offset,
+                training_loss,
+                valid_loss,
+                training_metric,
+                valid_metric,
+            )
 
-
-    def test(self, dataloader = None, callback = False):
+    def test(self, dataloader=None, callback=False):
         """
         calculates loss on input dataset
 
@@ -561,17 +568,25 @@ class Engine:
     def objective(
         self,
         trial,
-        pretrained=False,
-        cp_path=config.tune["check_point"],
-        epochs=config.training["epochs"],
-        evaluate_epochs=1,
-        batch_callback_epochs=None,
-        save_weight=False,
-        save_path=config.tune["check_point"],
-        test_batch_callback=False,
+        automate,
+        pretrained,
+        cp_path,
+        epochs,
+        evaluate_epochs,
+        batch_callback_epochs,
+        save_weight,
+        save_path,
+        test_batch_callback,
     ):
         """
-        Optimize the hyper-parameters of segmentation models.
+        Train (by manually selecting hyperparameters or utilizing Optuna).
+
+        Parameters
+        ----------
+        trail: int
+                Describes number of trials of each hyperparameter combination
+        automate: bool
+                Flag to use automatic hyperparameter optimization.
         pretrained : bool
             if true, loads pretrained checkpoint. Default is True.
         cp_path : str
@@ -595,78 +610,50 @@ class Engine:
         test_batch_callback : bool
             whether to call per_batch_callback during testing or not.
             Default is False
+
+        Returns
+        -------
+        float
+            the averaged loss calculated during validation
+
         """
-        config.network_parameters["num_res_units"] = trial.suggest_int(
-            "res_units_l{}", 2, 5
+
+        if automate == True:
+
+            config.network_parameters["num_res_units"] = trial.suggest_int(
+                "res_units_l{}", 2, 5
+            )
+            config.training["optimizer"] = trial.suggest_categorical(
+                "optimizer", ["Adam", "SGD"]
+            )
+            config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
+                "lr", 1e-5, 1e-1, log=True
+            )
+            config.training["loss_name"] = trial.suggest_categorical(
+                "loss_name", ["monai_dice", "monai_general_dice"]
+            )
+
+        tracker = ExperimentTracking(
+            config.name["experiment_name"], config.name["run_name"]
         )
-        config.training["optimizer"] = trial.suggest_categorical(
-            "optimizer", ["Adam", "SGD"]
-        )
-        config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
-            "lr", 1e-5, 1e-1, log=True
-        )
-        config.training["loss_name"] = trial.suggest_categorical(
-            "loss_name", ["monai_dice", "monai_general_dice"]
-        )
-
-        logger.info('TRAIN_LIVER')
-        if cp_path is None:
-            cp_path = config.save["potential_checkpoint"]
-            logger.info(f"cp_path={cp_path}")
-        if epochs is None:
-            epochs = config.training["epochs"]
-            logger.info(f"epochs={epochs}")
-        set_seed()
-
-        self.load_data()
-        self.data_status()
-
-        hparams=self.get_hparams(config.network_name)
-        experiment_name, run_name= self.exp_naming()
-        if save_path is None:
-            cp_dir = os.path.join(config.save['potential_checkpoint'], experiment_name, run_name,"")
-
-            print(f"checkpoint directory: {cp_dir}")
-                # Check if the directory exists and create it if not
-            if not os.path.exists(cp_dir):
-                os.makedirs(cp_dir)
-
-            save_path = f"{cp_dir}/{config.save['potential_checkpoint']}" 
-        
-        logger.info(f"save_path={save_path}")
-        tracker = ExperimentTracking(experiment_name, run_name)
         summary_writer = tracker.tb_logger()
-        offset = 0
+        # if pretrained, will continue on previous checkpoints and previous ClearML task
         if pretrained:
             self.load_checkpoint(cp_path)
-            task = tracker.update_clearml_logger() 
-            offset=task.get_last_iteration()+1
-
+            task = tracker.update_clearml_logger()
+            offset = task.get_last_iteration() + 1
         else:
-            task = tracker.new_clearml_logger() 
-            offset=0  
+            task = tracker.new_clearml_logger()
+            offset = 0
 
+        # add all configs to ClearMl
+        task.connect_configuration(config.__dict__, name="configs")
+        # #add hyperparameters to ClearMl
+        hparams = self.get_hparams(config.network_name)
+        summary_writer.add_hparams(hparams, metric_dict={})
 
-        config.training["epochs"]=epochs
-        config.save["potential_checkpoint"]=save_path
-        my_params = task.connect_configuration(config.__dict__,name="configs")
-
-
-
-        # if pretrained:
-        #     self.load_checkpoint(cp_path)
-        # self.compile_status()
-
-        summary_writer.add_hparams(hparams,metric_dict = {})
-
-        init_loss, init_metric = self.test(
-            self.test_dataloader, callback=test_batch_callback
-        )
-        print(
-            "Initial test loss:", init_loss,
-        )
         self.fit(
-            summary_writer=summary_writer ,
+            summary_writer=summary_writer,
             offset=offset,
             epochs=epochs,
             evaluate_epochs=evaluate_epochs,
@@ -676,19 +663,13 @@ class Engine:
         )
         # Evaluate on latest saved check point
         self.load_checkpoint(save_path)
-        # tracker.upload_to_drive(cp_path=save_path)
-        task.close()
-        summary_writer.close()
-
-
         final_loss, final_metric = self.test(
             self.test_dataloader, callback=test_batch_callback
         )
         print(
-            "Final test loss:", final_loss,
+            "Final test loss:",
+            final_loss,
         )
-
-
 
         return final_loss
 
@@ -699,7 +680,7 @@ class Engine:
         ----------
         data_dir: str
             path of the input directory. expects to contain nifti or png files.
-        
+
         Returns
         -------
         tensor
@@ -709,15 +690,12 @@ class Engine:
         self.network.eval()
         with torch.no_grad():
             volume_names = natsort.natsorted(os.listdir(data_dir))
-            volume_paths = [os.path.join(data_dir, file_name) 
-                            for file_name in volume_names]
+            volume_paths = [
+                os.path.join(data_dir, file_name) for file_name in volume_names
+            ]
             logger.info("Volume paths: %s", volume_paths)
-            predict_files = [{Keys.IMAGE: image_name} 
-                             for image_name in volume_paths]
-            predict_set = Dataset(
-                data=predict_files, 
-                transform=self.test_transform
-                )
+            predict_files = [{Keys.IMAGE: image_name} for image_name in volume_paths]
+            predict_set = Dataset(data=predict_files, transform=self.test_transform)
             predict_loader = MonaiLoader(
                 predict_set,
                 batch_size=self.batch_size,
@@ -740,7 +718,7 @@ class Engine:
 def set_seed():
     """
     Sets seed for all randomized attributes of the packages and modules.
-    Usually called before engine initialization. 
+    Usually called before engine initialization.
     """
     seed = config.seed
     torch.manual_seed(seed)
