@@ -188,6 +188,18 @@ class Engine:
                     batch[key] = from_engine(key)(post_batch)
                     batch[key] = torch.stack(batch[key], dim = 0)
             return batch 
+    
+    def get_hyperparameters(self, *args, **kwargs):
+        """
+        Should be implemented by the user in the task module.
+        Selects the hyperparameters to be optimized during training.
+        Expected to return the selected values of the specified hyperparameter.
+
+        Raises:
+            NotImplementedError: When the function is not implemented.
+        """
+        raise NotImplementedError()
+
 
     def load_data(self):
         """
@@ -477,8 +489,8 @@ class Engine:
 
         Parameters
         ----------
-        trial: object
-            is a process of evaluating an objective function.
+        trial: Trial object
+           It provides methods to suggest values for different types of hyperparameters.
         automate: bool
             Flag to use automatic hyperparameter optimization.
         pretrained : bool
@@ -513,19 +525,11 @@ class Engine:
         """
 
         if automate == True:
-
-            config.network_parameters["num_res_units"] = trial.suggest_int(
-                "res_units_l{}", 2, 5
-            )
-            config.training["optimizer"] = trial.suggest_categorical(
-                "optimizer", ["Adam", "SGD"]
-            )
-            config.training["optimizer_parameters"]["lr"] = trial.suggest_float(
-                "lr", 1e-5, 1e-1, log=True
-            )
-            config.training["loss_name"] = trial.suggest_categorical(
-                "loss_name", ["monai_dice", "monai_general_dice"]
-            )
+        # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
+            config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
+            config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
+            config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
+            config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
 
         # if pretrained, will continue on previous checkpoints and previous ClearML task
         if pretrained:

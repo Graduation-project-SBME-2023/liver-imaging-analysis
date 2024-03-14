@@ -106,6 +106,8 @@ class LiverSegmentation(Engine):
                 config.transforms['train_transform'] = "2d_ct_transform"
                 config.transforms['test_transform'] = "2d_ct_transform"
                 config.transforms['post_transform'] = "2d_ct_transform"
+                config.optimization_direction = 'minimize'
+                config.trial_numbers = 5
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 1
@@ -372,7 +374,31 @@ class LiverSegmentation(Engine):
             ),
         } 
         return transforms[transform_name] 
+    
 
+    
+    def get_hyperparameters(self, trial, hyperparameter_name):
+        """
+        Gets the value of a specific hyperparameter from a given Trial object.
+        Args:
+            trial: Trial object
+                It provides methods to suggest values for different types of hyperparameters.
+            hyperparameter_name: str
+                The name of a specific hyperparameter.
+
+        Return:  
+        (int, str, float): 
+        The selected values of the specified hyperparameter based on its data type.
+            
+        """
+
+        hyperparameters = {
+            'num_res_units': trial.suggest_int("res_units_l{}", 2, 5),
+            'optimizer': trial.suggest_categorical("optimizer", ["Adam", "SGD"]),
+            'lr': trial.suggest_float("lr", 1e-5, 1e-1, log=True),
+            'loss_name': trial.suggest_categorical("loss_name", ["monai_dice", "monai_general_dice"]),
+        }
+        return hyperparameters[hyperparameter_name]      
 
     def per_batch_callback(self, batch_num, image, label, prediction):
         """
@@ -661,8 +687,8 @@ def segment_liver(
 def train_liver(
     modality="CT",
     inference="3D",
-    automate=False,
     pretrained=False,
+    automate = False,
     cp_path=config.save["potential_checkpoint"],
     epochs=config.training["epochs"],
     evaluate_epochs=1,
@@ -717,9 +743,6 @@ def train_liver(
     # checkpoints save path
     cp_dir = os.path.join(
         config.save["potential_checkpoint"],
-        config.name["experiment_name"],
-        config.name["run_name"],
-        "",
     )
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
@@ -731,11 +754,12 @@ def train_liver(
 
     if automate == True:
         # Create an Optuna study
-        study = optuna.create_study(direction="minimize")
+        optimization_direction = config.optimization_direction
+        study = optuna.create_study(direction =optimization_direction )
         study.optimize(
             lambda trial: model.objective(
                 trial=trial,
-                automate=automate,
+                automate=True,
                 pretrained=pretrained,
                 cp_path=cp_path,
                 epochs=epochs,
@@ -745,13 +769,12 @@ def train_liver(
                 save_path=save_path,
                 test_batch_callback=test_batch_callback,
             ),
-            n_trials=5,
+            n_trials=config.trial_numbers,
         )
     else:
-
         total_loss = model.objective(
             trial=1,
-            automate=automate,
+            automate=False,
             pretrained=pretrained,
             cp_path=cp_path,
             epochs=epochs,
@@ -759,8 +782,7 @@ def train_liver(
             batch_callback_epochs=batch_callback_epochs,
             save_weight=save_weight,
             save_path=save_path,
-            test_batch_callback=test_batch_callback,
-            automate=automate,
+            test_batch_callback=test_batch_callback
         )
 
 
@@ -778,6 +800,10 @@ if __name__ == '__main__':
     parser.add_argument(
                 '--cp', type = bool, default = True,
                 help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--auto', type = bool, default = False,
+                help = 'if True automates hyperparameter tuning (default: False)'
                 )
     parser.add_argument(
                 '--cp_path', type = bool, default = None,
@@ -836,6 +862,7 @@ if __name__ == '__main__':
             modality = args.modality, 
             inference = args.inference, 
             pretrained = args.cp, 
+            automate= args.auto,
             cp_path = args.cp_path,
             epochs = args.epochs, 
             evaluate_epochs = args.eval_epochs,
