@@ -106,8 +106,6 @@ class LiverSegmentation(Engine):
                 config.transforms['train_transform'] = "2d_ct_transform"
                 config.transforms['test_transform'] = "2d_ct_transform"
                 config.transforms['post_transform'] = "2d_ct_transform"
-                config.optimization_direction = 'minimize'
-                config.trial_numbers = 5
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
                 config.training['batch_size'] = 1
@@ -689,6 +687,8 @@ def train_liver(
     inference="3D",
     pretrained=False,
     automate = False,
+    optimization_direction = 'minimize',
+    trial_numbers = 5,
     cp_path=config.save["potential_checkpoint"],
     epochs=config.training["epochs"],
     evaluate_epochs=1,
@@ -754,7 +754,6 @@ def train_liver(
 
     if automate == True:
         # Create an Optuna study
-        optimization_direction = config.optimization_direction
         study = optuna.create_study(direction =optimization_direction )
         study.optimize(
             lambda trial: model.objective(
@@ -769,7 +768,7 @@ def train_liver(
                 save_path=save_path,
                 test_batch_callback=test_batch_callback,
             ),
-            n_trials=config.trial_numbers,
+            n_trials=trial_numbers,
         )
     else:
         total_loss = model.objective(
