@@ -735,7 +735,6 @@ def train_liver(
         whether to call per_batch_callback during testing or not.
         Default is False
     """
-
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
@@ -747,7 +746,11 @@ def train_liver(
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
         os.makedirs(cp_dir)
+
     save_path = f"{cp_dir}/potential_checkpoint"
+    #if pretrained, will continue on previous checkpoints
+    if pretrained:
+        model.load_checkpoint(cp_path)
 
     model.data_status()
     model.compile_status()
@@ -756,33 +759,32 @@ def train_liver(
         # Create an Optuna study
         study = optuna.create_study(direction =optimization_direction )
         study.optimize(
-            lambda trial: model.objective(
+            lambda trial: model.fit(
                 trial=trial,
-                automate=True,
-                pretrained=pretrained,
-                cp_path=cp_path,
                 epochs=epochs,
                 evaluate_epochs=evaluate_epochs,
                 batch_callback_epochs=batch_callback_epochs,
                 save_weight=save_weight,
                 save_path=save_path,
-                test_batch_callback=test_batch_callback,
             ),
             n_trials=trial_numbers,
         )
     else:
-        total_loss = model.objective(
-            trial=1,
-            automate=False,
-            pretrained=pretrained,
-            cp_path=cp_path,
+        model.fit(
             epochs=epochs,
             evaluate_epochs=evaluate_epochs,
             batch_callback_epochs=batch_callback_epochs,
             save_weight=save_weight,
             save_path=save_path,
-            test_batch_callback=test_batch_callback
-        )
+    )
+    # Evaluate on latest saved check point
+    model.load_checkpoint(save_path)
+    final_loss, final_metric = model.test(
+        model.test_dataloader, callback=test_batch_callback
+    )
+    print(
+        "Final test loss:", final_loss,
+    )
 
 
 

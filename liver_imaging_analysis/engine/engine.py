@@ -18,7 +18,7 @@ from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
-
+import optuna
 class Engine:
     """
     Base class for all segmentation tasks. Tasks should inherit from this class.
@@ -345,6 +345,7 @@ class Engine:
 
     def fit(
         self,
+        trial = None,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
@@ -356,6 +357,8 @@ class Engine:
 
         Parameters
         ----------
+        trial: Trial object
+           It provides methods to suggest values for different types of hyperparameters.
         epochs: int
             The number of training iterations over data.
             Default is the value specified in config.
@@ -369,7 +372,19 @@ class Engine:
         save_path: str
             Directory to save best weights at. 
             Default is the potential path in config.
+
+        Returns
+        -------
+        float 
+        the averaged loss calculated during validation
+
         """
+        if trial != None:
+            # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
+            config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
+            config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
+            config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
+            config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
         for epoch in range(epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -420,6 +435,13 @@ class Engine:
                     training_metric,
                     valid_metric,
                 )
+            if  trial != None:
+                trial.report(valid_loss, epoch)
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+                
+                return valid_loss
 
     def test(self, dataloader = None, callback = False):
         """
@@ -471,88 +493,7 @@ class Engine:
             # reset the status for next computation round
             self.metrics.reset()
         return test_loss, test_metric
-    def objective(
-        self,
-        trial,
-        automate = False,
-        pretrained = False,
-        cp_path = None,
-        epochs = 100 ,
-        evaluate_epochs = 1,
-        batch_callback_epochs = 100 ,
-        save_weight = True,
-        save_path = config.save["potential_checkpoint"],
-        test_batch_callback = False,
-    ):
-        """
-        Train (by manually selecting hyperparameters or utilizing Optuna).
-
-        Parameters
-        ----------
-        trial: Trial object
-           It provides methods to suggest values for different types of hyperparameters.
-        automate: bool
-            Flag to use automatic hyperparameter optimization.
-        pretrained : bool
-            if true, loads pretrained checkpoint. Default is True.
-        cp_path : str
-            determines the path of the checkpoint to be loaded
-            if pretrained is true. If not defined, the potential
-            cp path will be loaded from config.
-        epochs : int
-            number of training epochs.
-            If not defined, epochs will be loaded from config.
-        evaluate_epochs : int
-            The number of epochs to evaluate model after. Default is 1.
-        batch_callback_epochs : int
-            The frequency at which per_batch_callback will be called.
-            Expects a number of epochs. Default is 100.
-        save_weight : bool
-            whether to save weights or not. Default is True.
-        save_path : str
-            the path to save weights at if save_weights is True.
-            If not defined, the potential cp path will be loaded
-            from config.
-        test_batch_callback : bool
-            whether to call per_batch_callback during testing or not.
-            Default is False
-
-        Returns
-        -------
-        float
-            the averaged loss calculated during validation
-
-        """
-
-        if automate == True:
-        # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
-            config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
-            config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
-            config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
-            config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
-
-        # if pretrained, will continue on previous checkpoints and previous ClearML task
-        if pretrained:
-            self.load_checkpoint(cp_path)
-
-        self.fit(
-            epochs=epochs,
-            evaluate_epochs=evaluate_epochs,
-            batch_callback_epochs=batch_callback_epochs,
-            save_weight=save_weight,
-            save_path=save_path,
-        )
-        # Evaluate on latest saved check point
-        self.load_checkpoint(save_path)
-        final_loss, final_metric = self.test(
-            self.test_dataloader, callback=test_batch_callback
-        )
-        print(
-            "Final test loss:",
-            final_loss,
-        )
-
-        return final_loss
+    
     def predict(self, data_dir):
         """
         predict the label of the given input
