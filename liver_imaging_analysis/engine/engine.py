@@ -2,6 +2,7 @@
 a module contains the fixed structure of the core of our code
 
 """
+import shutil
 import os
 import random
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
@@ -19,6 +20,7 @@ import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
 import optuna
+from optuna.storages import RetryFailedTrialCallback
 class Engine:
     """
     Base class for all segmentation tasks. Tasks should inherit from this class.
@@ -283,7 +285,7 @@ class Engine:
         except StopIteration:
             print("No Testing Set")
 
-    def save_checkpoint(self, path = config.save["model_checkpoint"]):
+    def save_checkpoint(self, path = config.save["model_checkpoint"],epoch= 0):
         """
         Saves the current network, optimizer, and scheduler states.
 
@@ -294,6 +296,7 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = {
+            'epoch': epoch,
             'state_dict': self.network.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
@@ -379,13 +382,40 @@ class Engine:
         the averaged loss calculated during validation
 
         """
-        if trial != None:
+        if trial != None:  
             # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
             config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
             config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
             config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
             config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
-        for epoch in range(epochs):
+
+            trial_number = RetryFailedTrialCallback.retried_trial_number(trial)
+            trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial_number))
+            checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
+
+            checkpoint_exists = os.path.isfile(checkpoint_path)
+
+            if trial_number is not None and checkpoint_exists:
+                checkpoint = torch.load(checkpoint_path)
+                epoch = checkpoint["epoch"]
+                epoch_begin = epoch + 1
+
+                print(f"Loading a checkpoint from trial {trial_number} in epoch {epoch}.")
+
+                self.load_state_dict(checkpoint["model_state_dict"])
+                self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+            else:
+                trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial.number))
+                checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
+                epoch_begin = 0
+                
+            os.makedirs(trial_checkpoint_dir, exist_ok=True)
+            # Reduce the risk by first calling `torch.save` to a temporary file, then copy.
+            tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
+        else:
+            epoch_begin =0            
+        for epoch in range(epoch_begin, epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
@@ -424,7 +454,7 @@ class Engine:
             if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
             if save_weight:
-                self.save_checkpoint(save_path)
+                self.save_checkpoint(save_path,epoch)
             else:
                 valid_loss = None
                 valid_metric = None
@@ -436,12 +466,14 @@ class Engine:
                     valid_metric,
                 )
             if  trial != None:
+                self.save_checkpoint(tmp_checkpoint_path,epoch)
+                shutil.move(tmp_checkpoint_path, checkpoint_path)
                 trial.report(valid_loss, epoch)
                 # Handle pruning based on the intermediate value.
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
                 
-                return valid_loss
+        return valid_loss
 
     def test(self, dataloader = None, callback = False):
         """

@@ -757,7 +757,7 @@ def train_liver(
 
     if automate == True:
         # Create an Optuna study
-        study = optuna.create_study(direction =optimization_direction )
+        study = optuna.create_study(direction =optimization_direction)
         study.optimize(
             lambda trial: model.fit(
                 trial=trial,
@@ -769,6 +769,26 @@ def train_liver(
             ),
             n_trials=trial_numbers,
         )
+        
+        pruned_trials = study.get_trials(states=(optuna.trial.TrialState.PRUNED,))
+        complete_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
+
+        print("Study statistics: ")
+        print("  Number of finished trials: ", len(study.trials))
+        print("  Number of pruned trials: ", len(pruned_trials))
+        print("  Number of complete trials: ", len(complete_trials))
+
+        print("Best trial:")
+        trial = study.best_trial
+
+        print("  Value: ", trial.value)
+
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print("    {}: {}".format(key, value))
+
+        # The line of the resumed trial's intermediate values begins with the restarted epoch.
+        optuna.visualization.plot_intermediate_values(study).show()
     else:
         model.fit(
             epochs=epochs,
