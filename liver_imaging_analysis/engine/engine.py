@@ -59,13 +59,10 @@ class Engine:
              config.transforms["post_transform"]
         )
         
-        pre_load = time.time()
         self.load_data()
-        load_time = time.time()-pre_load
         self.data_status()
         self.compile_status()
        
-        print(f"\ntime taken for data loading: {load_time:.3f}")
 
     def get_optimizer(self, optimizer_name, **kwargs):
         """
@@ -150,36 +147,7 @@ class Engine:
             "jaccard" : MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
-    
-    def get_hparams(self, network_name):
-        """
-        used to return a hyperparameters dictionary specific to each network 
-        Parameters
-        ----------
-        network_name: str
-                name of the network to fetch its hyperparameters.
-        Returns
-        -------
-        dict
-            A dictionary containing the hyperparameters for the specified network.
-        """
-        hparams = {
-            "monai_2DUNet" :  {
-            "spatial_dims": config.network_parameters["spatial_dims"],
-            "num_res_units": config.network_parameters["num_res_units"],
-            "bias": config.network_parameters["bias"],
-            "norm": config.network_parameters["norm"],
-            "dropout": config.network_parameters["dropout"],
-            "batch_size": config.training["batch_size"],
-            "optimizer": config.training["optimizer"],
-            "lr_scheduler": config.training["lr_scheduler"],
-            "loss_name": config.training["loss_name"],
-            "metrics": config.training["metrics"],
-            "shuffle": config.training["shuffle"]
-        }
-        }
-        return hparams[network_name]
-    
+        
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -259,12 +227,9 @@ class Engine:
             mode = config.dataset["mode"],
             shuffle = config.training["shuffle"]
         )
-        pre_transform = time.time()
         self.train_dataloader = trainloader.get_training_data()
         self.val_dataloader = trainloader.get_testing_data()
         self.test_dataloader = testloader.get_testing_data()
-        transform_time = time.time()-pre_transform
-        print(f"\ntime taken for preprocessing three data parts: {transform_time:.3f}")
 
     def data_status(self):
         """
@@ -410,8 +375,7 @@ class Engine:
  
         for epoch in range(epochs):
 
-            forward_time_per_epoch,post_process_time_per_epoch,metric_time_per_epoch,back_prop_time_per_epoch= 0.0,0.0,0.0,0.0
-            pre_train = time.time()
+
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
@@ -422,27 +386,15 @@ class Engine:
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
-                pre_forward = time.time()
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
                 loss = self.loss(batch[Keys.PRED], batch[Keys.LABEL])
-                post_forward = time.time()-pre_forward
-                forward_time_per_epoch += post_forward
                 # Apply post processing transforms and calculate metrics
-                pre_post_process_time = time.time()
                 batch = self.post_process(batch)
-                post_post_process_time = time.time() -pre_post_process_time
-                post_process_time_per_epoch += post_post_process_time
-                pre_metric = time.time()
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
-                post_metric = time.time()-pre_metric
-                metric_time_per_epoch += post_metric
                 # Backpropagation
-                pre_back_prop_time = time.time()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                post_back_prop_time = time.time()-pre_back_prop_time
-                back_prop_time_per_epoch+=  post_back_prop_time
                 training_loss += loss.item()
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0 and summary_writer!= None:
@@ -453,10 +405,6 @@ class Engine:
                                 batch[Keys.LABEL],
                                 batch[Keys.PRED], # thresholded prediction
                             )
-            print(f"\ntime taken for forward path per epoch: {forward_time_per_epoch:.3f}")
-            print(f"\ntime taken for post processing per epoch in training:{post_process_time_per_epoch:.3f}")
-            print(f"\ntime taken for metric calculation per epoch: {metric_time_per_epoch:.3f} ")
-            print(f"\ntime taken for backpropagation time per epoch in training:{back_prop_time_per_epoch:.3f}")
             self.scheduler.step()
             # normalize loss over batch size
             training_loss = training_loss / len(self.train_dataloader)  
@@ -484,9 +432,7 @@ class Engine:
                         valid_metric,
                         epoch_start_timestamps,
                     )
-            post_train = time.time() - pre_train
-            print(f"\ntime taken for training per epoch {post_train:.3f}")
-
+ 
     def test(self, dataloader = None, callback = False):
         """
         calculates loss on input dataset
@@ -506,8 +452,6 @@ class Engine:
         float
             the averaged metric calculated during testing
         """
-        pre_test,test_time = 0.0,0.0
-        pre_test =  time.time()
         if dataloader is None: #test on test set by default
             dataloader = self.test_dataloader
         num_batches = len(dataloader)
@@ -515,7 +459,6 @@ class Engine:
         test_metric = 0
         self.network.eval()
         print('\nTESTING:')
-        pre_post_processing, post_post_processing,post_processing_time= 0.0,0.0,0.0
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
                 progress_bar(batch_num + 1, len(dataloader))
@@ -527,10 +470,7 @@ class Engine:
                     batch[Keys.LABEL]
                     ).item()
                 #Apply post processing transforms on prediction
-                pre_post_processing = time.time()
                 batch = self.post_process(batch)
-                post_post_processing = time.time()-pre_post_processing
-                post_processing_time += post_post_processing
                 self.metrics(batch[Keys.PRED].int(), batch[Keys.LABEL].int())
                 if callback:
                   self.per_batch_callback(
@@ -539,16 +479,12 @@ class Engine:
                       batch[Keys.LABEL],
                       batch[Keys.PRED]
                       )
-            print(f"\ntime taken for post procesing in validation {post_processing_time:.3f}")
-
             test_loss /= num_batches
             # aggregate the final metric result
             test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
         
-        test_time = time.time() - pre_test
-        print(f"\ntime taken for testing: {test_time:.3f}")
         return test_loss, test_metric
 
     def predict(self, data_dir):

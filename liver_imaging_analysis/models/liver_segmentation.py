@@ -484,7 +484,6 @@ class LiverSegmentation(Engine):
                 Tensor of the predicted labels.
                 Shape is (1,channel,length,width,depth).
         """
-        start_inference_time = time.time()
         # Read volume
         img_volume = SimpleITK.ReadImage(volume_path)
         img_volume_array = SimpleITK.GetArrayFromImage(img_volume)
@@ -534,8 +533,6 @@ class LiverSegmentation(Engine):
         batch = self.post_process(batch)
         # Delete temporary folder
         shutil.rmtree(temp_path)
-        prediction_time_per_epoch   = time.time() - start_inference_time
-        print(f"\ntime taken for prediction 2d: {prediction_time_per_epoch:.3f}")
         return batch[Keys.PRED]
 
 
@@ -734,9 +731,13 @@ def train_liver(
     model = LiverSegmentation(modality, inference)
 
 
-    # initialize experiment tracking
-    hparams=model.get_hparams(config.network_name)  
-    tracker = ExperimentTracking(hparams)
+    hyperparameters = {**config.network_parameters}  # Copy config.network_parameters dict
+    hyperparameters.update({key: value for key, value in config.training.items() if key != "epochs"}) # Merge config.network_parameters and config.training dictionaries
+    hyperparameters = {key: str(value) if isinstance(value, (list, dict)) else value for key, value in hyperparameters.items()}
+
+
+    # initialize experiment tracking using hyperparameters dictionary
+    tracker = ExperimentTracking(hyperparameters)
     
     # setup checkpoints automatic save path
     cp_dir = os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'],"")

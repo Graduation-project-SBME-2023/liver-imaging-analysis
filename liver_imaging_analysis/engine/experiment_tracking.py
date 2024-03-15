@@ -19,21 +19,18 @@ class ExperimentTracking:
     """
     Class for experiment tracking using ClearML, Tensorboard and Google Drive.
 
-    Args:
-        experiment_name (str): Name of the experiment.
-        run_name (str): Name of the run within the experiment.
     """
 
-    def __init__(self, hparams):
+    def __init__(self, hyperparameters):
         """
         Initializes an ExperimentTracking instance for the chosen model and hyperparameters.
 
         Parameters
         ----------
-        hparams : dict
+        hyperparameters : dict
             A dictionary containing the hyperparameters used for the experiment.
         """
-        # clearml credentials for experiment tracking
+        # CLearML credentials for experiment tracking
         Task.set_credentials(
             api_host="https://api.clear.ml",
             web_host="https://app.clear.ml",
@@ -41,10 +38,10 @@ class ExperimentTracking:
             key= config.clearml_credentials["key"],
             secret= config.clearml_credentials["secret"],
         )
-        self.experiment_name, self.run_name = self.exp_naming(hparams)
-        self.task=None
-        self.writer=None
-        self.hparams=hparams
+        self.experiment_name, self.run_name = self.exp_naming(hyperparameters)
+        self.task=None  # Task object that represents the current running experiment in CLearML
+        self.writer=None  # Writer object for Tensorboard logging
+        self.hyperparameters=hyperparameters
     
     def Hash(self, text:str):
         """
@@ -64,18 +61,22 @@ class ExperimentTracking:
             hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
         return hash
 
-    def exp_naming(self,hparams):
+    def exp_naming(self,hyperparameters):
         """
         Names the experiment and run based on network name and hyperparameters.
 
         Parameters
         ----------
-        hparams : dict
+        hyperparameters : dict
             A dictionary containing the hyperparameters used for the experiment.
+        Returns
+        -------
+        Tuple
+            A tuple containing the experiment name and the run name.
         """
         config.name['experiment_name']=config.network_name
         run_name = ""
-        for key, value in hparams.items():
+        for key, value in hyperparameters.items():
             run_name += f'{key}_{value}_'
         print( f"Experimemnt name: {config.name['experiment_name']}")
         config.name['run_name']=str(self.Hash(run_name))
@@ -86,7 +87,8 @@ class ExperimentTracking:
         """
         Creates a new ClearML task for experiment tracking.
 
-        Returns:
+        Returns
+        ----------
             clearml.Task: A ClearML task for the experiment.
         """
         # new task
@@ -94,7 +96,7 @@ class ExperimentTracking:
             project_name=self.experiment_name, task_name=self.run_name
         )
         self.task.add_requirements
-        #add all configs and hyperparameters to ClearMl
+        #log all configs to ClearMl
         self.task.connect_configuration(config.__dict__,name="configs")
         return self.task
 
@@ -102,7 +104,8 @@ class ExperimentTracking:
         """
         Updates the ClearML logger for continuing from previous checkpoints.
 
-        Returns:
+        Returns
+        ----------
             clearml.Task: A ClearML task for the experiment.
         """
         # continuing from previous checkpoints
@@ -112,7 +115,7 @@ class ExperimentTracking:
         self.task = Task.init(
             continue_last_task=True, reuse_last_task_id=tasks[-1].task_id
         )
-        #add all configs and hyperparameters to ClearMl
+        #log all configs to ClearMl
         self.task.connect_configuration(config.__dict__,name="configs")
         return self.task
 
@@ -120,7 +123,8 @@ class ExperimentTracking:
         """
         Initializes a Tensorboard logger.
 
-        Returns:
+        Returns
+        ----------
             torch.utils.tensorboard.SummaryWriter: Tensorboard writer.
         """
         # Construct the log directory path
@@ -134,8 +138,8 @@ class ExperimentTracking:
 
         # Initialize the tensorboard writer
         self.writer = SummaryWriter(log_dir)
-        #add hyperparameters to ClearMl
-        self.writer.add_hparams(self.hparams,metric_dict = {})
+        # Log hyperparameters to Tensorboard; they will be automatically reported by ClearML.
+        self.writer.add_hparams(self.hyperparameters,metric_dict = {})
 
         return self.writer
     
@@ -144,10 +148,14 @@ class ExperimentTracking:
         """
         Recursively uploads files and subdirectories in the given folder to Google Drive.
 
-        Args:
-            service (googleapiclient.discovery.Resource): Google Drive API service.
-            folder_path (str): Local path to the folder to upload.
-            parent_folder_id (str): ID of the parent folder in Google Drive.
+        Parameters
+        ----------
+        service : googleapiclient.discovery.Resource
+            Google Drive API service.
+        folder_path : str
+            Local path to the folder to upload.
+        parent_folder_id : str
+            ID of the parent folder in Google Drive.
         """
         # List all files and subdirectories in the folder
         for item_name in os.listdir(folder_path):
@@ -172,10 +180,14 @@ class ExperimentTracking:
         """
         Uploads a local folder to Google Drive.
 
-        Args:
-            runs_dir (str): Local path to the tensorboard files to upload.
-            cp_path (str): Local path to the checkpoint to upload.
-            parent_folder_id (str): ID of the parent folder in Google Drive.
+         Parameters
+        ----------
+        runs_dir : str
+            Local path to the tensorboard files to upload.
+        cp_path : str
+            Local path to the checkpoint to upload.
+        parent_folder_id : str
+            ID of the parent folder in Google Drive.
         """
         creds = None
 
@@ -230,12 +242,17 @@ class ExperimentTracking:
         """
         Checks if a folder exists in Google Drive and creates it if it doesn't.
 
-        Args:
-            service (googleapiclient.discovery.Resource): Google Drive API service.
-            parent_folder_id (str): ID of the parent folder in Google Drive.
-            folder_name (str): Name of the folder to check/create.
+        Parameters
+        ----------
+        service : googleapiclient.discovery.Resource
+            Google Drive API service.
+        parent_folder_id : str
+            ID of the parent folder in Google Drive.
+        folder_name : str
+            Name of the folder to check/create.
 
-        Returns:
+        Returns
+        ----------
             str: ID of the folder in Google Drive.
         """
         folder_id = None
@@ -261,9 +278,13 @@ class ExperimentTracking:
         """
         Uploads experiment data to Google Drive from a Google Colab environment.
 
-        Args:
-            runs_dir (str): Local path to the tensorboard files to upload.
-            cp_path (str): Local path to the checkpoint to upload.
+        Parameters
+        ----------
+        runs_dir : str
+            Local path to the tensorboard files to upload.
+        cp_path : str
+            Local path to the checkpoint to upload.
+
 
         Note:
             This method is intended to be used in a Google Colab environment. It mounts Google Drive
@@ -288,14 +309,6 @@ class ExperimentTracking:
           source_file = os.path.join(runs_dir, filename)
           target_file = os.path.join(upload_path, filename)
           shutil.copy(source_file, target_file)
-        # shutil.copy(cp_path, upload_path)
-        # shutil.copytree(runs_dir, upload_path)
-
-
-        # Upload the checkpoint to the run folder
-        # parts = cp_path.split("/")
-        # cp_path = "/".join(parts[:-1]) + "/"
-        # shutil.copy(cp_path, upload_path)
     
     @staticmethod
     def upload_to_drive():
@@ -321,7 +334,8 @@ class ExperimentTracking:
         """
         Checks if the code is running on Google Colab.
 
-        Returns:
+        Returns
+        ----------
             bool: True if running on Google Colab, False otherwise.
         """
         return "google.colab" in sys.modules
