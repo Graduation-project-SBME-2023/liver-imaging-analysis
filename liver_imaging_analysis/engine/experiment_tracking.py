@@ -21,29 +21,25 @@ class ExperimentTracking:
 
     """
 
-    def __init__(self, hyperparameters):
+    def __init__(self):
         """
         Initializes an ExperimentTracking instance for the chosen model and hyperparameters.
 
-        Parameters
-        ----------
-        hyperparameters : dict
-            A dictionary containing the hyperparameters used for the experiment.
         """
         # CLearML credentials for experiment tracking
         Task.set_credentials(
             api_host="https://api.clear.ml",
             web_host="https://app.clear.ml",
             files_host="https://files.clear.ml",
-            key= config.clearml_credentials["key"],
-            secret= config.clearml_credentials["secret"],
+            key=config.clearml_credentials["key"],
+            secret=config.clearml_credentials["secret"],
         )
-        self.experiment_name, self.run_name = self.exp_naming(hyperparameters)
-        self.task=None  # Task object that represents the current running experiment in CLearML
-        self.writer=None  # Writer object for Tensorboard logging
-        self.hyperparameters=hyperparameters
-    
-    def Hash(self, text:str):
+        self.hyperparameters = self.get_hyperparameters()
+        self.experiment_name, self.run_name = self.exp_naming()
+        self.task = None  # Task object that represents the current running experiment in CLearML
+        self.writer = None  # Writer object for Tensorboard logging
+
+    def Hash(self, text):
         """
         Calculates a hash value for the input text.
 
@@ -56,32 +52,48 @@ class ExperimentTracking:
         int
             The calculated hash value as an integer.
         """
-        hash=0
+        hash = 0
         for ch in text:
-            hash = ( hash*281  ^ ord(ch)*997) & 0xFFFFFFFF
+            hash = (hash * 281 ^ ord(ch) * 997) & 0xFFFFFFFF
         return hash
 
-    def exp_naming(self,hyperparameters):
+    def exp_naming(self):
         """
         Names the experiment and run based on network name and hyperparameters.
 
-        Parameters
-        ----------
-        hyperparameters : dict
-            A dictionary containing the hyperparameters used for the experiment.
         Returns
         -------
         Tuple
             A tuple containing the experiment name and the run name.
         """
-        config.name['experiment_name']=config.network_name
+        config.name["experiment_name"] = config.network_name
         run_name = ""
-        for key, value in hyperparameters.items():
-            run_name += f'{key}_{value}_'
-        print( f"Experimemnt name: {config.name['experiment_name']}")
-        config.name['run_name']=str(self.Hash(run_name))
-        print( f"Run ID: {config.name['run_name']}")
-        return   config.name['experiment_name'], config.name['run_name']
+        for key, value in self.hyperparameters.items():
+            run_name += f"{key}_{value}_"
+        print(f"Experimemnt name: {config.name['experiment_name']}")
+        config.name["run_name"] = str(self.Hash(run_name))
+        print(f"Run ID: {config.name['run_name']}")
+        return config.name["experiment_name"], config.name["run_name"]
+
+    def get_hyperparameters(self):
+        """
+        Get all hyperparameters specified in configs.
+
+        Returns:
+            dict: A dictionary containing the hyperparameters.
+        """
+
+        hyperparameters = {
+            **config.network_parameters
+        }  # Copy config.network_parameters dict
+        hyperparameters.update(
+            {key: value for key, value in config.training.items() if key != "epochs"}
+        )  # Merge config.network_parameters and config.training dictionaries
+        hyperparameters = {
+            key: str(value) if isinstance(value, (list, dict)) else value
+            for key, value in hyperparameters.items()
+        }
+        return hyperparameters
 
     def new_clearml_logger(self):
         """
@@ -96,8 +108,8 @@ class ExperimentTracking:
             project_name=self.experiment_name, task_name=self.run_name
         )
         self.task.add_requirements
-        #log all configs to ClearMl
-        self.task.connect_configuration(config.__dict__,name="configs")
+        # log all configs to ClearMl
+        self.task.connect_configuration(config.__dict__, name="configs")
         return self.task
 
     def update_clearml_logger(self):
@@ -115,8 +127,8 @@ class ExperimentTracking:
         self.task = Task.init(
             continue_last_task=True, reuse_last_task_id=tasks[-1].task_id
         )
-        #log all configs to ClearMl
-        self.task.connect_configuration(config.__dict__,name="configs")
+        # log all configs to ClearMl
+        self.task.connect_configuration(config.__dict__, name="configs")
         return self.task
 
     def new_tb_logger(self):
@@ -129,7 +141,7 @@ class ExperimentTracking:
         """
         # Construct the log directory path
         log_dir = os.path.join(
-            config.save['output_folder'], self.experiment_name, self.run_name
+            config.save["output_folder"], self.experiment_name, self.run_name
         )
 
         # Check if the directory exists and create it if not
@@ -139,10 +151,10 @@ class ExperimentTracking:
         # Initialize the tensorboard writer
         self.writer = SummaryWriter(log_dir)
         # Log hyperparameters to Tensorboard; they will be automatically reported by ClearML.
-        self.writer.add_hparams(self.hyperparameters,metric_dict = {})
+        self.writer.add_hparams(self.hyperparameters, metric_dict={})
 
         return self.writer
-    
+
     @staticmethod
     def __upload_folder__(service, folder_path, parent_folder_id):
         """
@@ -171,12 +183,12 @@ class ExperimentTracking:
 
             elif os.path.isdir(item_path):
                 # Recursively upload subfolder
-                ExperimentTracking.__upload_folder__(service, item_path, parent_folder_id)
-    
+                ExperimentTracking.__upload_folder__(
+                    service, item_path, parent_folder_id
+                )
+
     @staticmethod
-    def __upload_folder_to_drive_from_local__(
-        runs_dir, cp_path, parent_folder_id
-    ):
+    def __upload_folder_to_drive_from_local__(runs_dir, cp_path, parent_folder_id):
         """
         Uploads a local folder to Google Drive.
 
@@ -213,12 +225,12 @@ class ExperimentTracking:
 
             # Check if the experiment folder exists, if not, create it
             experiment_folder_id = ExperimentTracking.__get_or_create_folder__(
-                service, parent_folder_id, config.name['experiment_name']
+                service, parent_folder_id, config.name["experiment_name"]
             )
 
             # Check if the run folder exists, if not, create it inside the experiment folder
             run_folder_id = ExperimentTracking.__get_or_create_folder__(
-                service, experiment_folder_id, config.name['run_name']
+                service, experiment_folder_id, config.name["run_name"]
             )
 
             # Upload the runs folder and its contents to the drive
@@ -236,7 +248,7 @@ class ExperimentTracking:
             if os.path.exists("token.json"):
                 os.remove("token.json")
                 print("Deleted token.json after upload")
-    
+
     @staticmethod
     def __get_or_create_folder__(service, parent_folder_id, folder_name):
         """
@@ -272,9 +284,9 @@ class ExperimentTracking:
         else:
             folder_id = files[0]["id"]
         return folder_id
-    
+
     @staticmethod
-    def __upload_folder_to_drive_from_colab__(runs_dir,cp_path):
+    def __upload_folder_to_drive_from_colab__(runs_dir, cp_path):
         """
         Uploads experiment data to Google Drive from a Google Colab environment.
 
@@ -300,25 +312,33 @@ class ExperimentTracking:
 
         experiment_name = os.path.basename(os.path.dirname(runs_dir))
         run_name = os.path.basename(runs_dir)
-        upload_path=os.path.join(upload_path,experiment_name,run_name)
+        upload_path = os.path.join(upload_path, experiment_name, run_name)
 
         if not os.path.exists(upload_path):
-          os.makedirs(upload_path)
-        
+            os.makedirs(upload_path)
+
         for filename in os.listdir(runs_dir):
-          source_file = os.path.join(runs_dir, filename)
-          target_file = os.path.join(upload_path, filename)
-          shutil.copy(source_file, target_file)
-    
+            source_file = os.path.join(runs_dir, filename)
+            target_file = os.path.join(upload_path, filename)
+            shutil.copy(source_file, target_file)
+
     @staticmethod
     def upload_to_drive():
         """
         Uploads all run data to Google Drive.
 
         """
-        cp_dir=os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'])
-        cp_path = f"{cp_dir}/potential_checkpoint" 
-        runs_dir=os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'])
+        cp_dir = os.path.join(
+            config.save["output_folder"],
+            config.name["experiment_name"],
+            config.name["run_name"],
+        )
+        cp_path = f"{cp_dir}/potential_checkpoint"
+        runs_dir = os.path.join(
+            config.save["output_folder"],
+            config.name["experiment_name"],
+            config.name["run_name"],
+        )
         if ExperimentTracking.is_google_colab():
             print("This code is running on a Google Colab machine.")
             # ExperimentTracking.__upload_folder_to_drive_from_colab__(runs_dir,cp_path)

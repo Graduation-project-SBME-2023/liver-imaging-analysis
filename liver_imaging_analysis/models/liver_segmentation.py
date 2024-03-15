@@ -731,13 +731,8 @@ def train_liver(
     model = LiverSegmentation(modality, inference)
 
 
-    hyperparameters = {**config.network_parameters}  # Copy config.network_parameters dict
-    hyperparameters.update({key: value for key, value in config.training.items() if key != "epochs"}) # Merge config.network_parameters and config.training dictionaries
-    hyperparameters = {key: str(value) if isinstance(value, (list, dict)) else value for key, value in hyperparameters.items()}
-
-
-    # initialize experiment tracking using hyperparameters dictionary
-    tracker = ExperimentTracking(hyperparameters)
+    # initialize experiment tracking 
+    tracker = ExperimentTracking()
     
     # setup checkpoints automatic save path
     cp_dir = os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'],"")
