@@ -1,3 +1,4 @@
+from logger import setup_logger
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -51,6 +52,11 @@ class SpleenSegmentation(Engine):
     """
 
     def __init__(self):
+        setup_logger(self.__class__.__name__)
+
+        logger.info("SpleenSegmentation")
+
+        logger.info("Loading configuration")
         self.set_configs()
         super().__init__()
         self.predict = self.predict_sliding_window

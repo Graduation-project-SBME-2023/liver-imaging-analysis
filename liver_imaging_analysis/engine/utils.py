@@ -111,6 +111,7 @@ def progress_bar(progress, total):
     percent = 100 * (progress / float(total))
     bar = "#" * int(percent) + "_" * (100 - int(percent))
     print(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
+    logger.debug(f"\r|{bar}| {percent: .2f}%", end=f"  ---> {progress}/{total}")
 
 
 def liver_isolate_crop(
@@ -213,6 +214,7 @@ def calculate_largest_tumor(mask):
                 idx = i
     max_volume = max_volume * x * y * z
     print("Largest Volume = ", max_volume, " In Slice ", idx)
+    logger.debug(f"Largest Volume = {max_volume} In Slice {idx}") 
 
     return idx
 
