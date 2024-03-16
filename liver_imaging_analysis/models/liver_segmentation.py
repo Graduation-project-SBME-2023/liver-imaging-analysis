@@ -742,7 +742,7 @@ def train_liver(
         or "sliding_window" for sliding window inference.
         Default is 3D
     test_inference : str
-        The type of inference to be used during testing.
+        The type of inference to be used during testing for any type of training inference.
         Expects "2D" for 2d dice test, "3D" for 3d dice test.
         Default is '2D'.
     dir_3d : str
@@ -785,25 +785,27 @@ def train_liver(
     model.data_status()
     if pretrained:
         model.load_checkpoint(cp_path)
-    model.compile_status()
-    
-    if test_inference == '3D' :
-        init_metric = model.test3d(
+        if test_inference == '3D' :
+            init_metric = model.test3d(
                         dir_3d = dir_3d
                     )
-    else :
-        init_loss, init_metric = model.test(
-                                    model.test_dataloader, 
-                                    callback = test_batch_callback
-                                )
+        else :
+            init_loss, init_metric = model.test(
+                                        model.test_dataloader, 
+                                        callback = test_batch_callback
+                                    )
+            print(
+                "Initial test loss:", 
+                init_loss,
+                )
         print(
-            "Initial test loss:", 
-            init_loss,
+            "\nInitial test metric:", 
+            init_metric.mean().item(),
             )
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
+        
+    model.compile_status()
+    
+   
         
     model.fit(
         epochs = epochs,
