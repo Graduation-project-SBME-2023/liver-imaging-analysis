@@ -44,15 +44,12 @@ import shutil
 import natsort
 import nibabel as nib
 import argparse
-import logging
-logger = logging.getLogger(__name__)
 
 class SpleenSegmentation(Engine):
     """
     A class used for the spleen segmentation task using pretrained checkpoint. 
     Inherits from Engine.
     """
-    logger.info("SpleenSegmentation")
 
     def __init__(self):
         setup_logger(self.__class__.__name__)
@@ -227,7 +224,6 @@ class SpleenSegmentation(Engine):
         tensor
             tensor of the predicted labels
         """
-        logger.info("predict_sliding_window")
         self.network.eval()
         with torch.no_grad():
             predict_files = [{Keys.IMAGE : volume_path}] 
@@ -255,8 +251,6 @@ class SpleenSegmentation(Engine):
                 batch = self.post_process(batch)    
                 prediction_list.append(batch[Keys.PRED])
             prediction_list = torch.cat(prediction_list, dim = 0)
-            logger.info(f"prediction_list: {prediction_list}")
-            logger.info("Prediction complete")
         return prediction_list
     
 
@@ -278,17 +272,13 @@ def segment_spleen(prediction_path = None, cp_path = None):
     ----------
         tensor: predicted 3D spleen mask
     """
-    logger.info("segment_spleen")
     spleen_model = SpleenSegmentation()
     if prediction_path is None:
         prediction_path = config.dataset['prediction']
-        logger.info(f"prediction_path: {prediction_path}")
     if cp_path is None:
         cp_path = config.save["spleen_checkpoint"]
-        logger.info(f"cp_path: {cp_path}")
     spleen_model.load_checkpoint(cp_path)
     spleen_prediction = spleen_model.predict(prediction_path)
-    logger.info(f"spleen_prediction: {spleen_prediction}")
     return spleen_prediction
 
 
