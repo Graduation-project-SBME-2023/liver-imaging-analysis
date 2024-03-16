@@ -193,7 +193,7 @@ class Engine:
                     batch[key] = torch.stack(batch[key], dim = 0)
             return batch 
     
-    def get_hyperparameters(self, *args, **kwargs):
+    def suggest_hyperparameters(self, *args, **kwargs):
         """
         Should be implemented by the user in the task module.
         Selects the hyperparameters to be optimized during training.
@@ -386,9 +386,9 @@ class Engine:
         tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
         return epoch_begin,tmp_checkpoint_path,checkpoint_path
 
-    def Update(self):
+    def update(self):
         """
-        Update the object after changing values in the configuration.
+        Update the class attributes based on the updated configuration.
         """
         self.__init__()
 
@@ -431,10 +431,10 @@ class Engine:
         epoch_begin =0
         if trial != None:  
             # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
-            config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
-            config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
-            config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
-            config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
+            config.network_parameters["num_res_units"]  = self.suggest_hyperparameters(trial,'num_res_units')
+            config.training["optimizer"]  = self.suggest_hyperparameters(trial,"optimizer")
+            config.training["optimizer_parameters"]["lr"]  = self.suggest_hyperparameters(trial,"lr")
+            config.training["loss_name"] = self.suggest_hyperparameters(trial,"loss_name")
             self.Update()
             epoch_begin,tmp_checkpoint_path,checkpoint_path = self.updating_checkpoint_per_trial(trial)
         for epoch in range(epoch_begin, epochs):

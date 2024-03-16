@@ -375,7 +375,7 @@ class LiverSegmentation(Engine):
     
 
     
-    def get_hyperparameters(self, trial, hyperparameter_name):
+    def suggest_hyperparameters(self, trial, hyperparameter_name):
         """
         Gets the value of a specific hyperparameter from a given Trial object.
         Args:
