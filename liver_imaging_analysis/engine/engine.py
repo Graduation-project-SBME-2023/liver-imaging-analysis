@@ -12,7 +12,7 @@ import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
 import monai
 from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
-from monai.losses import DiceLoss as monaiDiceLoss
+from monai.losses import DiceLoss as monai_dice, GeneralizedDiceLoss as monai_general_dice
 from torchmetrics import Accuracy
 from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
@@ -73,6 +73,7 @@ class Engine:
         optimizers = {
             "Adam" : torch.optim.Adam,
             "SGD" : torch.optim.SGD,
+            "RMSprop" : torch.optim.RMSprop
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
@@ -121,7 +122,8 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "monai_dice" : monaiDiceLoss,
+            "monai_dice" : monai_dice,
+            "monai_general_dice":monai_general_dice,
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -388,7 +390,19 @@ class Engine:
             config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
             config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
             config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
-
+            # the updated model configuration 
+            self.network = self.get_network(
+            network_name=config.network_name,
+            **config.network_parameters
+            ).to(self.device)
+            self.optimizer = self.get_optimizer(
+            optimizer_name=config.training["optimizer"],
+            **config.training["optimizer_parameters"],
+            )
+            self.loss = self.get_loss(
+            loss_name=config.training["loss_name"],
+            **config.training["loss_parameters"],
+             )
             trial_number = RetryFailedTrialCallback.retried_trial_number(trial)
             trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial_number))
             checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
@@ -414,7 +428,7 @@ class Engine:
             # Reduce the risk by first calling `torch.save` to a temporary file, then copy.
             tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
         else:
-            epoch_begin =0            
+            epoch_begin =0  
         for epoch in range(epoch_begin, epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -566,6 +580,64 @@ class Engine:
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
 
+
+    def automate(self,optimization_direction,epochs,evaluate_epochs,batch_callback_epochs,save_weight,save_path,trial_numbers):
+        """
+        automates the hyperparameters optimization process using Optuna.
+        Parameters
+        ----------
+        optimization_direction: str
+            direction of optimization, either 'minimize' or 'maximize'.
+        epochs : int
+            number of training epochs.
+            If not defined, epochs will be loaded from config.
+        evaluate_epochs : int
+            The number of epochs to evaluate model after. Default is 1.
+        batch_callback_epochs : int
+            The frequency at which per_batch_callback will be called.
+            Expects a number of epochs. Default is 100.
+        save_weight : bool
+            whether to save weights or not. Default is True.
+        save_path : str
+            the path to save weights at if save_weights is True.
+            If not defined, the potential cp path will be loaded
+            from config.
+        trial_numbers: int 
+            number of trials to run.
+        """
+        # Create an Optuna study
+        study = optuna.create_study(direction =optimization_direction)
+        study.optimize(
+            lambda trial: self.fit(
+                trial=trial,
+                epochs=epochs,
+                evaluate_epochs=evaluate_epochs,
+                batch_callback_epochs=batch_callback_epochs,
+                save_weight=save_weight,
+                save_path=save_path,
+            ),
+            n_trials=trial_numbers,
+        )
+        
+        pruned_trials = study.get_trials(states=(optuna.trial.TrialState.PRUNED,))
+        complete_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
+
+        print("Study statistics: ")
+        print("  Number of finished trials: ", len(study.trials))
+        print("  Number of pruned trials: ", len(pruned_trials))
+        print("  Number of complete trials: ", len(complete_trials))
+
+        print("Best trial:")
+        trial = study.best_trial
+
+        print("  Value: ", trial.value)
+
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print("    {}: {}".format(key, value))
+
+        # The line of the resumed trial's intermediate values begins with the restarted epoch.
+        optuna.visualization.plot_intermediate_values(study).show()
 
 def set_seed():
     """

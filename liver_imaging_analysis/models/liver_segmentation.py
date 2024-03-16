@@ -392,7 +392,7 @@ class LiverSegmentation(Engine):
 
         hyperparameters = {
             'num_res_units': trial.suggest_int("res_units_l{}", 2, 5),
-            'optimizer': trial.suggest_categorical("optimizer", ["Adam", "SGD"]),
+            'optimizer': trial.suggest_categorical("optimizer",["Adam", "RMSprop", "SGD"]),
             'lr': trial.suggest_float("lr", 1e-5, 1e-1, log=True),
             'loss_name': trial.suggest_categorical("loss_name", ["monai_dice", "monai_general_dice"]),
         }
@@ -711,6 +711,8 @@ def train_liver(
     automate: bool
         flag to use automatic hyperparameter optimization.
         Default is False
+    trial_numbers: int 
+        number of trials to run.
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
@@ -754,41 +756,15 @@ def train_liver(
 
     model.data_status()
     model.compile_status()
-
     if automate == True:
-        # Create an Optuna study
-        study = optuna.create_study(direction =optimization_direction)
-        study.optimize(
-            lambda trial: model.fit(
-                trial=trial,
-                epochs=epochs,
-                evaluate_epochs=evaluate_epochs,
-                batch_callback_epochs=batch_callback_epochs,
-                save_weight=save_weight,
-                save_path=save_path,
-            ),
-            n_trials=trial_numbers,
-        )
-        
-        pruned_trials = study.get_trials(states=(optuna.trial.TrialState.PRUNED,))
-        complete_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
+        model.automate(optimization_direction =optimization_direction,
+                       epochs = epochs,
+                       evaluate_epochs= evaluate_epochs,
+                       batch_callback_epochs= batch_callback_epochs,
+                       save_weight = save_weight,
+                       save_path= save_path,
+                       trial_numbers= trial_numbers)
 
-        print("Study statistics: ")
-        print("  Number of finished trials: ", len(study.trials))
-        print("  Number of pruned trials: ", len(pruned_trials))
-        print("  Number of complete trials: ", len(complete_trials))
-
-        print("Best trial:")
-        trial = study.best_trial
-
-        print("  Value: ", trial.value)
-
-        print("  Params: ")
-        for key, value in trial.params.items():
-            print("    {}: {}".format(key, value))
-
-        # The line of the resumed trial's intermediate values begins with the restarted epoch.
-        optuna.visualization.plot_intermediate_values(study).show()
     else:
         model.fit(
             epochs=epochs,
