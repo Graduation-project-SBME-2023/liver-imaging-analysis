@@ -348,6 +348,50 @@ class Engine:
         """
         pass
 
+    def updating_checkpoint_per_trial(self,trial):
+        """
+        Update checkpoint per trial.
+        Parameters
+        ----------
+        trial: Optuna Trail object
+        The trial object representing the current trial.
+
+        Returns
+        -------
+        int:
+        The starting epoch number.
+        str:
+        The path to the temporary checkpoint file.
+        str: 
+        The path to the final checkpoint file.
+         """
+        epoch_begin = 0
+        trial_number = RetryFailedTrialCallback.retried_trial_number(trial)
+        trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial_number))
+        checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
+        checkpoint_exists = os.path.isfile(checkpoint_path)
+        if trial_number is not None and checkpoint_exists:
+            checkpoint = torch.load(checkpoint_path)
+            epoch = checkpoint["epoch"]
+            epoch_begin = epoch + 1
+            print(f"Loading a checkpoint from trial {trial_number} in epoch {epoch}.")
+            self.load_state_dict(checkpoint["model_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+        else:
+            trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial.number))
+            checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt") 
+        os.makedirs(trial_checkpoint_dir, exist_ok=True)
+        # Reduce the risk by first calling `torch.save` to a temporary file, then copy.
+        tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
+        return epoch_begin,tmp_checkpoint_path,checkpoint_path
+
+    def Update(self):
+        """
+        Update the object after changing values in the configuration.
+        """
+        self.__init__()
+
     def fit(
         self,
         trial = None,
@@ -362,7 +406,7 @@ class Engine:
 
         Parameters
         ----------
-        trial: Trial object
+        trial: Optuna Trail object
            It provides methods to suggest values for different types of hyperparameters.
         epochs: int
             The number of training iterations over data.
@@ -384,51 +428,15 @@ class Engine:
         the averaged loss calculated during validation
 
         """
+        epoch_begin =0
         if trial != None:  
             # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
             config.network_parameters["num_res_units"]  = self.get_hyperparameters(trial,'num_res_units')
             config.training["optimizer"]  = self.get_hyperparameters(trial,"optimizer")
             config.training["optimizer_parameters"]["lr"]  = self.get_hyperparameters(trial,"lr")
             config.training["loss_name"] = self.get_hyperparameters(trial,"loss_name")
-            # the updated model configuration 
-            self.network = self.get_network(
-            network_name=config.network_name,
-            **config.network_parameters
-            ).to(self.device)
-            self.optimizer = self.get_optimizer(
-            optimizer_name=config.training["optimizer"],
-            **config.training["optimizer_parameters"],
-            )
-            self.loss = self.get_loss(
-            loss_name=config.training["loss_name"],
-            **config.training["loss_parameters"],
-             )
-            trial_number = RetryFailedTrialCallback.retried_trial_number(trial)
-            trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial_number))
-            checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
-
-            checkpoint_exists = os.path.isfile(checkpoint_path)
-
-            if trial_number is not None and checkpoint_exists:
-                checkpoint = torch.load(checkpoint_path)
-                epoch = checkpoint["epoch"]
-                epoch_begin = epoch + 1
-
-                print(f"Loading a checkpoint from trial {trial_number} in epoch {epoch}.")
-
-                self.load_state_dict(checkpoint["model_state_dict"])
-                self.optimizer.load_state_dict(checkpoint["optimizer"])
-
-            else:
-                trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial.number))
-                checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
-                epoch_begin = 0
-                
-            os.makedirs(trial_checkpoint_dir, exist_ok=True)
-            # Reduce the risk by first calling `torch.save` to a temporary file, then copy.
-            tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
-        else:
-            epoch_begin =0  
+            self.Update()
+            epoch_begin,tmp_checkpoint_path,checkpoint_path = self.updating_checkpoint_per_trial(trial)
         for epoch in range(epoch_begin, epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
@@ -499,8 +507,7 @@ class Engine:
                 Iterator of the dataset to evaluate on.
                 If not specified, the test_dataloader will be used.
         callback: bool
-                Flag to call per_batch_callback or not. Default is False.
-
+                Flag to call per_batch_callback or not. Default is False
         Returns
         -------
         float
@@ -546,8 +553,7 @@ class Engine:
         Parameters
         ----------
         data_dir: str
-            path of the input directory. expects to contain nifti or png files.
-        
+            path of the input directory. expects to contain nifti or png files.   
         Returns
         -------
         tensor

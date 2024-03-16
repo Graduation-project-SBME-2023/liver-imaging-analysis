@@ -389,7 +389,6 @@ class LiverSegmentation(Engine):
         The selected values of the specified hyperparameter based on its data type.
             
         """
-
         hyperparameters = {
             'num_res_units': trial.suggest_int("res_units_l{}", 2, 5),
             'optimizer': trial.suggest_categorical("optimizer",["Adam", "RMSprop", "SGD"]),
