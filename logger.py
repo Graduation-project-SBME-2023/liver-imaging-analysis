@@ -4,6 +4,16 @@ import datetime
 
 
 def setup_logger(name):
+    """
+    Sets up a logger with specified configurations for logging purposes.
+
+    Args:
+        name (str): The name of the logger file.
+
+    Returns:
+        Logger: The configured logger instance.
+
+    """
     # Create a logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
