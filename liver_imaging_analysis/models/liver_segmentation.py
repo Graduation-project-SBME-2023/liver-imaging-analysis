@@ -49,7 +49,7 @@ import time
 
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
 
-    
+
 class LiverSegmentation(Engine):
     """
     A class used for the liver segmentation task. Inherits from Engine.
@@ -397,29 +397,29 @@ class LiverSegmentation(Engine):
             prediction:
                 predicted liver mask
         """
-
-        dice_score=dice_metric(prediction.int(),label.int())[0].item()
-        plot_2d_or_3d_image(
-            data = image,
-            step = 0,
-            writer = summary_writer,
-            frame_dim = -1,
-            tag = f"Batch{batch_num}:Volume:dice_score:{dice_score}",
-        )
-        plot_2d_or_3d_image(
-            data = label,
-            step = 0,
-            writer = summary_writer,
-            frame_dim = -1,
-            tag = f"Batch{batch_num}:Mask:dice_score:{dice_score}",
-        )
-        plot_2d_or_3d_image(
-            data = prediction,
-            step = 0,
-            writer = summary_writer,
-            frame_dim = -1,
-            tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
-        )
+        if summary_writer is not None:
+            dice_score=dice_metric(prediction.int(),label.int())[0].item()
+            plot_2d_or_3d_image(
+                data = image,
+                step = 0,
+                writer = summary_writer,
+                frame_dim = -1,
+                tag = f"Batch{batch_num}:Volume:dice_score:{dice_score}",
+            )
+            plot_2d_or_3d_image(
+                data = label,
+                step = 0,
+                writer = summary_writer,
+                frame_dim = -1,
+                tag = f"Batch{batch_num}:Mask:dice_score:{dice_score}",
+            )
+            plot_2d_or_3d_image(
+                data = prediction,
+                step = 0,
+                writer = summary_writer,
+                frame_dim = -1,
+                tag = f"Batch{batch_num}:Prediction:dice_score:{dice_score}",
+            )
 
     def per_epoch_callback(
             self,
@@ -453,19 +453,21 @@ class LiverSegmentation(Engine):
         """
         print("\nTraining Loss=", training_loss)
         print("Training Metric=", training_metric)
-        summary_writer.add_scalar("Loss_train", training_loss, epoch)
-        summary_writer.add_scalar("Metric_train", training_metric, epoch)
-        summary_writer.add_scalar("epoch_duration[s]", time.time()-epoch_start_timestamps, epoch)
-        summary_writer.add_scalar("learning_rate", self.optimizer.param_groups[0]['lr'], epoch)
+        if summary_writer is not None:
+            summary_writer.add_scalar("Loss_train", training_loss, epoch)
+            summary_writer.add_scalar("Metric_train", training_metric, epoch)
+            summary_writer.add_scalar(
+                "epoch_duration[s]", time.time() - epoch_start_timestamps, epoch
+            )
+            summary_writer.add_scalar(
+                "learning_rate", self.optimizer.param_groups[0]["lr"], epoch
+            )
         if valid_loss is not None:
             print(f"Validation Loss={valid_loss}")
             print(f"Validation Metric={valid_metric}")
-            summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
-            summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
-   
-
-            
-
+            if summary_writer is not None:
+                summary_writer.add_scalar("Loss_validation", valid_loss, epoch)
+                summary_writer.add_scalar("Metric_validation", valid_metric, epoch)
 
     def predict_2dto3d(self, volume_path, temp_path="temp/"):
         """
@@ -715,10 +717,6 @@ def train_liver(
         Expects a number of epochs. Default is 100.
     save_weight : bool
         whether to save weights or not. Default is True.
-    save_path : str
-        the path to save weights at if save_weights is True.
-        If not defined, the potential cp path will be loaded 
-        from config.
     test_batch_callback : bool
         whether to call per_batch_callback during testing or not.
         Default is False
@@ -726,43 +724,48 @@ def train_liver(
     if epochs is None:
         epochs = config.training["epochs"]
 
-    
     set_seed()
     model = LiverSegmentation(modality, inference)
+    model.load_data()
+    model.data_status()
+    model.compile_status()
 
-
-    # initialize experiment tracking 
+    # initialize experiment tracking
     tracker = ExperimentTracking()
     
     # setup checkpoints automatic save path
-    cp_dir = os.path.join(config.save['output_folder'], config.name['experiment_name'], config.name['run_name'],"")
+    cp_dir = os.path.join(
+        config.save["output_folder"],
+        config.name["experiment_name"],
+        config.name["run_name"],
+        "",
+    )
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
         os.makedirs(cp_dir)
-    save_path = f"{cp_dir}/potential_checkpoint"
+    save_path = f"{cp_dir}/{config.save["potential_checkpoint"]}"
     if cp_path is None:
         cp_path = save_path
 
-    
-    #if pretrained, will continue on previous checkpoints and previous ClearML task
+    # if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
-        task = tracker.update_clearml_logger() 
-        offset=task.get_last_iteration()+1
+        task = tracker.update_clearml_logger()
+        offset = task.get_last_iteration() + 1
     else:
-        task = tracker.new_clearml_logger() 
-        offset=0  
+        task = tracker.new_clearml_logger()
+        offset = 0
     summary_writer = tracker.new_tb_logger()
-
 
     init_loss, init_metric = model.test(
         model.test_dataloader, callback=test_batch_callback
     )
     print(
-        "\nInitial test loss:", init_loss,
+        "\nInitial test loss:",
+        init_loss,
     )
     model.fit(
-        summary_writer=summary_writer ,
+        summary_writer=summary_writer,
         offset=offset,
         epochs=epochs,
         evaluate_epochs=evaluate_epochs,
@@ -776,11 +779,12 @@ def train_liver(
         model.test_dataloader, callback=test_batch_callback
     )
     print(
-        "Final test loss:", final_loss,
+        "Final test loss:",
+        final_loss,
     )
-    
-    #upload tensorboard files and checkpoint files
-    ExperimentTracking.upload_to_drive() 
+
+    # upload tensorboard files and checkpoint files
+    ExperimentTracking.upload_to_drive()
     task.close()
     summary_writer.close()
 
@@ -851,21 +855,18 @@ if __name__ == '__main__':
         args.predict_path = config.dataset['prediction']
     if args.cp_path is None:
         args.cp_path = config.save["liver_checkpoint"]
-    if args.save_path is None:
-        args.save_path = config.save["potential_checkpoint"]
-    if args.train: 
+    if args.train:
         train_liver(
-            modality = args.modality, 
-            inference = args.inference, 
-            pretrained = args.cp, 
-            cp_path = args.cp_path,
-            epochs = args.epochs, 
-            evaluate_epochs = args.eval_epochs,
-            batch_callback_epochs = args.batch_callback,
-            save_weight = args.save,
-            save_path = args.save_path,
-            test_batch_callback = args.test_callback,
-            )
+            modality=args.modality,
+            inference=args.inference,
+            pretrained=args.cp,
+            cp_path=args.cp_path,
+            epochs=args.epochs,
+            evaluate_epochs=args.eval_epochs,
+            batch_callback_epochs=args.batch_callback,
+            save_weight=args.save,
+            test_batch_callback=args.test_callback,
+        )
     if args.test:
         model = LiverSegmentation(args.modality, args.inference)
         model.load_data() #dataset should be located at the config path

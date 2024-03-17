@@ -58,10 +58,7 @@ class Engine:
         self.postprocessing_transforms = self.get_postprocessing_transforms(
              config.transforms["post_transform"]
         )
-        
-        self.load_data()
-        self.data_status()
-        self.compile_status()
+
        
 
     def get_optimizer(self, optimizer_name, **kwargs):
@@ -372,10 +369,7 @@ class Engine:
             Directory to save best weights at. 
             Default is the potential path in config.
         """
- 
         for epoch in range(epochs):
-
-
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
@@ -397,7 +391,7 @@ class Engine:
                 self.optimizer.step()
                 training_loss += loss.item()
                 if batch_callback_epochs is not None:
-                    if (epoch + 1) % batch_callback_epochs == 0 and summary_writer!= None:
+                    if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
                                 summary_writer,
                                 batch_num,
@@ -418,12 +412,9 @@ class Engine:
             else:
                 valid_loss = None
                 valid_metric = None
-
             if save_weight:
                 self.save_checkpoint(save_path)    
-
-            if  summary_writer!= None:    
-                self.per_epoch_callback(
+            self.per_epoch_callback(
                         summary_writer,
                         epoch+offset,
                         training_loss,
