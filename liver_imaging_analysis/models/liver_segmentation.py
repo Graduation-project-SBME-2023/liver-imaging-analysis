@@ -1,3 +1,4 @@
+from logger import setup_logger
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -42,6 +43,9 @@ from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
 import optuna
+import logging
+logger = logging.getLogger(__name__)
+
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -63,7 +67,19 @@ class LiverSegmentation(Engine):
     """
 
     def __init__(self, modality = 'CT', inference = '3D'):
+        
+        setup_logger(self.__class__.__name__ +'_' + modality +'_' + inference)
+
+        logger.info('LiverSegmentation')
+
+        logger.info("Loading configuration")
+
         self.set_configs(modality, inference)
+        for Key, value in vars(config).items():
+            logger.info(f"{Key}: {value}")
+
+        logger.info("Configuration loaded")
+
         super().__init__()
         if inference == '3D':
             self.predict = self.predict_2dto3d
@@ -88,7 +104,7 @@ class LiverSegmentation(Engine):
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 8
+                config.training['batch_size'] = 4
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -108,6 +124,8 @@ class LiverSegmentation(Engine):
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+                config.dataset['training'] = "Temp2D/Train/"
+                config.dataset['testing'] = "Temp2D/Test/"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,

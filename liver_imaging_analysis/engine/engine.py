@@ -21,12 +21,17 @@ from monai.transforms import Compose
 from monai.handlers.utils import from_engine
 import optuna
 from optuna.storages import RetryFailedTrialCallback
+import logging
+logger = logging.getLogger(__name__)
 class Engine:
     """
     Base class for all segmentation tasks. Tasks should inherit from this class.
     """
 
     def __init__(self):
+
+        logger.info("Initializing Engine")
+
         self.device = config.device
         self.batch_size = config.training["batch_size"]
         self.loss = self.get_loss(
@@ -258,6 +263,7 @@ class Engine:
             )
         except StopIteration:
             print("No Training Set")
+            logger.critical("No Training Set")
         dataloader_iterator = iter(self.val_dataloader)
         try:
             print("Number of Validation Batches:", len(dataloader_iterator))
@@ -286,6 +292,7 @@ class Engine:
             )
         except StopIteration:
             print("No Testing Set")
+            logger.critical("No Testing Set")
 
     def save_checkpoint(self, path = config.save["model_checkpoint"],epoch= 0):
         """
