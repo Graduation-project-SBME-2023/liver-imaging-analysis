@@ -39,7 +39,7 @@ class ExperimentTracking:
         self.task = None  # Task object that represents the current running experiment in CLearML
         self.writer = None  # Writer object for Tensorboard logging
 
-    def Hash(self, text):
+    def hash(self, text):
         """
         Calculates a hash value for the input text.
 
@@ -71,7 +71,7 @@ class ExperimentTracking:
         for key, value in self.hyperparameters.items():
             run_name += f"{key}_{value}_"
         print(f"Experimemnt name: {config.name['experiment_name']}")
-        config.name["run_name"] = str(self.Hash(run_name))
+        config.name["run_name"] = str(self.hash(run_name))
         print(f"Run ID: {config.name['run_name']}")
         return config.name["experiment_name"], config.name["run_name"]
 
@@ -188,16 +188,14 @@ class ExperimentTracking:
                 )
 
     @staticmethod
-    def __upload_folder_to_drive_from_local__(runs_dir, cp_path, parent_folder_id):
+    def __upload_folder_to_drive_from_local__(runs_dir, parent_folder_id):
         """
         Uploads a local folder to Google Drive.
 
          Parameters
         ----------
         runs_dir : str
-            Local path to the tensorboard files to upload.
-        cp_path : str
-            Local path to the checkpoint to upload.
+            Local path to the model's output files to upload.
         parent_folder_id : str
             ID of the parent folder in Google Drive.
         """
@@ -235,11 +233,6 @@ class ExperimentTracking:
 
             # Upload the runs folder and its contents to the drive
             ExperimentTracking.__upload_folder__(service, runs_dir, run_folder_id)
-
-            # Upload the checkpoint to the run folder
-            parts = cp_path.split("/")
-            cp_path = "/".join(parts[:-1]) + "/"
-            ExperimentTracking.__upload_folder__(service, cp_path, run_folder_id)
 
         except HttpError as error:
             print(f"An error occurred: {error}")
@@ -286,18 +279,14 @@ class ExperimentTracking:
         return folder_id
 
     @staticmethod
-    def __upload_folder_to_drive_from_colab__(runs_dir, cp_path):
+    def __upload_folder_to_drive_from_colab__(runs_dir):
         """
         Uploads experiment data to Google Drive from a Google Colab environment.
 
         Parameters
         ----------
         runs_dir : str
-            Local path to the tensorboard files to upload.
-        cp_path : str
-            Local path to the checkpoint to upload.
-
-
+            Local path to the model's output files to upload.
         Note:
             This method is intended to be used in a Google Colab environment. It mounts Google Drive
             to '/content/drive/' and copies the experiment data to a user-specified location within
@@ -306,21 +295,27 @@ class ExperimentTracking:
         from google.colab import drive
 
         drive.mount("/content/drive/")
-        upload_path = input(
-            "Please enter the path to the 'runs' folder in the shared Google Drive: "
-        )
+
+        while True:
+          try:
+              upload_path = input(
+                  "Please enter the path to the 'runs' folder in the shared Google Drive: "
+              )
+              # Check if the provided path exists
+              if os.path.exists(upload_path):
+                  break  # Exit the loop when the path is valid
+              else:
+                  print("Error: The provided path does not exist. Please try again.")
+          except Exception as e:
+              print(f"An error occurred: {e}")
 
         experiment_name = os.path.basename(os.path.dirname(runs_dir))
-        run_name = os.path.basename(runs_dir)
-        upload_path = os.path.join(upload_path, experiment_name, run_name)
+        upload_path = os.path.join(upload_path, experiment_name)
 
         if not os.path.exists(upload_path):
             os.makedirs(upload_path)
-
-        for filename in os.listdir(runs_dir):
-            source_file = os.path.join(runs_dir, filename)
-            target_file = os.path.join(upload_path, filename)
-            shutil.copy(source_file, target_file)
+        
+        shutil.move(runs_dir, upload_path)
 
     @staticmethod
     def upload_to_drive():
@@ -328,12 +323,6 @@ class ExperimentTracking:
         Uploads all run data to Google Drive.
 
         """
-        cp_dir = os.path.join(
-            config.save["output_folder"],
-            config.name["experiment_name"],
-            config.name["run_name"],
-        )
-        cp_path = f"{cp_dir}/potential_checkpoint"
         runs_dir = os.path.join(
             config.save["output_folder"],
             config.name["experiment_name"],
@@ -341,12 +330,12 @@ class ExperimentTracking:
         )
         if ExperimentTracking.is_google_colab():
             print("This code is running on a Google Colab machine.")
-            # ExperimentTracking.__upload_folder_to_drive_from_colab__(runs_dir,cp_path)
+            ExperimentTracking.__upload_folder_to_drive_from_colab__(runs_dir)
         else:
             print("This code is running on a local machine.")
             parent_folder_id = "1IHOuM7JyptK20PWJpWKJfIxJCI2QKKfm"
             ExperimentTracking.__upload_folder_to_drive_from_local__(
-                runs_dir, cp_path, parent_folder_id
+                runs_dir, parent_folder_id
             )
 
     @staticmethod
