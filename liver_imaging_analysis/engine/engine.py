@@ -18,6 +18,8 @@ from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
 from monai.handlers.utils import from_engine
+import logging
+logger = logging.getLogger(__name__)
 
 class Engine:
     """
@@ -26,7 +28,6 @@ class Engine:
 
     def __init__(self):
 
-        setup_logger()
         logger.info("Initializing Engine")
 
         self.device = config.device

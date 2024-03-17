@@ -50,6 +50,8 @@ import natsort
 import nibabel as nib
 from monai.handlers.utils import from_engine
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric = DiceMetric(ignore_empty = True, include_background = False)

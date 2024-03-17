@@ -45,6 +45,8 @@ import natsort
 import nibabel as nib
 import argparse
 
+import logging
+logger = logging.getLogger(__name__)
 class SpleenSegmentation(Engine):
     """
     A class used for the spleen segmentation task using pretrained checkpoint. 
