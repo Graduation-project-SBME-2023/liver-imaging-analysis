@@ -405,7 +405,7 @@ class Engine:
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
-        save_weight = False,
+        save_weight = True,
         save_path = config.save["potential_checkpoint"],
     ):
         """
@@ -594,7 +594,14 @@ class Engine:
         return prediction_list
 
 
-    def automate(self,optimization_direction,epochs,evaluate_epochs,batch_callback_epochs,save_weight,save_path,trial_numbers):
+    def tune_parameters(self,
+                        optimization_direction='minimize',
+                        epochs=config.training["epochs"],
+                        evaluate_epochs=1,
+                        batch_callback_epochs=None,
+                        save_weight=True,
+                        save_path=config.save["potential_checkpoint"],
+                        trial_numbers=5):
         """
         automates the hyperparameters optimization process using Optuna.
         Parameters
@@ -635,19 +642,16 @@ class Engine:
         pruned_trials = study.get_trials(states=(optuna.trial.TrialState.PRUNED,))
         complete_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
 
-        print("Study statistics: ")
-        print("  Number of finished trials: ", len(study.trials))
-        print("  Number of pruned trials: ", len(pruned_trials))
-        print("  Number of complete trials: ", len(complete_trials))
-
-        print("Best trial:")
+        logger.info("Study statistics: ")
+        logger.info("  Number of finished trials: ", len(study.trials))
+        logger.info("  Number of pruned trials: ", len(pruned_trials))
+        logger.info("  Number of complete trials: ", len(complete_trials))
+        logger.info("Best trial:")
         trial = study.best_trial
-
-        print("  Value: ", trial.value)
-
-        print("  Params: ")
+        logger.info("  Value: ", trial.value)
+        logger.info("  Params: ")
         for key, value in trial.params.items():
-            print("    {}: {}".format(key, value))
+            logger.info("    {}: {}".format(key, value))
 
         # The line of the resumed trial's intermediate values begins with the restarted epoch.
         optuna.visualization.plot_intermediate_values(study).show()
