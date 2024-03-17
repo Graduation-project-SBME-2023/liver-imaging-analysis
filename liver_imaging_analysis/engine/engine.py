@@ -442,7 +442,7 @@ class Engine:
             config.training["optimizer"]  = self.suggest_hyperparameters(trial,"optimizer")
             config.training["optimizer_parameters"]["lr"]  = self.suggest_hyperparameters(trial,"lr")
             config.training["loss_name"] = self.suggest_hyperparameters(trial,"loss_name")
-            self.Update()
+            self.update()
             epoch_begin,tmp_checkpoint_path,checkpoint_path = self.updating_checkpoint_per_trial(trial)
         for epoch in range(epoch_begin, epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")

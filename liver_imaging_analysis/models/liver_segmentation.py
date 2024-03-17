@@ -774,7 +774,8 @@ def train_liver(
     model.data_status()
     model.compile_status()
     if automate == True:
-        model.tune_parameters(optimization_direction =optimization_direction,
+        model.tune_parameters(
+                       optimization_direction =optimization_direction,
                        epochs = epochs,
                        evaluate_epochs= evaluate_epochs,
                        batch_callback_epochs= batch_callback_epochs,
