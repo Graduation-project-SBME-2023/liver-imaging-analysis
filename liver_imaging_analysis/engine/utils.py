@@ -97,6 +97,11 @@ def transform_to_hu(path):
     print(f"Minimum HU value: {HU_data.min()}")
     print(f"Maximum HU value: {HU_data.max()}")
     print(img_data.min(), img_data.max())
+    print(f"Transforming {path} to HU")
+    print(f"Slope: {slope}, Intercept: {intercept}")
+    print(f"Minimum voxel value: {img_data.min()}")
+    print(f"Maximum voxel value: {img_data.max()}")
+    print(f"Shape: {img_data.shape}")
     return HU_data
 
 def progress_bar(progress, total):

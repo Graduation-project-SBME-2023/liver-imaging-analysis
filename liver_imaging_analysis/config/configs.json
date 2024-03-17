@@ -58,5 +58,6 @@
         "potential_checkpoint": "potential_checkpoint",
         "tensorboard": "runs/"
     },
+
     "seed": 0
 }

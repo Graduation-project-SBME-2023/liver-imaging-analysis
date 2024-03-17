@@ -42,8 +42,10 @@ import natsort
 from monai.handlers.utils import from_engine
 import argparse
 import nibabel as nib
+import optuna
 import logging
 logger = logging.getLogger(__name__)
+
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
 dice_metric=DiceMetric(ignore_empty=True,include_background=True)
@@ -388,7 +390,30 @@ class LiverSegmentation(Engine):
             ),
         } 
         return transforms[transform_name] 
+    
 
+    
+    def suggest_hyperparameters(self, trial, hyperparameter_name):
+        """
+        Gets the value of a specific hyperparameter from a given Trial object.
+        Args:
+            trial: Trial object
+                It provides methods to suggest values for different types of hyperparameters.
+            hyperparameter_name: str
+                The name of a specific hyperparameter.
+
+        Return:  
+        (int, str, float): 
+        The selected values of the specified hyperparameter based on its data type.
+            
+        """
+        hyperparameters = {
+            'num_res_units': trial.suggest_int("res_units_l{}", 2, 5),
+            'optimizer': trial.suggest_categorical("optimizer",["Adam", "RMSprop", "SGD"]),
+            'lr': trial.suggest_float("lr", 1e-5, 1e-1, log=True),
+            'loss_name': trial.suggest_categorical("loss_name", ["monai_dice", "monai_general_dice"]),
+        }
+        return hyperparameters[hyperparameter_name]      
 
     def per_batch_callback(self, batch_num, image, label, prediction):
         """
@@ -675,19 +700,22 @@ def segment_liver(
 
 
 def train_liver(
-        modality = 'CT', 
-        inference = '3D', 
-        pretrained = True, 
-        cp_path = None,
-        epochs = None, 
-        evaluate_epochs = 1,
-        batch_callback_epochs = 100,
-        save_weight = True,
-        save_path = None,
-        test_batch_callback = False,
-        ):
+    modality="CT",
+    inference="3D",
+    pretrained=False,
+    automate = False,
+    optimization_direction = 'minimize',
+    trial_numbers = 5,
+    cp_path=config.save["potential_checkpoint"],
+    epochs=config.training["epochs"],
+    evaluate_epochs=1,
+    batch_callback_epochs=100,
+    save_weight=True,
+    save_path=config.save["potential_checkpoint"],
+    test_batch_callback=False,
+):
     """
-    Starts training of liver segmentation model.
+    Starts training of liver segmentation model with different options for hyperparameters optimization.
     modality : str
         the type of imaging modality to be segmented.
         expects 'CT' for CT images, or 'MRI' for MRI images.
@@ -697,11 +725,16 @@ def train_liver(
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
         Default is 3D
+    automate: bool
+        flag to use automatic hyperparameter optimization.
+        Default is False
+    trial_numbers: int 
+        number of trials to run.
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
-        determines the path of the checkpoint to be loaded 
-        if pretrained is true. If not defined, the potential 
+        determines the path of the checkpoint to be loaded
+        if pretrained is true. If not defined, the potential
         cp path will be loaded from config.
     epochs : int
         number of training epochs.
@@ -709,64 +742,63 @@ def train_liver(
     evaluate_epochs : int
         The number of epochs to evaluate model after. Default is 1.
     batch_callback_epochs : int
-        The frequency at which per_batch_callback will be called. 
+        The frequency at which per_batch_callback will be called.
         Expects a number of epochs. Default is 100.
     save_weight : bool
         whether to save weights or not. Default is True.
     save_path : str
         the path to save weights at if save_weights is True.
-        If not defined, the potential cp path will be loaded 
+        If not defined, the potential cp path will be loaded
         from config.
     test_batch_callback : bool
         whether to call per_batch_callback during testing or not.
         Default is False
     """
-    if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
-    if epochs is None:
-        epochs = config.training["epochs"]
-    if save_path is None:
-        save_path = config.save["potential_checkpoint"]
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
-    model.data_status()
+
+    # checkpoints save path
+    cp_dir = os.path.join(
+        config.save["potential_checkpoint"],
+    )
+    # Check if the directory exists and create it if not
+    if not os.path.exists(cp_dir):
+        os.makedirs(cp_dir)
+
+    save_path = f"{cp_dir}/potential_checkpoint"
+    #if pretrained, will continue on previous checkpoints
     if pretrained:
         model.load_checkpoint(cp_path)
+
+    model.data_status()
     model.compile_status()
-    init_loss, init_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
-    print(
-        "Initial test loss:", 
-        init_loss,
-        )
-    print(
-        "\nInitial test metric:", 
-        init_metric.mean().item(),
-        )
-    model.fit(
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
+    if automate == True:
+        model.tune_parameters(
+                       optimization_direction =optimization_direction,
+                       epochs = epochs,
+                       evaluate_epochs= evaluate_epochs,
+                       batch_callback_epochs= batch_callback_epochs,
+                       save_weight = save_weight,
+                       save_path= save_path,
+                       trial_numbers= trial_numbers)
+
+    else:
+        model.fit(
+            epochs=epochs,
+            evaluate_epochs=evaluate_epochs,
+            batch_callback_epochs=batch_callback_epochs,
+            save_weight=save_weight,
+            save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
     final_loss, final_metric = model.test(
-                                model.test_dataloader, 
-                                callback = test_batch_callback
-                                )
+        model.test_dataloader, callback=test_batch_callback
+    )
     print(
-        "Final test loss:", 
-        final_loss,
-        )
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
-        )
+        "Final test loss:", final_loss,
+    )
 
 
 
@@ -783,6 +815,10 @@ if __name__ == '__main__':
     parser.add_argument(
                 '--cp', type = bool, default = True,
                 help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--auto', type = bool, default = False,
+                help = 'if True automates hyperparameter tuning (default: False)'
                 )
     parser.add_argument(
                 '--cp_path', type = bool, default = None,
@@ -841,6 +877,7 @@ if __name__ == '__main__':
             modality = args.modality, 
             inference = args.inference, 
             pretrained = args.cp, 
+            automate= args.auto,
             cp_path = args.cp_path,
             epochs = args.epochs, 
             evaluate_epochs = args.eval_epochs,
