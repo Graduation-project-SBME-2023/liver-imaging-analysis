@@ -10,11 +10,11 @@
 
 This repository contains a fully Automated Benchmarking System For Medical Imaging Segmentation, which facilitates the comparison of state-of-the-art models' performance.
 Our system enables architecture selection from a diverse range of models and automates the optimization of loss functions and parameter tuning through different search space algorithms. It also integrates a centralized logging system that tracks and shares all experiment-related details during training in real-time dashboards.
-we have explored various model architectures encompassing different families, including the [nnU-Net](https://arxiv.org/abs/1809.10486), which automatically adapts to the dataset fingerprint, the [AttentionU-Net](https://arxiv.org/abs/1804.03999) utilizes an attention mechanism for feature extraction, and [UNETR](https://arxiv.org/abs/2103.10504).
+we have explored various model architectures encompassing different families, including the [AttentionU-Net](https://arxiv.org/abs/1804.03999) utilizes an attention mechanism for feature extraction, and [UNETR](https://arxiv.org/abs/2103.10504).
 Using our system enabled us to systematically fine-tune hyperparameters and investigate different loss functions, such as region-based losses like Tversky, and compound losses like Dice Cross Entropy. We also assessed both Adam and SGD optimizers, utilizing their respective update strategies. Additionally, we employed schedulers like Adaptive  and Plateau, which dynamically adjust the learning rate. To reduce computation time, we employed data downsampling techniques.
 
 The following contains information about how to [set up the data](#setting-up-the-data).
-A comparison between different SOTA approaches (Unet,nnU-Net,AttentionU-Net,UNETR) on the Lits and
+A comparison between different SOTA approaches (Unet,AttentionU-Net,UNETR) on the Lits and
 AbdomenCT datasets is shown in the [experiments](#experiments) section.
 
 ## Table of Contents
@@ -50,7 +50,6 @@ A more detailed analysis is given in the [experiments](#defining-the-basemodel) 
 | Model                | Dice     |
 |----------------------|:--------:|
 | UNET                 |  0.9574  |
-| NnU-Net              |  0.9645  |
 | AttentionU-Net       |  0.9599  |
 | UNETR                |  0.9356  | 
 
@@ -59,7 +58,6 @@ A more detailed analysis is given in the [experiments](#defining-the-basemodel) 
 This repository adopts code from the following sources:
 
 - **UNet** ([paper](https://arxiv.org/pdf/1505.04597.pdf), [source code](https://docs.monai.io/en/stable/networks.html#unet))
-- **nnU-Net** ([paper](https://arxiv.org/abs/1809.10486), [source code](https://github.com/MIC-DKFZ/nnUNet))
 - **AttentionU-Net** ([paper](https://arxiv.org/abs/1804.03999), [source code](https://docs.monai.io/en/stable/networks.html#attentionunet))
 - **UNETR** ([paper](https://arxiv.org/abs/2103.10504), [source code](https://docs.monai.io/en/stable/networks.html#unetr))
   
@@ -124,6 +122,8 @@ You may want to familiarize yourself with their basic use beforehand.
 
 - **[Pytorch](https://pytorch.org/)**: The machine learning/deep learning library used in this
   repository.
+- **[monai](https://docs.monai.io/en/stable/)**: Medical Open Network for AI. Check out the [official docs](https://docs.monai.io/en/stable/) on how to use monai.
+- **[Optuna](https://optuna.org)**: Hyperparameter optimization framework used in this Repo. Check out the [official docs](https://optuna.readthedocs.io/en/stable/) on how to use Optuna.
 - **[Black](https://black.readthedocs.io/en/stable/)**: Code Formatter used in this Repo. Check out the [official docs](https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html) on how to use Black or [here](https://akshay-jain.medium.com/pycharm-black-with-formatting-on-auto-save-4797972cf5de) on how to integrate Black into PyCharm.
 
 ## Setting up the Data
@@ -166,7 +166,7 @@ LiTS is a liver tumor segmentation benchmark. The data and segmentations are pro
 ### Selecting a Model
 
 You can change the model. The default model is Res-UNet.
-**Available options for 'model' are: nnU-Net, AttentionU-Net,UNETR**.
+**Available options for 'model' are: AttentionU-Net,UNETR**.
 
 
 ### Selecting a Dataset
@@ -270,7 +270,6 @@ conditions.
 | Model                | Dice     |
 |----------------------|:--------:|
 | UNET                 |  0.9574  |
-| NnU-Net              |  0.9645  |
 | AttentionU-Net       |  0.9599  |
 | UNETR                |  0.9356  |
 
@@ -338,7 +337,6 @@ parameters.
 It can be seen that the number of parameters is in a similar range for all models, but still as the
 number of parameters increases, the time complexity of the models also increases.
 
-![Time Complexity](     "Time Complexity")
 
 ## AbdomenCT
 
