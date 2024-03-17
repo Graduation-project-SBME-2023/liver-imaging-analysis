@@ -723,16 +723,13 @@ def train_liver(
     """
     if epochs is None:
         epochs = config.training["epochs"]
-
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
     model.data_status()
     model.compile_status()
-
     # initialize experiment tracking
-    tracker = ExperimentTracking()
-    
+    tracker = ExperimentTracking()  
     # setup checkpoints automatic save path
     cp_dir = os.path.join(
         config.save["output_folder"],
@@ -746,7 +743,6 @@ def train_liver(
     save_path = f"{cp_dir}/{config.save["potential_checkpoint"]}"
     if cp_path is None:
         cp_path = save_path
-
     # if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
@@ -756,7 +752,6 @@ def train_liver(
         task = tracker.new_clearml_logger()
         offset = 0
     summary_writer = tracker.new_tb_logger()
-
     init_loss, init_metric = model.test(
         model.test_dataloader, callback=test_batch_callback
     )
@@ -782,7 +777,6 @@ def train_liver(
         "Final test loss:",
         final_loss,
     )
-
     # upload tensorboard files and checkpoint files
     ExperimentTracking.upload_to_drive()
     task.close()
