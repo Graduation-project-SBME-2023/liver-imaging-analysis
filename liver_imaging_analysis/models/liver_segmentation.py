@@ -43,6 +43,12 @@ import argparse
 import nibabel as nib
 import natsort 
 from liver_imaging_analysis.engine.utils import progress_bar
+from liver_imaging_analysis.engine.experiment_tracking import ExperimentTracking
+import time
+dice_metric = DiceMetric(ignore_empty=True, include_background=True)
+import optuna
+import logging
+logger = logging.getLogger(__name__)
 
 
 summary_writer = SummaryWriter(config.save["tensorboard"])
@@ -620,14 +626,17 @@ class LiverSegmentation(Engine):
         return test_loss, test_metric
         
         
-    def test3d(self, dir_3d = None):
+    def test3d(self, volume_dir = None, mask_dir = None):
         """
         Calculate 3d dice in 2d models
         
         Parameters
         ----------
-        dir_3d : path
-                 path for test dataset and its true labels.
+        volume_dir : path
+                     path for test dataset.
+                    
+        mask_dir : path            
+                   path for true labels.
         
         Returns
         -------
@@ -635,22 +644,19 @@ class LiverSegmentation(Engine):
             the averaged 3d metric calculated during testing
         """
 
-        test_metric = 0   
+        test_metric = 0 
         
-        test_dir = os.path.join(dir_3d, "volume/")
-        labels_dir = os.path.join(dir_3d, "mask/")
-        
-        tests=natsort.natsorted(os.listdir(test_dir))
-        labels=natsort.natsorted(os.listdir(labels_dir))
+        volumes=natsort.natsorted(os.listdir(volume_dir))
+        labels=natsort.natsorted(os.listdir(mask_dir))
 
         print('\n3D TESTING:')
-        for test_num, (test_name, label_name) in enumerate(zip(tests, labels)):
-            progress_bar(test_num + 1, len(tests))
+        for test_num, (test_name, label_name) in enumerate(zip(volumes, labels)):
+            progress_bar(test_num + 1, len(volumes))
             
-            test_path=os.path.join(test_dir, test_name)
+            test_path=os.path.join(volume_dir, test_name)
             prediction = self.predict_2dto3d(test_path).to(config.device)
 
-            label_path=os.path.join(labels_dir,label_name)
+            label_path=os.path.join(mask_dir,label_name)
             nifti_label = nib.load(label_path).get_fdata()
             nifti_label = np.where(nifti_label > 0.5, 1, nifti_label)
             label = torch.from_numpy(nifti_label)
@@ -719,16 +725,18 @@ def segment_liver(
 def train_liver(
         modality = 'CT', 
         inference = '3D', 
-        test_inference = '2D',
-        dir_3d = None,
-        pretrained = True, 
-        cp_path = None,
-        epochs = None, 
-        evaluate_epochs = 1,
-        batch_callback_epochs = 100,
-        save_weight = True,
-        save_path = None,
-        test_batch_callback = False,
+        volumes_dir = None,
+        labels_dir = None,
+        pretrained=False,
+        automate = False,
+        optimization_direction = 'minimize',
+        trial_numbers = 5,
+        cp_path=config.save["potential_checkpoint"],
+        epochs=config.training["epochs"],
+        evaluate_epochs=1,
+        batch_callback_epochs=100,
+        save_weight=True,
+        test_batch_callback=False,
         ):
     """
     Starts training of liver segmentation model.
@@ -741,14 +749,19 @@ def train_liver(
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
         Default is 3D
-    test_inference : str
-        The type of inference to be used during testing for any type of training inference.
-        Expects "2D" for 2d dice test, "3D" for 3d dice test.
-        Default is '2D'.
-    dir_3d : str
-        The path for the 3d volumes and true labels of test dataset, 
-        This is used if `test_inference` is set to '3D'.
-        Default is None.    
+    volumes_dir : str
+        The path for the 3d volumes of test dataset, 
+        This is used if `inference` is set to '3D'.
+        Default is None. 
+    labels_dir : str
+       The path for the true masks of test dataset, 
+       This is used if `inference` is set to '3D'. 
+       Default is None. 
+    automate: bool
+        flag to use automatic hyperparameter optimization.
+        Default is False
+    trial_numbers: int 
+        number of trials to run.
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
@@ -765,76 +778,92 @@ def train_liver(
         Expects a number of epochs. Default is 100.
     save_weight : bool
         whether to save weights or not. Default is True.
-    save_path : str
-        the path to save weights at if save_weights is True.
-        If not defined, the potential cp path will be loaded 
-        from config.
     test_batch_callback : bool
         whether to call per_batch_callback during testing or not.
         Default is False
     """
-    if cp_path is None:
-        cp_path = config.save["potential_checkpoint"]
     if epochs is None:
         epochs = config.training["epochs"]
-    if save_path is None:
-        save_path = config.save["potential_checkpoint"]
     set_seed()
     model = LiverSegmentation(modality, inference)
     model.load_data()
     model.data_status()
+    model.compile_status()
+    # initialize experiment tracking
+    tracker = ExperimentTracking()  
+    # setup checkpoints automatic save path
+    cp_dir = os.path.join(
+        config.save["output_folder"],
+        config.name["experiment_name"],
+        config.name["run_name"],
+        "",
+    )
+    # Check if the directory exists and create it if not
+    if not os.path.exists(cp_dir):
+        os.makedirs(cp_dir)
+    save_path = f"{cp_dir}/{config.save['potential_checkpoint']}"
+    if cp_path is None:
+        cp_path = save_path
+    # if pretrained, will continue on previous checkpoints and previous ClearML task
     if pretrained:
         model.load_checkpoint(cp_path)
-        if test_inference == '3D' :
+        task = tracker.update_clearml_logger()
+        offset = task.get_last_iteration() + 1
+        if inference == '3D' :
             init_metric = model.test3d(
-                        dir_3d = dir_3d
+                        volumes_dir = volumes_dir,
+                        labels_dir = labels_dir
                     )
+            print(
+            "\nInitial test metric:", 
+            init_metric,
+            )
         else :
             init_loss, init_metric = model.test(
-                                        model.test_dataloader, 
-                                        callback = test_batch_callback
-                                    )
-            print(
-                "Initial test loss:", 
-                init_loss,
-                )
-        print(
-            "\nInitial test metric:", 
-            init_metric.mean().item(),
+                model.test_dataloader, callback=test_batch_callback
             )
-        
-    model.compile_status()
-    
-   
-        
-    model.fit(
-        epochs = epochs,
-        evaluate_epochs = evaluate_epochs,
-        batch_callback_epochs = batch_callback_epochs,
-        save_weight = save_weight,
-        save_path = save_path
+            print(
+                "\nInitial test loss:",
+                init_loss,
+            )
+    else:
+        task = tracker.new_clearml_logger()
+        offset = 0
+    summary_writer = tracker.new_tb_logger()
+    if automate == True:
+        model.tune_parameters(
+                       optimization_direction =optimization_direction,
+                       epochs = epochs,
+                       evaluate_epochs= evaluate_epochs,
+                       batch_callback_epochs= batch_callback_epochs,
+                       save_weight = save_weight,
+                       save_path= save_path,
+                       trial_numbers= trial_numbers)
+    else:
+        model.fit(
+            summary_writer=summary_writer,
+            offset=offset,
+            epochs=epochs,
+            evaluate_epochs=evaluate_epochs,
+            batch_callback_epochs=batch_callback_epochs,
+            save_weight=save_weight,
+            save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
-    
-    if test_inference == '3D' :
-        final_metric = model.test3d(
-                        dir_3d = dir_3d
-                    )
-    else :
-        final_loss, final_metric = model.test(
-                                    model.test_dataloader, 
-                                    callback = test_batch_callback
-                                    )
-        print(
-            "Final test loss:", 
-            final_loss,
-            )
-    print(
-        "\nFinal test metric:", 
-        final_metric.mean().item(),
-        )
 
+    final_loss, final_metric = model.test(
+        model.test_dataloader, callback=test_batch_callback
+    )
+    print(
+        "Final test loss:",
+        final_loss,
+    )
+    # upload tensorboard files and checkpoint files
+    ExperimentTracking.upload_to_drive()
+    task.close()
+    summary_writer.close()
+    
 
 
 if __name__ == '__main__':
