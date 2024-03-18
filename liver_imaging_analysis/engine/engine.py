@@ -2,6 +2,7 @@
 a module contains the fixed structure of the core of our code
 
 """
+import shutil
 import os
 import random
 from liver_imaging_analysis.engine.dataloader import DataLoader, Keys
@@ -11,7 +12,7 @@ import torch.optim.lr_scheduler
 from liver_imaging_analysis.engine.config import config
 import monai
 from monai.data import Dataset, decollate_batch,  DataLoader as MonaiLoader
-from monai.losses import DiceLoss as monaiDiceLoss
+from monai.losses import DiceLoss as monai_dice, GeneralizedDiceLoss as monai_general_dice
 from torchmetrics import Accuracy
 from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
@@ -19,7 +20,10 @@ import natsort
 from monai.transforms import Compose
 import time
 from monai.handlers.utils import from_engine
-
+import optuna
+from optuna.storages import RetryFailedTrialCallback
+import logging
+logger = logging.getLogger(__name__)
 
 class Engine:
     """
@@ -27,6 +31,9 @@ class Engine:
     """
 
     def __init__(self):
+
+        logger.info("Initializing Engine")
+
         self.device = config.device
         self.batch_size = config.training["batch_size"]
         self.loss = self.get_loss(
@@ -75,6 +82,7 @@ class Engine:
         optimizers = {
             "Adam" : torch.optim.Adam,
             "SGD" : torch.optim.SGD,
+            "RMSprop" : torch.optim.RMSprop
         }
         return optimizers[optimizer_name](self.network.parameters(), **kwargs)
 
@@ -123,7 +131,8 @@ class Engine:
                 parameters of loss function, if exist.
         """
         loss_functions = {
-            "monai_dice" : monaiDiceLoss,
+            "monai_dice" : monai_dice,
+            "monai_general_dice":monai_general_dice,
         }
         return loss_functions[loss_name](**kwargs)
 
@@ -193,6 +202,18 @@ class Engine:
                     batch[key] = from_engine(key)(post_batch)
                     batch[key] = torch.stack(batch[key], dim = 0)
             return batch 
+    
+    def suggest_hyperparameters(self, *args, **kwargs):
+        """
+        Should be implemented by the user in the task module.
+        Selects the hyperparameters to be optimized during training.
+        Expected to return the selected values of the specified hyperparameter.
+
+        Raises:
+            NotImplementedError: When the function is not implemented.
+        """
+        raise NotImplementedError()
+
 
     def load_data(self):
         """
@@ -247,6 +268,7 @@ class Engine:
             )
         except StopIteration:
             print("No Training Set")
+            logger.critical("No Training Set")
         dataloader_iterator = iter(self.val_dataloader)
         try:
             print("Number of Validation Batches:", len(dataloader_iterator))
@@ -275,8 +297,9 @@ class Engine:
             )
         except StopIteration:
             print("No Testing Set")
+            logger.critical("No Testing Set")
 
-    def save_checkpoint(self, path = config.save["model_checkpoint"]):
+    def save_checkpoint(self, path = config.save["model_checkpoint"],epoch= 0):
         """
         Saves the current network, optimizer, and scheduler states.
 
@@ -287,6 +310,7 @@ class Engine:
             Default path is the one specified in config.
         """
         checkpoint = {
+            'epoch': epoch,
             'state_dict': self.network.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
@@ -336,14 +360,59 @@ class Engine:
         """
         pass
 
+    def updating_checkpoint_per_trial(self,trial):
+        """
+        Update checkpoint per trial.
+        Parameters
+        ----------
+        trial: Optuna Trail object
+        The trial object representing the current trial.
+
+        Returns
+        -------
+        int:
+        The starting epoch number.
+        str:
+        The path to the temporary checkpoint file.
+        str: 
+        The path to the final checkpoint file.
+         """
+        epoch_begin = 0
+        trial_number = RetryFailedTrialCallback.retried_trial_number(trial)
+        trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial_number))
+        checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt")
+        checkpoint_exists = os.path.isfile(checkpoint_path)
+        if trial_number is not None and checkpoint_exists:
+            checkpoint = torch.load(checkpoint_path)
+            epoch = checkpoint["epoch"]
+            epoch_begin = epoch + 1
+            print(f"Loading a checkpoint from trial {trial_number} in epoch {epoch}.")
+            self.load_state_dict(checkpoint["model_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+
+        else:
+            trial_checkpoint_dir = os.path.join("potential_checkpoint", str(trial.number))
+            checkpoint_path = os.path.join(trial_checkpoint_dir, "model.pt") 
+        os.makedirs(trial_checkpoint_dir, exist_ok=True)
+        # Reduce the risk by first calling `torch.save` to a temporary file, then copy.
+        tmp_checkpoint_path = os.path.join(trial_checkpoint_dir, "tmp_model.pt")
+        return epoch_begin,tmp_checkpoint_path,checkpoint_path
+
+    def update(self):
+        """
+        Update the class attributes based on the updated configuration.
+        """
+        self.__init__()
+
     def fit(
         self,
         summary_writer=None,
         offset=0,
+        trial = None,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
         batch_callback_epochs = None,
-        save_weight = False,
+        save_weight = True,
         save_path = config.save["potential_checkpoint"],
     ):
         """
@@ -355,6 +424,8 @@ class Engine:
             Summary writer object for logging. Default is None.
         offset : int
             The starting epoch in training. Default is 0.
+        trial: Optuna Trail object
+           It provides methods to suggest values for different types of hyperparameters.
         epochs: int
             The number of training iterations over data.
             Default is the value specified in config.
@@ -368,8 +439,23 @@ class Engine:
         save_path: str
             Directory to save best weights at. 
             Default is the potential path in config.
+
+        Returns
+        -------
+        float 
+        the averaged loss calculated during validation
+
         """
-        for epoch in range(epochs):
+        epoch_begin =0
+        if trial != None:  
+            # obtain a combination of hyperparameters using the trial object to initiate the search and sampling strategies
+            config.network_parameters["num_res_units"]  = self.suggest_hyperparameters(trial,'num_res_units')
+            config.training["optimizer"]  = self.suggest_hyperparameters(trial,"optimizer")
+            config.training["optimizer_parameters"]["lr"]  = self.suggest_hyperparameters(trial,"lr")
+            config.training["loss_name"] = self.suggest_hyperparameters(trial,"loss_name")
+            self.update()
+            epoch_begin,tmp_checkpoint_path,checkpoint_path = self.updating_checkpoint_per_trial(trial)
+        for epoch in range(epoch_begin, epochs):
             print(f"\nEpoch {epoch+1}/{epochs}\n-------------------------------")
             training_loss = 0
             training_metric = 0
@@ -423,7 +509,16 @@ class Engine:
                         valid_metric,
                         epoch_start_timestamps,
                     )
- 
+            if  trial != None:
+                self.save_checkpoint(tmp_checkpoint_path,epoch)
+                shutil.move(tmp_checkpoint_path, checkpoint_path)
+                trial.report(valid_loss, epoch)
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
+                
+        return valid_loss
+
     def test(self, dataloader = None, callback = False):
         """
         calculates loss on input dataset
@@ -434,8 +529,7 @@ class Engine:
                 Iterator of the dataset to evaluate on.
                 If not specified, the test_dataloader will be used.
         callback: bool
-                Flag to call per_batch_callback or not. Default is False.
-
+                Flag to call per_batch_callback or not. Default is False
         Returns
         -------
         float
@@ -477,15 +571,14 @@ class Engine:
             self.metrics.reset()
         
         return test_loss, test_metric
-
+    
     def predict(self, data_dir):
         """
         predict the label of the given input
         Parameters
         ----------
         data_dir: str
-            path of the input directory. expects to contain nifti or png files.
-        
+            path of the input directory. expects to contain nifti or png files.   
         Returns
         -------
         tensor
@@ -518,6 +611,68 @@ class Engine:
             prediction_list = torch.cat(prediction_list, dim=0)
         return prediction_list
 
+
+    def tune_parameters(self,
+                        optimization_direction='minimize',
+                        epochs=config.training["epochs"],
+                        evaluate_epochs=1,
+                        batch_callback_epochs=None,
+                        save_weight=True,
+                        save_path=config.save["potential_checkpoint"],
+                        trial_numbers=5):
+        """
+        automates the hyperparameters optimization process using Optuna.
+        Parameters
+        ----------
+        optimization_direction: str
+            direction of optimization, either 'minimize' or 'maximize'.
+        epochs : int
+            number of training epochs.
+            If not defined, epochs will be loaded from config.
+        evaluate_epochs : int
+            The number of epochs to evaluate model after. Default is 1.
+        batch_callback_epochs : int
+            The frequency at which per_batch_callback will be called.
+            Expects a number of epochs. Default is 100.
+        save_weight : bool
+            whether to save weights or not. Default is True.
+        save_path : str
+            the path to save weights at if save_weights is True.
+            If not defined, the potential cp path will be loaded
+            from config.
+        trial_numbers: int 
+            number of trials to run.
+        """
+        # Create an Optuna study
+        study = optuna.create_study(direction =optimization_direction)
+        study.optimize(
+            lambda trial: self.fit(
+                trial=trial,
+                epochs=epochs,
+                evaluate_epochs=evaluate_epochs,
+                batch_callback_epochs=batch_callback_epochs,
+                save_weight=save_weight,
+                save_path=save_path,
+            ),
+            n_trials=trial_numbers,
+        )
+        
+        pruned_trials = study.get_trials(states=(optuna.trial.TrialState.PRUNED,))
+        complete_trials = study.get_trials(states=(optuna.trial.TrialState.COMPLETE,))
+
+        logger.info("Study statistics: ")
+        logger.info("  Number of finished trials: ", len(study.trials))
+        logger.info("  Number of pruned trials: ", len(pruned_trials))
+        logger.info("  Number of complete trials: ", len(complete_trials))
+        logger.info("Best trial:")
+        trial = study.best_trial
+        logger.info("  Value: ", trial.value)
+        logger.info("  Params: ")
+        for key, value in trial.params.items():
+            logger.info("    {}: {}".format(key, value))
+
+        # The line of the resumed trial's intermediate values begins with the restarted epoch.
+        optuna.visualization.plot_intermediate_values(study).show()
 
 def set_seed():
     """

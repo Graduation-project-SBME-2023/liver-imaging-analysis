@@ -1,3 +1,4 @@
+from logger import setup_logger
 from liver_imaging_analysis.engine.config import config
 from liver_imaging_analysis.engine.engine import Engine, set_seed
 from liver_imaging_analysis.engine.dataloader import Keys
@@ -46,8 +47,11 @@ import argparse
 import nibabel as nib
 from liver_imaging_analysis.engine.experiment_tracking import ExperimentTracking
 import time
-
 dice_metric = DiceMetric(ignore_empty=True, include_background=True)
+import optuna
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class LiverSegmentation(Engine):
@@ -67,7 +71,19 @@ class LiverSegmentation(Engine):
     """
 
     def __init__(self, modality = 'CT', inference = '3D'):
+        
+        setup_logger(self.__class__.__name__ +'_' + modality +'_' + inference)
+
+        logger.info('LiverSegmentation')
+
+        logger.info("Loading configuration")
+
         self.set_configs(modality, inference)
+        for Key, value in vars(config).items():
+            logger.info(f"{Key}: {value}")
+
+        logger.info("Configuration loaded")
+
         super().__init__()
         if inference == '3D':
             self.predict = self.predict_2dto3d
@@ -94,7 +110,7 @@ class LiverSegmentation(Engine):
         if modality == 'CT':
             if inference in ['2D', '3D']:
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
-                config.training['batch_size'] = 8
+                config.training['batch_size'] = 4
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
                                                             "gamma" : 0.5, 
@@ -114,6 +130,8 @@ class LiverSegmentation(Engine):
                 config.transforms['post_transform'] = "2d_ct_transform"
             elif inference == 'sliding_window':
                 config.dataset['prediction'] = "test cases/volume/volume-64.nii"
+                config.dataset['training'] = "Temp2D/Train/"
+                config.dataset['testing'] = "Temp2D/Test/"
                 config.training['batch_size'] = 1
                 config.training['scheduler_parameters'] = {
                                                             "step_size" : 20,
@@ -378,7 +396,30 @@ class LiverSegmentation(Engine):
             ),
         } 
         return transforms[transform_name] 
+    
 
+    
+    def suggest_hyperparameters(self, trial, hyperparameter_name):
+        """
+        Gets the value of a specific hyperparameter from a given Trial object.
+        Args:
+            trial: Trial object
+                It provides methods to suggest values for different types of hyperparameters.
+            hyperparameter_name: str
+                The name of a specific hyperparameter.
+
+        Return:  
+        (int, str, float): 
+        The selected values of the specified hyperparameter based on its data type.
+            
+        """
+        hyperparameters = {
+            'num_res_units': trial.suggest_int("res_units_l{}", 2, 5),
+            'optimizer': trial.suggest_categorical("optimizer",["Adam", "RMSprop", "SGD"]),
+            'lr': trial.suggest_float("lr", 1e-5, 1e-1, log=True),
+            'loss_name': trial.suggest_categorical("loss_name", ["monai_dice", "monai_general_dice"]),
+        }
+        return hyperparameters[hyperparameter_name]      
 
     def per_batch_callback(self,summary_writer, batch_num, image, label, prediction):
         """
@@ -680,18 +721,21 @@ def segment_liver(
 
 
 def train_liver(
-        modality = 'CT', 
-        inference = '3D', 
-        pretrained = False, 
-        cp_path = None,
-        epochs = None, 
-        evaluate_epochs = 1,
-        batch_callback_epochs = 100,
-        save_weight = True,
-        test_batch_callback = False,
-        ):
+    modality="CT",
+    inference="3D",
+    pretrained=False,
+    automate = False,
+    optimization_direction = 'minimize',
+    trial_numbers = 5,
+    cp_path=config.save["potential_checkpoint"],
+    epochs=config.training["epochs"],
+    evaluate_epochs=1,
+    batch_callback_epochs=100,
+    save_weight=True,
+    test_batch_callback=False,
+):
     """
-    Starts training of liver segmentation model.
+    Starts training of liver segmentation model with different options for hyperparameters optimization.
     modality : str
         the type of imaging modality to be segmented.
         expects 'CT' for CT images, or 'MRI' for MRI images.
@@ -701,11 +745,16 @@ def train_liver(
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
         Default is 3D
+    automate: bool
+        flag to use automatic hyperparameter optimization.
+        Default is False
+    trial_numbers: int 
+        number of trials to run.
     pretrained : bool
         if true, loads pretrained checkpoint. Default is True.
     cp_path : str
-        determines the path of the checkpoint to be loaded 
-        if pretrained is true. If not defined, the potential 
+        determines the path of the checkpoint to be loaded
+        if pretrained is true. If not defined, the potential
         cp path will be loaded from config.
     epochs : int
         number of training epochs.
@@ -713,7 +762,7 @@ def train_liver(
     evaluate_epochs : int
         The number of epochs to evaluate model after. Default is 1.
     batch_callback_epochs : int
-        The frequency at which per_batch_callback will be called. 
+        The frequency at which per_batch_callback will be called.
         Expects a number of epochs. Default is 100.
     save_weight : bool
         whether to save weights or not. Default is True.
@@ -740,7 +789,7 @@ def train_liver(
     # Check if the directory exists and create it if not
     if not os.path.exists(cp_dir):
         os.makedirs(cp_dir)
-    save_path = f"{cp_dir}/{config.save["potential_checkpoint"]}"
+    save_path = f"{cp_dir}/{config.save['potential_checkpoint']}"
     if cp_path is None:
         cp_path = save_path
     # if pretrained, will continue on previous checkpoints and previous ClearML task
@@ -748,25 +797,35 @@ def train_liver(
         model.load_checkpoint(cp_path)
         task = tracker.update_clearml_logger()
         offset = task.get_last_iteration() + 1
+        init_loss, init_metric = model.test(
+            model.test_dataloader, callback=test_batch_callback
+        )
+        print(
+            "\nInitial test loss:",
+            init_loss,
+        )
     else:
         task = tracker.new_clearml_logger()
         offset = 0
     summary_writer = tracker.new_tb_logger()
-    init_loss, init_metric = model.test(
-        model.test_dataloader, callback=test_batch_callback
-    )
-    print(
-        "\nInitial test loss:",
-        init_loss,
-    )
-    model.fit(
-        summary_writer=summary_writer,
-        offset=offset,
-        epochs=epochs,
-        evaluate_epochs=evaluate_epochs,
-        batch_callback_epochs=batch_callback_epochs,
-        save_weight=save_weight,
-        save_path=save_path,
+    if automate == True:
+        model.tune_parameters(
+                       optimization_direction =optimization_direction,
+                       epochs = epochs,
+                       evaluate_epochs= evaluate_epochs,
+                       batch_callback_epochs= batch_callback_epochs,
+                       save_weight = save_weight,
+                       save_path= save_path,
+                       trial_numbers= trial_numbers)
+    else:
+        model.fit(
+            summary_writer=summary_writer,
+            offset=offset,
+            epochs=epochs,
+            evaluate_epochs=evaluate_epochs,
+            batch_callback_epochs=batch_callback_epochs,
+            save_weight=save_weight,
+            save_path=save_path,
     )
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
@@ -784,7 +843,6 @@ def train_liver(
 
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Liver Segmentation')
     parser.add_argument(
@@ -798,6 +856,10 @@ if __name__ == '__main__':
     parser.add_argument(
                 '--cp', type = bool, default = True,
                 help = 'if True loads pretrained checkpoint (default: True)'
+                )
+    parser.add_argument(
+                '--auto', type = bool, default = False,
+                help = 'if True automates hyperparameter tuning (default: False)'
                 )
     parser.add_argument(
                 '--cp_path', type = bool, default = None,
