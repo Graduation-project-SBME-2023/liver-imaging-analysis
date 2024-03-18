@@ -18,11 +18,13 @@ from liver_imaging_analysis.engine.utils import progress_bar
 from monai.metrics import DiceMetric, MeanIoU
 import natsort
 from monai.transforms import Compose
+import time
 from monai.handlers.utils import from_engine
 import optuna
 from optuna.storages import RetryFailedTrialCallback
 import logging
 logger = logging.getLogger(__name__)
+
 class Engine:
     """
     Base class for all segmentation tasks. Tasks should inherit from this class.
@@ -63,6 +65,8 @@ class Engine:
         self.postprocessing_transforms = self.get_postprocessing_transforms(
              config.transforms["post_transform"]
         )
+
+       
 
     def get_optimizer(self, optimizer_name, **kwargs):
         """
@@ -149,6 +153,7 @@ class Engine:
             "jaccard" : MeanIoU,
         }
         return metrics[metrics_name](**kwargs)
+        
 
     def get_pretraining_transforms(self, *args, **kwargs):
         """
@@ -401,6 +406,8 @@ class Engine:
 
     def fit(
         self,
+        summary_writer=None,
+        offset=0,
         trial = None,
         epochs = config.training["epochs"],
         evaluate_epochs = 1,
@@ -413,6 +420,10 @@ class Engine:
 
         Parameters
         ----------
+        summary_writer : SummaryWriter object
+            Summary writer object for logging. Default is None.
+        offset : int
+            The starting epoch in training. Default is 0.
         trial: Optuna Trail object
            It provides methods to suggest values for different types of hyperparameters.
         epochs: int
@@ -450,6 +461,7 @@ class Engine:
             training_metric = 0
             self.network.train()
             progress_bar(0, len(self.train_dataloader))  # epoch progress bar
+            epoch_start_timestamps=time.time()
             for batch_num, batch in enumerate(self.train_dataloader):
                 progress_bar(batch_num + 1, len(self.train_dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
@@ -467,6 +479,7 @@ class Engine:
                 if batch_callback_epochs is not None:
                     if (epoch + 1) % batch_callback_epochs == 0:
                         self.per_batch_callback(
+                                summary_writer,
                                 batch_num,
                                 batch[Keys.IMAGE],
                                 batch[Keys.LABEL],
@@ -482,18 +495,20 @@ class Engine:
             # every evaluate_epochs, test model on test set
             if (epoch + 1) % evaluate_epochs == 0:  
                 valid_loss, valid_metric = self.test(self.test_dataloader)
-            if save_weight:
-                self.save_checkpoint(save_path,epoch)
             else:
                 valid_loss = None
                 valid_metric = None
+            if save_weight:
+                self.save_checkpoint(save_path)    
             self.per_epoch_callback(
-                    epoch,
-                    training_loss,
-                    valid_loss,
-                    training_metric,
-                    valid_metric,
-                )
+                        summary_writer,
+                        epoch+offset,
+                        training_loss,
+                        valid_loss,
+                        training_metric,
+                        valid_metric,
+                        epoch_start_timestamps,
+                    )
             if  trial != None:
                 self.save_checkpoint(tmp_checkpoint_path,epoch)
                 shutil.move(tmp_checkpoint_path, checkpoint_path)
@@ -528,8 +543,10 @@ class Engine:
         test_loss = 0
         test_metric = 0
         self.network.eval()
+        print('\nTESTING:')
         with torch.no_grad():
             for batch_num,batch in enumerate(dataloader):
+                progress_bar(batch_num + 1, len(dataloader))
                 batch[Keys.IMAGE] = batch[Keys.IMAGE].to(self.device)
                 batch[Keys.LABEL] = batch[Keys.LABEL].to(self.device)
                 batch[Keys.PRED] = self.network(batch[Keys.IMAGE])
@@ -552,6 +569,7 @@ class Engine:
             test_metric = self.metrics.aggregate().item()
             # reset the status for next computation round
             self.metrics.reset()
+        
         return test_loss, test_metric
     
     def predict(self, data_dir):
