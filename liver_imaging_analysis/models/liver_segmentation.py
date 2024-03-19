@@ -698,9 +698,13 @@ class LiverSegmentation(Engine):
         float
             the averaged 3d metric calculated during testing
         """
-
         test_metric = 0 
         
+        if volume_dir is None:
+            volume_dir = os.path.join(config.dataset['testing'] ,'volume')
+        if mask_dir is None:
+            mask_dir = os.path.join(config.dataset['testing'] ,'mask')
+            
         volumes=natsort.natsorted(os.listdir(volume_dir))
         labels=natsort.natsorted(os.listdir(mask_dir))
 
@@ -780,18 +784,15 @@ def segment_liver(
 def train_liver(
         modality = 'CT', 
         inference = '3D', 
-        volumes_dir = None,
-        labels_dir = None,
-        pretrained=False,
+        pretrained = False,
         automate = False,
         optimization_direction = 'minimize',
         trial_numbers = 5,
-        cp_path=config.save["potential_checkpoint"],
-        epochs=config.training["epochs"],
-        evaluate_epochs=1,
-        batch_callback_epochs=100,
-        save_weight=True,
-        test_batch_callback=False,
+        cp_path = config.save["potential_checkpoint"],
+        epochs = config.training["epochs"],
+        evaluate_epochs = 1,
+        batch_callback_epochs = 100,
+        save_weight = True,
         ):
     """
     Starts training of liver segmentation model with different options for hyperparameters optimization.
@@ -803,15 +804,7 @@ def train_liver(
         the type of inference to be used.
         Expects "2D" for slice inference, "3D" for volume inference,
         or "sliding_window" for sliding window inference.
-        Default is 3D
-    volumes_dir : str
-        The path for the 3d volumes of test dataset, 
-        This is used if `inference` is set to '3D'.
-        Default is None. 
-    labels_dir : str
-       The path for the true masks of test dataset, 
-       This is used if `inference` is set to '3D'. 
-       Default is None. 
+        Default is 3D 
     automate: bool
         flag to use automatic hyperparameter optimization.
         Default is False
@@ -833,9 +826,6 @@ def train_liver(
         Expects a number of epochs. Default is 100.
     save_weight : bool
         whether to save weights or not. Default is True.
-    test_batch_callback : bool
-        whether to call per_batch_callback during testing or not.
-        Default is False
     """
     if epochs is None:
         epochs = config.training["epochs"]
@@ -864,23 +854,6 @@ def train_liver(
         model.load_checkpoint(cp_path)
         task = tracker.update_clearml_logger()
         offset = task.get_last_iteration() + 1
-        if inference == '3D' :
-            init_metric = model.test3d(
-                        volumes_dir = volumes_dir,
-                        labels_dir = labels_dir
-                    )
-            print(
-            "\nInitial test metric:", 
-            init_metric,
-            )
-        else :
-            init_loss, init_metric = model.test(
-                model.test_dataloader, callback=test_batch_callback
-            )
-            print(
-                "\nInitial test loss:",
-                init_loss,
-            )
     else:
         task = tracker.new_clearml_logger()
         offset = 0
@@ -907,19 +880,68 @@ def train_liver(
     # Evaluate on latest saved check point
     model.load_checkpoint(save_path)
 
-    final_loss, final_metric = model.test(
-        model.test_dataloader, callback=test_batch_callback
-    )
-    print(
-        "Final test loss:",
-        final_loss,
-    )
     # upload tensorboard files and checkpoint files
     ExperimentTracking.upload_to_drive()
     task.close()
     summary_writer.close()
 
 
+def test_liver(
+        modality = 'CT', 
+        inference = '3D', 
+        volumes_dir = None,
+        labels_dir = None,
+        cp_path = config.save["potential_checkpoint"],
+        test_batch_callback = False,
+        ):
+    """
+    Testing of liver segmentation model.
+    modality : str
+        the type of imaging modality to be segmented.
+        expects 'CT' for CT images, or 'MRI' for MRI images.
+        Default is CT
+    inference : str
+        the type of inference to be used.
+        Expects "2D" for slice inference, "3D" for volume inference,
+        or "sliding_window" for sliding window inference.
+        Default is 3D
+    volumes_dir : str
+        The path for the 3d volumes of test dataset, 
+        This is used if inference is set to '3D'.
+        Default is None. 
+    labels_dir : str
+       The path for the true masks of test dataset, 
+       This is used if inference is set to '3D'. 
+       Default is None. 
+    cp_path : str
+        determines the path of the checkpoint of the model to be loaded 
+        If not defined, the potential 
+        cp path will be loaded from config.
+    test_batch_callback : bool
+        whether to call per_batch_callback during testing or not.
+        Default is False
+    """
+    model = LiverSegmentation(modality, inference)
+    model.load_checkpoint(cp_path)
+    if inference == '3D' :
+        test_metric = model.test3d(
+                            volumes_dir = volumes_dir,
+                            labels_dir = labels_dir
+                    )
+        print(
+            "test metric:", 
+            test_metric,
+            )
+    else :
+        test_loss, test_metric = model.test(
+                                        model.test_dataloader, 
+                                        callback=test_batch_callback
+                                )
+        print(
+            "Test loss:",
+            test_loss,
+        )
+   
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Liver Segmentation')

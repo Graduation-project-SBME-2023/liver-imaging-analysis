@@ -1,14 +1,14 @@
 {
     "device": "cuda",
     "dataset": {
-    "mode":"2D",
+        "mode": "2D",
         "training": "Temp2D/Train/",
         "testing": "Temp2D/Test/",
         "unittest": "Temp2D/Test/"
     },
-    "visualization":{
-        "volume":"volume-0.nii",
-        "mask":"segmentation-0.nii"
+    "visualization": {
+        "volume": "volume-0.nii",
+        "mask": "segmentation-0.nii"
     },
     "unittest_size": [16, 16, 8],
     "unittest_batch": 1,
@@ -19,10 +19,10 @@
         "spatial_dims":2,
         "channels": [64, 128, 256, 512],
         "strides": [2, 2, 2],
-        "num_res_units":4,
-        "bias":1,
-        "norm":"INSTANCE",
-        "dropout":0.4
+        "num_res_units": 4,
+        "bias": 1,
+        "norm": "INSTANCE",
+        "dropout": 0.4
     },
     "training": {
         "epochs": 100,
@@ -30,13 +30,13 @@
         "train_valid_split": 0,
         "optimizer": "Adam",
         "optimizer_parameters": {"lr": 0.01},
-        "lr_scheduler":"StepLR",
-        "scheduler_parameters":{"step_size":20, "gamma":0.5, "verbose":1},
+        "lr_scheduler": "StepLR",
+        "scheduler_parameters": {"step_size":20, "gamma":0.5, "verbose":1},
         "loss_name": "monai_dice",
         "loss_parameters": {"sigmoid":"1","batch":1,"include_background":1},
-        "metrics":"dice",
-        "metrics_parameters":{"ignore_empty":1,"include_background":1},
-        "shuffle":1
+        "metrics": "dice",
+        "metrics_parameters": {"ignore_empty":1,"include_background":1},
+        "shuffle": 1
     },
     "transforms": {
         "transformation_size": [512, 512],
@@ -62,9 +62,9 @@
         "experiment_name": "exp0",
         "run_name": "run0"
     },
-    "clearml_credentials":{
-        "key":"8YCA72388IV3AT36EWGJ",
-        "secret":"C6LCwXiOxAX8xgKBffW3qUKybGEtGWXMtzfYr0xMgkBDVlMscl"
+    "clearml_credentials": {
+        "key": "8YCA72388IV3AT36EWGJ",
+        "secret": "C6LCwXiOxAX8xgKBffW3qUKybGEtGWXMtzfYr0xMgkBDVlMscl"
     },
     "seed": 0
 }
