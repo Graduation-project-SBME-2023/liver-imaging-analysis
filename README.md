@@ -211,7 +211,7 @@ The ClearML run-time components:
 * The ClearML Python Package - for integrating ClearML into scripts by adding just two lines of code, and optionally extending experiments and other workflows with ClearML's powerful and versatile set of classes and methods.
 * The ClearML Server - for storing experiment, model, and workflow data; supporting the Web UI experiment manager and MLOps automation for reproducibility and tuning. It is available as a hosted service and open source to deploy ClearML Server.
 
-<img src="https://i.imgur.com/purP0Rs.jpeg" width="100%" alt="clearml-architecture">
+<img src="images/Benchmarking System.png" width="100%" alt="clearml-architecture">
 1. Sign up for free to the [ClearML Hosted Service](https://app.clear.ml) (alternatively, you can set up your own server, see [here](https://clear.ml/docs/latest/docs/deploying_clearml/clearml_server)).
 
     > **_ClearML Demo Server:_** ClearML no longer uses the demo server by default. To enable the demo server, set the `CLEARML_NO_DEFAULT_SERVER=0`
