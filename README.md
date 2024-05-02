@@ -346,7 +346,7 @@ AbdomenCT-1K, with more than 1000 (1K) CT scans from 12 medical centers, includi
 
 | Model | Experiment |   Dice    |   
 |:-----:|:----------:|:---------:|
-| UNET  | AbdomenCT  |   0.953  + |
+| UNET  | AbdomenCT  |   0.953   |
 
 
 </p>
