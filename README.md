@@ -334,7 +334,7 @@ The following figure shows the training and inference time of each model, as wel
 parameters.
 It can be seen that the number of parameters is in a similar range for all models, but still as the
 number of parameters increases, the time complexity of the models also increases.
-
+<img src="images/Time Complexity.png" width="100%" alt="Time Complexity">
 
 ## AbdomenCT
 
@@ -346,7 +346,7 @@ AbdomenCT-1K, with more than 1000 (1K) CT scans from 12 medical centers, includi
 
 | Model | Experiment |   Dice    |   
 |:-----:|:----------:|:---------:|
-| UNET  | AbdomenCT  |   95.3    |
+| UNET  | AbdomenCT  |   0.953  + |
 
 
 </p>
