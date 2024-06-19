@@ -1,10 +1,7 @@
 from liver_imaging_analysis.engine.config import config
 from monai.metrics import DiceMetric
 import os
-from nnunetv2.run.run_training import run_training
 import torch
-from batchgenerators.utilities.file_and_folder_operations import join
-from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
 class NnUnet():
     """
@@ -26,6 +23,7 @@ class NnUnet():
         self.dataset_id = dataset_id
         self.dataset_name = dataset_name
         self.setup_environment(preprocessed_folder, results_folder, raw_folder)
+
 
     def setup_environment(self, preprocessed_folder, results_folder, raw_folder):
         """
@@ -50,6 +48,9 @@ class NnUnet():
             configuration (str, optional): Configuration type for nnU-Net. Default is "2d".
         """
 
+        from batchgenerators.utilities.file_and_folder_operations import join
+        from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+        
         predictor = nnUNetPredictor(
             tile_step_size=0.5,
             use_gaussian=True,
@@ -82,4 +83,5 @@ class NnUnet():
             fold (int, optional): Fold number to be used for training. Default is 0.
             configuration (str, optional): Configuration type for nnU-Net. Default is "2d".
         """
+        from nnunetv2.run.run_training import run_training
         run_training(dataset_name_or_id=self.dataset_id, configuration=configuration, fold=fold, continue_training= pretrained, device=torch.device(self.device))
