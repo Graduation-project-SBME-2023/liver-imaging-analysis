@@ -16,7 +16,7 @@ class NnUnet():
         Initializes the `NnUnet` class with the specified dataset details and sets up the environment.
 
         Args:
-            dataset_id (int): The ID of the dataset.
+            dataset_id (str): The ID of the dataset.
             dataset_name (str): The name of the dataset.
             preprocessed_folder (str, optional): Path to the preprocessed data folder.
             results_folder (str, optional): Path to the results folder.
@@ -82,4 +82,4 @@ class NnUnet():
             fold (int, optional): Fold number to be used for training. Default is 0.
             configuration (str, optional): Configuration type for nnU-Net. Default is "2d".
         """
-        run_training(dataset_name_or_id=self.dataset_id, configuration=configuration, fold=fold, continue_training=not pretrained, device=torch.device(self.device))
+        run_training(dataset_name_or_id=self.dataset_id, configuration=configuration, fold=fold, continue_training= pretrained, device=torch.device(self.device))
